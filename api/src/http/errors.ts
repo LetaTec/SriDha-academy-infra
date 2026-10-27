@@ -24,6 +24,8 @@ export const ERROR_CODE = {
   paymentNotFound: 'PAYMENT_NOT_FOUND',
   paymentVerificationFailed: 'PAYMENT_VERIFICATION_FAILED',
   paymentProviderUnavailable: 'PAYMENT_PROVIDER_UNAVAILABLE',
+  webhookUnavailable: 'WEBHOOK_UNAVAILABLE',
+  webhookSignatureInvalid: 'WEBHOOK_SIGNATURE_INVALID',
   rateLimitExceeded: 'RATE_LIMIT_EXCEEDED',
   notFound: 'NOT_FOUND',
   internalError: 'INTERNAL_ERROR',
