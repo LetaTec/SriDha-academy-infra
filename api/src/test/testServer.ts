@@ -31,12 +31,14 @@ export const startTestServer = async ({
   now = () => new Date('2026-10-10T09:00:00Z'),
   superAdminEmails = [TEST_SUPER_ADMIN_EMAIL],
   paymentGateway,
+  razorpayWebhookSecret,
 }: {
   withMailer?: boolean;
   enableRateLimiting?: boolean;
   now?: () => Date;
   superAdminEmails?: string[];
   paymentGateway?: PaymentGateway;
+  razorpayWebhookSecret?: string;
 } = {}) => {
   const db = await openDatabase(':memory:');
   await runMigrations(db);
@@ -61,6 +63,9 @@ export const startTestServer = async ({
     WEB_ORIGIN: TEST_WEB_ORIGIN,
     ENABLE_RATE_LIMIT: enableRateLimiting ? 'true' : 'false',
     SUPER_ADMIN_EMAILS: superAdminEmails.join(','),
+    ...(razorpayWebhookSecret
+      ? { RAZORPAY_WEBHOOK_SECRET: razorpayWebhookSecret }
+      : {}),
   });
   await syncSuperAdmins(db, config.superAdminEmails, clock.now());
   const app = createApp({

@@ -44,6 +44,9 @@ const envSchema = z.object({
   // saved as payment pending and nothing is charged.
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
+  // Set in Razorpay's dashboard (Settings → Webhooks). Lets Razorpay confirm
+  // payments even when the student closes the page before we can.
+  RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 export type AppConfig = {
@@ -66,6 +69,7 @@ export type AppConfig = {
   cookieDomain?: string;
   superAdminEmails: string[];
   razorpay: { keyId: string; keySecret: string } | null;
+  razorpayWebhookSecret: string | null;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -179,6 +183,7 @@ export const loadConfig = (
       env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
         ? { keyId: env.RAZORPAY_KEY_ID, keySecret: env.RAZORPAY_KEY_SECRET }
         : null,
+    razorpayWebhookSecret: env.RAZORPAY_WEBHOOK_SECRET ?? null,
   };
 };
 

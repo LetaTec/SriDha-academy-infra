@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 import type { AppContext } from '../../app/context.js';
-import { transaction } from '../../db/client.js';
+import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { emailSchema, mobileSchema } from '../auth/auth.schema.js';
 import type { Price, Row } from '../catalogue/catalogue.repository.js';
@@ -296,6 +296,37 @@ export const createCheckout = async (
   };
 };
 
+// Marks a payment as paid and confirms the seat it was for. Shared by the
+// browser's verification and Razorpay's webhook, inside their transaction.
+export const markPaymentPaid = async (
+  tx: DatabaseClient,
+  payment: Row,
+  providerPaymentId: string,
+  timestamp: string,
+) => {
+  await tx.query(
+    `UPDATE payments SET status = $1, provider_payment_id = $2, updated_at = $3
+     WHERE id = $4`,
+    [PAYMENT_STATUS.paid, providerPaymentId, timestamp, String(payment.id)],
+  );
+
+  if (payment.enrolment_id !== null) {
+    await tx.query(
+      'UPDATE enrolments SET status = $1, updated_at = $2 WHERE id = $3',
+      [ENROLMENT_STATUS.confirmed, timestamp, String(payment.enrolment_id)],
+    );
+  } else {
+    await tx.query(
+      'UPDATE pre_registrations SET status = $1, updated_at = $2 WHERE id = $3',
+      [
+        PRE_REGISTRATION_STATUS.confirmed,
+        timestamp,
+        String(payment.pre_registration_id),
+      ],
+    );
+  }
+};
+
 // Confirms the seat only when the provider's signature matches the order
 // this student created.
 export const verifyPayment = async (
@@ -340,32 +371,7 @@ export const verifyPayment = async (
       );
     }
 
-    await tx.query(
-      `UPDATE payments SET status = $1, provider_payment_id = $2, updated_at = $3
-       WHERE id = $4`,
-      [
-        PAYMENT_STATUS.paid,
-        input.providerPaymentId,
-        timestamp,
-        input.paymentId,
-      ],
-    );
-
-    if (payment.enrolment_id !== null) {
-      await tx.query(
-        'UPDATE enrolments SET status = $1, updated_at = $2 WHERE id = $3',
-        [ENROLMENT_STATUS.confirmed, timestamp, String(payment.enrolment_id)],
-      );
-    } else {
-      await tx.query(
-        'UPDATE pre_registrations SET status = $1, updated_at = $2 WHERE id = $3',
-        [
-          PRE_REGISTRATION_STATUS.confirmed,
-          timestamp,
-          String(payment.pre_registration_id),
-        ],
-      );
-    }
+    await markPaymentPaid(tx, payment, input.providerPaymentId, timestamp);
 
     return { paymentId: input.paymentId, status: PAYMENT_STATUS.paid };
   });

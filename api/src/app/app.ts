@@ -18,6 +18,7 @@ import { createCatalogueRouter } from '../modules/catalogue/catalogue.routes.js'
 import { createEnquiriesRouter } from '../modules/enquiries/enquiries.routes.js';
 import { createEnrolmentsRouter } from '../modules/enrolments/enrolments.routes.js';
 import { createPaymentsRouter } from '../modules/payments/payments.routes.js';
+import { createRazorpayWebhookHandler } from '../modules/payments/payments.webhook.js';
 import type { AppContext } from './context.js';
 
 const WEB_DIST_PATH = path.resolve(import.meta.dirname, '../../../web/dist');
@@ -94,6 +95,13 @@ export const createApp = (context: AppContext) => {
   api.use(noStore);
   api.use(apiSecurityHeaders);
   api.use(createCorsMiddleware(context.config.allowedOrigins));
+  // Razorpay signs the exact request bytes, so its webhook reads the raw
+  // body before JSON parsing. It is server to server: no session or origin.
+  api.post(
+    '/payments/webhook',
+    express.raw({ type: 'application/json', limit: JSON_BODY_LIMIT }),
+    createRazorpayWebhookHandler(context),
+  );
   api.use(express.json({ limit: JSON_BODY_LIMIT }));
   api.use(cookieParser());
   api.use(createOriginGuard(context.config.allowedOrigins));
