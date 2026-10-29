@@ -8,13 +8,29 @@ type RazorpaySuccess = {
   razorpay_signature: string;
 };
 
-type RazorpayInstance = { open: () => void };
+type RazorpayFailure = {
+  error?: { description?: string };
+};
+
+type RazorpayInstance = {
+  open: () => void;
+  on: (
+    event: 'payment.failed',
+    callback: (failure: RazorpayFailure) => void,
+  ) => void;
+};
 
 declare global {
   interface Window {
     Razorpay?: new (options: Record<string, unknown>) => RazorpayInstance;
   }
 }
+
+// What happened in Razorpay's window: a signed payment to verify on the
+// API, or the student closed it, possibly after a failed attempt
+export type RazorpayResult =
+  | { status: 'paid'; verification: VerifyPaymentRequest }
+  | { status: 'closed'; failureReason: string | null };
 
 let scriptLoading: Promise<void> | null = null;
 
@@ -36,12 +52,12 @@ const loadRazorpay = () => {
 };
 
 // Opens Razorpay's own checkout, where the student enters card or UPI
-// details. Resolves with the signed result to verify on the API, or null if
-// the student closes the window without paying.
+// details. Razorpay keeps its window open after a failed attempt so the
+// student can retry; the last failure is reported if they then close it.
 export const payWithRazorpay = async (
   checkout: Checkout,
   billing: BillingDetails,
-): Promise<VerifyPaymentRequest | null> => {
+): Promise<RazorpayResult> => {
   await loadRazorpay();
   const Razorpay = window.Razorpay;
   if (!Razorpay || !checkout.provider.keyId) {
@@ -49,7 +65,9 @@ export const payWithRazorpay = async (
   }
 
   return new Promise(resolve => {
-    new Razorpay({
+    let failureReason: string | null = null;
+
+    const razorpay = new Razorpay({
       key: checkout.provider.keyId,
       order_id: checkout.provider.orderId,
       amount: checkout.amount.amountPaise,
@@ -64,12 +82,22 @@ export const payWithRazorpay = async (
       theme: { color: RAZORPAY.themeColor },
       handler: (response: RazorpaySuccess) =>
         resolve({
-          paymentId: checkout.paymentId,
-          providerOrderId: response.razorpay_order_id,
-          providerPaymentId: response.razorpay_payment_id,
-          signature: response.razorpay_signature,
+          status: 'paid',
+          verification: {
+            paymentId: checkout.paymentId,
+            providerOrderId: response.razorpay_order_id,
+            providerPaymentId: response.razorpay_payment_id,
+            signature: response.razorpay_signature,
+          },
         }),
-      modal: { ondismiss: () => resolve(null) },
-    }).open();
+      modal: {
+        ondismiss: () => resolve({ status: 'closed', failureReason }),
+      },
+    });
+
+    razorpay.on('payment.failed', failure => {
+      failureReason = failure.error?.description ?? null;
+    });
+    razorpay.open();
   });
 };

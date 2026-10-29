@@ -143,17 +143,21 @@ export const CheckoutPanel = ({
       }
 
       setStage({ name: 'paying' });
-      const signed = await payWithRazorpay(checkout, values).catch(() => {
+      const result = await payWithRazorpay(checkout, values).catch(() => {
         setPaymentError(CHECKOUT_TEXT.loadFailed);
         return null;
       });
 
-      if (!signed) {
+      if (!result || result.status === 'closed') {
+        // Closed after a declined attempt: say why, so they can try again
+        if (result?.failureReason) {
+          setPaymentError(CHECKOUT_TEXT.paymentFailed(result.failureReason));
+        }
         setStage({ name: 'details' });
         return;
       }
 
-      await verifyPayment(signed).catch(() => {
+      await verifyPayment(result.verification).catch(() => {
         throw new Error(CHECKOUT_TEXT.verifyFailed);
       });
       setStage({ name: 'paid', checkout });
