@@ -1,4 +1,5 @@
 import { ABOUT_SECTION_ID, APP_ROUTES, toPageSection } from './routes';
+import { POLICY_LINKS, POLICY_LINKS_TITLE } from './policies';
 import { READY_TOPIC_COUNT } from './topics';
 
 export const BRAND = {
@@ -163,6 +164,7 @@ export const FOOTER_COLUMNS = [
       },
     ],
   },
+  { title: POLICY_LINKS_TITLE, links: POLICY_LINKS },
 ] as const;
 
 export const FOOTER_STUDENT_TEXT = {

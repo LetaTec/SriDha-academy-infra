@@ -1,0 +1,71 @@
+.page {
+  min-height: 100vh;
+  padding-top: calc(var(--height-header) + var(--space-10));
+}
+
+.head {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-3) 0;
+  border-top: var(--border-width-base) solid var(--color-border-strong);
+}
+
+.stats {
+  margin-bottom: var(--space-4);
+}
+
+.filter {
+  max-width: var(--width-copy-narrow);
+  margin-bottom: var(--space-3);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border-top: var(--border-width-base) solid var(--color-border-strong);
+}
+
+.table {
+  width: 100%;
+  min-width: var(--width-modal);
+  border-collapse: collapse;
+  text-align: left;
+}
+
+/* The caption is for screen readers; the page heading names the table */
+.caption {
+  position: absolute;
+  width: var(--size-visually-hidden);
+  height: var(--size-visually-hidden);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.table th {
+  padding: var(--space-1-5) var(--space-1-5) var(--space-1);
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-nav);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-1-5);
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
+  vertical-align: top;
+}
+
+.reference {
+  font-family: var(--font-mono);
+  word-break: break-all;
+}

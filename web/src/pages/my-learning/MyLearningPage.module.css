@@ -20,3 +20,19 @@
 .note {
   margin-top: var(--space-3);
 }
+
+.group {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+/* Status on the left, the payment action on the right */
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-2);
+  width: 100%;
+}

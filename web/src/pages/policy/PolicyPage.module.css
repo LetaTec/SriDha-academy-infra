@@ -1,0 +1,59 @@
+.page {
+  padding-block: var(--space-10);
+}
+
+/* A readable column of text, like a printed policy sheet */
+.sheet {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--width-policy);
+}
+
+.head {
+  display: grid;
+  gap: var(--space-1-5);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-width-base) solid var(--color-border-strong);
+}
+
+.updated {
+  margin-top: var(--space-1-5);
+}
+
+.intro {
+  margin-top: var(--space-1);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-1-5);
+}
+
+.items {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-3);
+  list-style: disc;
+}
+
+.items li::marker {
+  color: var(--color-accent);
+}
+
+.email {
+  justify-self: start;
+  border-bottom: var(--border-width-base) solid currentcolor;
+  color: var(--color-text-accent);
+  font-size: var(--text-base);
+}
+
+.email:hover {
+  color: var(--color-text-primary);
+}
+
+@media (--viewport-sm) {
+  .page {
+    padding-block: var(--space-6);
+  }
+}

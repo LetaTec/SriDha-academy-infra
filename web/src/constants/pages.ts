@@ -53,5 +53,10 @@ export const PAGE_TEXT = {
   myLearningBrowse: 'Browse topics',
   myLearningLoadError: 'Your enrolments could not be loaded',
   myLearningPaymentNote:
-    'Online payment is not live yet. The SriDha Academy team will contact you to complete payment for reserved seats.',
+    'A seat waiting for payment is held for 30 minutes. Complete the payment to confirm it',
+  myLearningSeatsTitle: 'Your batches',
+  myLearningPreRegisteredTitle: 'Pre-registered topics',
+  myLearningPreRegisteredNote: 'First batch opening soon',
+  myLearningCompletePayment: 'Complete payment',
+  myLearningTeamOrders: 'Orders and payments',
 } as const;

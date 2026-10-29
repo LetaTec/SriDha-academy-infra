@@ -8,6 +8,7 @@ import {
 import { PageLoader } from '@components/ui/PageLoader/PageLoader';
 import { AUTH_VIEW } from '@constants/auth';
 import { PAGE_TEXT } from '@constants/pages';
+import { POLICY } from '@constants/policies';
 import { APP_ROUTES } from '@constants/routes';
 import { AuthShell } from '@layout/AuthShell/AuthShell';
 import { SiteShell } from '@layout/SiteShell/SiteShell';
@@ -31,6 +32,8 @@ const AdminSignInPage = lazy(
   () => import('@pages/admin-sign-in/AdminSignInPage'),
 );
 const NotFoundPage = lazy(() => import('@pages/not-found/NotFoundPage'));
+const PolicyPage = lazy(() => import('@pages/policy/PolicyPage'));
+const TeamOrdersPage = lazy(() => import('@pages/team-orders/TeamOrdersPage'));
 
 const SuspendedOutlet = () => (
   <Suspense fallback={<PageLoader label={PAGE_TEXT.loading} />}>
@@ -67,6 +70,19 @@ export const routes: RouteObject[] = [
           },
           { path: APP_ROUTES.RESET_PASSWORD, element: <ResetPasswordPage /> },
           { path: APP_ROUTES.ADMIN_SIGN_IN, element: <AdminSignInPage /> },
+          // Public policy pages, with or without an account
+          {
+            path: APP_ROUTES.TERMS,
+            element: <PolicyPage policy={POLICY.terms} />,
+          },
+          {
+            path: APP_ROUTES.REFUNDS,
+            element: <PolicyPage policy={POLICY.refunds} />,
+          },
+          {
+            path: APP_ROUTES.CONTACT,
+            element: <PolicyPage policy={POLICY.contact} />,
+          },
         ],
       },
     ],
@@ -88,6 +104,7 @@ export const routes: RouteObject[] = [
               { path: APP_ROUTES.ABOUT, element: <AboutPage /> },
               { path: APP_ROUTES.AI_TEST, element: <AiTestPage /> },
               { path: APP_ROUTES.MODEL_PAPER, element: <ModelPaperPage /> },
+              { path: APP_ROUTES.TEAM_ORDERS, element: <TeamOrdersPage /> },
               { path: '*', element: <NotFoundPage /> },
             ],
           },

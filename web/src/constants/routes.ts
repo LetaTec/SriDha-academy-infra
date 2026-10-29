@@ -11,6 +11,12 @@ export const APP_ROUTES = {
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
   ADMIN_SIGN_IN: '/admin-sign-in',
+  // Public policy pages, readable with or without an account
+  TERMS: '/terms',
+  REFUNDS: '/refund-policy',
+  CONTACT: '/contact',
+  // Super admins only
+  TEAM_ORDERS: '/team/orders',
 } as const;
 
 // In-page anchors on the homepage, shared by the header, footer and CTAs.

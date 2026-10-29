@@ -7,7 +7,11 @@ import type { AppContext } from '../../app/context.js';
 import { transaction } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import type { Row } from '../catalogue/catalogue.repository.js';
-import { markPaymentPaid, PAYMENT_STATUS } from './payments.service.js';
+import {
+  markPaymentPaid,
+  PAYMENT_STATUS,
+  sendPaymentConfirmation,
+} from './payments.service.js';
 
 // Events that mean the money has been captured
 const PAID_EVENTS = new Set(['payment.captured', 'order.paid']);
@@ -43,9 +47,9 @@ const isSignatureValid = (body: Buffer, signature: string, secret: string) => {
   );
 };
 
-// Confirms the seat for a captured payment. Unknown orders, payments that are
-// already confirmed and other events are acknowledged and ignored, so
-// Razorpay does not keep retrying them.
+// Confirms the seat for a captured payment and returns its id, or null when
+// nothing changed. Unknown orders, payments that are already confirmed and
+// other events are acknowledged and ignored, so Razorpay stops retrying.
 const confirmCapturedPayment = async (
   context: AppContext,
   orderId: string,
@@ -58,7 +62,7 @@ const confirmCapturedPayment = async (
       [orderId],
     );
 
-    if (!payment || payment.status === PAYMENT_STATUS.paid) return;
+    if (!payment || payment.status === PAYMENT_STATUS.paid) return null;
 
     if (Number(payment.amount_paise) !== amountPaise) {
       console.error(
@@ -67,7 +71,7 @@ const confirmCapturedPayment = async (
         orderId,
         Number(payment.amount_paise),
       );
-      return;
+      return null;
     }
 
     await markPaymentPaid(
@@ -76,6 +80,7 @@ const confirmCapturedPayment = async (
       providerPaymentId,
       context.now().toISOString(),
     );
+    return String(payment.id);
   });
 
 export const createRazorpayWebhookHandler =
@@ -113,12 +118,15 @@ export const createRazorpayWebhookHandler =
 
     const entity = event.payload?.payment?.entity;
     if (PAID_EVENTS.has(event.event) && entity?.order_id) {
-      await confirmCapturedPayment(
+      const confirmedPaymentId = await confirmCapturedPayment(
         context,
         entity.order_id,
         entity.id,
         entity.amount,
       );
+      if (confirmedPaymentId) {
+        await sendPaymentConfirmation(context, confirmedPaymentId);
+      }
     }
 
     res.json({ received: true });

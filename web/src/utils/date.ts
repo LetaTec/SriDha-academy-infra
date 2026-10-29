@@ -29,3 +29,15 @@ export const formatCountdown = (totalSeconds: number): string => {
   const minutes = Math.floor(seconds / 60);
   return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 };
+
+// Moments ("2026-10-28T13:45:00Z"), such as when an order was placed, shown
+// as date and time in India Standard Time.
+export const formatDateTime = (value: string): string =>
+  new Intl.DateTimeFormat(DEFAULT_LOCALE, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Asia/Kolkata',
+  }).format(new Date(value));

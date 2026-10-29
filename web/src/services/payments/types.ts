@@ -4,6 +4,7 @@ import type {
   PaymentProvider,
   PaymentStatus,
 } from '@constants/payments';
+import type { EnrolmentStatus } from '@constants/catalogue';
 import type { Price } from '@services/catalogue';
 
 export type BillingDetails = {
@@ -38,6 +39,19 @@ export type VerifyPaymentRequest = {
   providerOrderId: string;
   providerPaymentId: string;
   signature: string;
+};
+
+// A topic the student has pre-registered for, paid or still pending
+export type PreRegistration = {
+  id: string;
+  status: EnrolmentStatus;
+  createdAt: string;
+  topic: {
+    id: string;
+    title: string;
+    level: string | null;
+    price: Price | null;
+  };
 };
 
 export type PaymentResult = {

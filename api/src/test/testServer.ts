@@ -46,6 +46,11 @@ export const startTestServer = async ({
 
   const sentEmails: SentResetEmail[] = [];
   const sentSignInLinks: SentSignInLink[] = [];
+  const sentPaymentConfirmations: Array<{
+    email: string;
+    topic: string;
+    batch: string | null;
+  }> = [];
   const mailer: Mailer | null = withMailer
     ? {
         sendPasswordReset: async (email, resetUrl) => {
@@ -53,6 +58,9 @@ export const startTestServer = async ({
         },
         sendAdminSignInLink: async (email, signInUrl) => {
           sentSignInLinks.push({ email, signInUrl });
+        },
+        sendPaymentConfirmation: async (email, confirmation) => {
+          sentPaymentConfirmations.push({ email, ...confirmation });
         },
       }
     : null;
@@ -121,6 +129,7 @@ export const startTestServer = async ({
     clock,
     sentEmails,
     sentSignInLinks,
+    sentPaymentConfirmations,
     port,
     baseUrl,
     createClient,

@@ -17,7 +17,11 @@ import { createSessionMiddleware } from '../modules/auth/session.js';
 import { createCatalogueRouter } from '../modules/catalogue/catalogue.routes.js';
 import { createEnquiriesRouter } from '../modules/enquiries/enquiries.routes.js';
 import { createEnrolmentsRouter } from '../modules/enrolments/enrolments.routes.js';
-import { createPaymentsRouter } from '../modules/payments/payments.routes.js';
+import {
+  createPaymentsRouter,
+  createPreRegistrationsRouter,
+} from '../modules/payments/payments.routes.js';
+import { createAdminRouter } from '../modules/admin/admin.routes.js';
 import { createRazorpayWebhookHandler } from '../modules/payments/payments.webhook.js';
 import type { AppContext } from './context.js';
 
@@ -238,6 +242,8 @@ export const createApp = (context: AppContext) => {
   api.use('/catalogue', createCatalogueRouter(context));
   api.use('/enrolments', createEnrolmentsRouter(context));
   api.use('/payments', createPaymentsRouter(context));
+  api.use('/pre-registrations', createPreRegistrationsRouter(context));
+  api.use('/admin', createAdminRouter(context));
   api.use('/enquiries', createEnquiriesRouter(context));
   api.use(notFoundHandler);
   api.use(errorHandler);

@@ -6,6 +6,7 @@ import { Container } from '@components/ui/Container/Container';
 import { Text } from '@components/ui/Text/Text';
 import { ADMIN_SIGN_IN_TEXT } from '@constants/auth';
 import { AUTH_FOOTER_TEXT } from '@constants/landing';
+import { POLICY_LINKS, POLICY_LINKS_TITLE } from '@constants/policies';
 import { APP_ROUTES } from '@constants/routes';
 
 import styles from './AuthFooter.module.css';
@@ -74,6 +75,16 @@ export const AuthFooter = () => {
             <Link to={APP_ROUTES.ADMIN_SIGN_IN} className={cn('link')}>
               {ADMIN_SIGN_IN_TEXT.footerLink}
             </Link>
+          </nav>
+          <nav aria-label={POLICY_LINKS_TITLE} className={cn('column')}>
+            <Text as="div" variant="strong">
+              {POLICY_LINKS_TITLE}
+            </Text>
+            {POLICY_LINKS.map(link => (
+              <Link key={link.to} to={link.to} className={cn('link')}>
+                {link.label}
+              </Link>
+            ))}
           </nav>
         </div>
 
