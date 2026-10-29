@@ -1,0 +1,10 @@
+# SriDha Academy
+# The sign-in and sign-up pages are public; student pages need an account.
+User-agent: *
+Allow: /
+Disallow: /my-learning
+Disallow: /batches
+Disallow: /reset-password
+Disallow: /admin-sign-in
+
+Sitemap: https://sridhaacademy.com/sitemap.xml
