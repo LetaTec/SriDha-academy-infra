@@ -60,45 +60,68 @@ describe('catalogue and enrolments', () => {
     assert.equal(topic.batches[0].instructorName, null);
   });
 
+  // Seats are only taken through checkout; the amount and student come
+  // from the server
+  const checkout = (
+    client: TestClient,
+    batchId: string,
+    extra: Record<string, unknown> = {},
+  ) =>
+    client.request('POST', '/api/payments/checkout', {
+      kind: 'ENROLMENT',
+      batchId,
+      fullName: 'Asha Verma',
+      email: 'asha@example.com',
+      mobile: '+91 98765 43210',
+      ...extra,
+    });
+
   it('requires authentication to enrol', async () => {
-    const response = await server
-      .createClient()
-      .request('POST', '/api/enrolments', { batchId: NOVEMBER_BATCH });
+    const response = await checkout(server.createClient(), NOVEMBER_BATCH);
 
     assert.equal(response.status, 401);
     assert.equal(response.body.code, 'UNAUTHENTICATED');
   });
 
-  it('enrols the signed-in student as pending payment', async () => {
+  it('no longer reserves seats without checkout', async () => {
     const response = await student.request('POST', '/api/enrolments', {
       batchId: NOVEMBER_BATCH,
     });
 
+    assert.equal(response.status, 404);
+  });
+
+  it('enrols the signed-in student as pending payment', async () => {
+    const response = await checkout(student, NOVEMBER_BATCH);
     assert.equal(response.status, 201);
-    assert.equal(response.body.enrolment.status, 'PENDING_PAYMENT');
-    assert.equal(response.body.enrolment.batch.id, NOVEMBER_BATCH);
-    assert.equal(response.body.enrolment.batch.seatsRemaining, 99);
-    assert.equal(response.body.enrolment.topic.lessons.length, 4);
+
+    const mine = await student.request('GET', '/api/enrolments');
+    const [enrolment] = mine.body.enrolments;
+    assert.equal(enrolment.status, 'PENDING_PAYMENT');
+    assert.equal(enrolment.batch.id, NOVEMBER_BATCH);
+    assert.equal(enrolment.batch.seatsRemaining, 99);
+    assert.equal(enrolment.topic.lessons.length, 4);
 
     const row = await server.db.get<{ user_id: string }>(
       'SELECT user_id FROM enrolments WHERE id = $1',
-      [response.body.enrolment.id],
+      [enrolment.id],
     );
     assert.equal(row?.user_id, studentId);
   });
 
-  it('rejects a duplicate selection of the same batch', async () => {
-    const response = await student.request('POST', '/api/enrolments', {
-      batchId: NOVEMBER_BATCH,
-    });
+  it('reuses the pending seat when the student checks out again', async () => {
+    const response = await checkout(student, NOVEMBER_BATCH);
+    assert.equal(response.status, 201);
 
-    assert.equal(response.status, 409);
-    assert.equal(response.body.code, 'ALREADY_ENROLLED');
+    const count = await server.db.get<{ count: string | number }>(
+      'SELECT COUNT(*) AS count FROM enrolments WHERE user_id = $1 AND batch_id = $2',
+      [studentId, NOVEMBER_BATCH],
+    );
+    assert.equal(Number(count?.count), 1);
   });
 
   it('cannot enrol another user by supplying their id', async () => {
-    const response = await otherStudent.request('POST', '/api/enrolments', {
-      batchId: DECEMBER_BATCH,
+    const response = await checkout(otherStudent, DECEMBER_BATCH, {
       userId: studentId,
     });
 
@@ -121,9 +144,7 @@ describe('catalogue and enrolments', () => {
   });
 
   it('validates batch identifiers on the server', async () => {
-    const response = await student.request('POST', '/api/enrolments', {
-      batchId: 'batch_does_not_exist',
-    });
+    const response = await checkout(student, 'batch_does_not_exist');
 
     assert.equal(response.status, 404);
     assert.equal(response.body.code, 'BATCH_NOT_FOUND');
@@ -136,9 +157,7 @@ describe('catalogue and enrolments', () => {
     );
 
     try {
-      const response = await otherStudent.request('POST', '/api/enrolments', {
-        batchId: DECEMBER_BATCH,
-      });
+      const response = await checkout(otherStudent, DECEMBER_BATCH);
       assert.equal(response.status, 409);
       assert.equal(response.body.code, 'BATCH_UNAVAILABLE');
       assert.equal(response.body.details.availability, 'INACTIVE');
@@ -156,9 +175,7 @@ describe('catalogue and enrolments', () => {
     ]);
 
     try {
-      const response = await otherStudent.request('POST', '/api/enrolments', {
-        batchId: NOVEMBER_BATCH,
-      });
+      const response = await checkout(otherStudent, NOVEMBER_BATCH);
       assert.equal(response.status, 409);
       assert.equal(response.body.code, 'BATCH_FULL');
 
@@ -180,9 +197,7 @@ describe('catalogue and enrolments', () => {
     );
 
     try {
-      const response = await otherStudent.request('POST', '/api/enrolments', {
-        batchId: DECEMBER_BATCH,
-      });
+      const response = await checkout(otherStudent, DECEMBER_BATCH);
       assert.equal(response.status, 409);
       assert.equal(response.body.details.availability, 'CLOSED');
     } finally {

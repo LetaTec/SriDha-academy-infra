@@ -19,7 +19,7 @@ import {
 } from '@services/auth/api';
 import { getCatalogue } from '@services/catalogue/api';
 import { listTeamOrders } from '@services/admin/api';
-import { createEnrolment, listEnrolments } from '@services/enrolments/api';
+import { listEnrolments } from '@services/enrolments/api';
 import { createCheckout, listPreRegistrations } from '@services/payments/api';
 import { catalogueFixture, openBatch } from '@/test/catalogueFixture';
 
@@ -43,7 +43,6 @@ vi.mock('@services/payments/api', () => ({
 }));
 vi.mock('@services/admin/api', () => ({ listTeamOrders: vi.fn() }));
 vi.mock('@services/enrolments/api', () => ({
-  createEnrolment: vi.fn(),
   listEnrolments: vi.fn(),
 }));
 
@@ -111,14 +110,6 @@ describe('app routing', () => {
     vi.mocked(getCatalogue).mockResolvedValue(catalogueFixture);
     vi.mocked(listPreRegistrations).mockResolvedValue([]);
     vi.mocked(loginStudent).mockResolvedValue(student);
-    vi.mocked(createEnrolment).mockResolvedValue({
-      id: 'enrolment-1',
-      status: 'PENDING_PAYMENT',
-      createdAt: '2026-10-10T09:00:00Z',
-      subject: { id: 'subject_accounts', slug: 'accounts', name: 'Accounts' },
-      topic: { ...catalogueFixture[0].chapters[0].topics[0] },
-      batch: { ...openBatch, seatsRemaining: 99 },
-    });
   });
 
   afterEach(() => {
@@ -174,15 +165,22 @@ describe('app routing', () => {
       expect(router.state.location.pathname).toBe('/');
       expect(router.state.location.search).toContain(`batch=${openBatch.id}`);
 
+      // Seats are only taken through payment: the review hands over to the
+      // payment panel with the chosen batch preselected
       await user.click(
-        within(review).getByRole('button', { name: /reserve seat/i }),
+        within(review).getByRole('button', { name: 'Continue to payment' }),
       );
-      await waitFor(() =>
-        expect(createEnrolment).toHaveBeenCalledWith({ batchId: openBatch.id }),
+      const panel = await screen.findByRole('dialog', { name: /^GST/ });
+      expect(router.state.location.search).toContain(
+        `checkout=${GST_TOPIC_ID}`,
       );
+      expect(router.state.location.search).toContain(
+        `checkoutBatch=${openBatch.id}`,
+      );
+      expect(router.state.location.search).not.toContain('topic=');
       expect(
-        await within(review).findByText('Seat reserved — payment pending'),
-      ).toBeInTheDocument();
+        within(panel).getByRole('radio', { name: /November batch/ }),
+      ).toBeChecked();
     },
     JOURNEY_TEST_TIMEOUT_MS,
   );
