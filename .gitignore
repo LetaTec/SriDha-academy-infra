@@ -24,3 +24,12 @@ web/playwright-report
 .DS_Store
 .idea
 *.log
+
+# secrets downloaded from dashboards (Razorpay keys and similar)
+rzp-key*.csv
+*-keys.csv
+*.pem
+
+# local reference material, kept out of the repository
+\# PRD — letaEd Education Platform.txt
+sriDha logo.jpeg

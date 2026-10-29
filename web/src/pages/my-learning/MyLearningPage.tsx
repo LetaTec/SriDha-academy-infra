@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import cx from 'classnames/bind';
 
+import { canViewTeamOrders } from '@/access/team';
 import { formatTopicPrice } from '@components/catalogue/batchDetails';
 import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Card } from '@components/ui/Card/Card';
@@ -20,9 +21,12 @@ import {
 import { BOOK_TEXT } from '@constants/home';
 import { USER_ROLE, USER_ROLE_LABEL } from '@constants/auth';
 import { PAGE_TEXT } from '@constants/pages';
-import { APP_ROUTES, HOME_SECTION_ID, toSectionHref } from '@constants/routes';
+import { PRE_REGISTRATION_STATUS_LABEL } from '@constants/payments';
+import { APP_ROUTES } from '@constants/routes';
 import { useAuth } from '@context/AuthContext';
+import { useCheckout } from '@hooks/useCheckout';
 import { listEnrolments, type Enrolment } from '@services/enrolments';
+import { listPreRegistrations, type PreRegistration } from '@services/payments';
 import { formatDateOnly } from '@utils/date';
 
 import styles from './MyLearningPage.module.css';
@@ -43,9 +47,24 @@ const describeEnrolment = (enrolment: Enrolment) =>
     .filter(Boolean)
     .join(' · ');
 
+const describePreRegistration = (preRegistration: PreRegistration) =>
+  [
+    PAGE_TEXT.myLearningPreRegisteredNote,
+    formatTopicPrice(preRegistration.topic.price),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+// The student's batches and pre-registrations, each with its payment
+// status. Anything still waiting for payment can be paid from here.
 const MyLearningPage = () => {
-  const { user } = useAuth();
+  const auth = useAuth();
+  const { user } = auth;
+  const { openCheckout } = useCheckout();
   const [enrolments, setEnrolments] = useState<Enrolment[]>([]);
+  const [preRegistrations, setPreRegistrations] = useState<PreRegistration[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -53,10 +72,13 @@ const MyLearningPage = () => {
     setIsLoading(true);
     setHasError(false);
 
-    listEnrolments()
-      .then(setEnrolments)
+    Promise.all([listEnrolments(), listPreRegistrations()])
+      .then(([nextEnrolments, nextPreRegistrations]) => {
+        setEnrolments(nextEnrolments);
+        setPreRegistrations(nextPreRegistrations);
+      })
       .catch(error => {
-        console.error('[enrolments] failed to load enrolments', error);
+        console.error('[my-learning] failed to load', error);
         setHasError(true);
       })
       .finally(() => setIsLoading(false));
@@ -64,8 +86,22 @@ const MyLearningPage = () => {
 
   useEffect(load, [load]);
 
-  const hasPendingPayment = enrolments.some(
-    enrolment => enrolment.status === ENROLMENT_STATUS.PENDING_PAYMENT,
+  const isPending = (status: Enrolment['status']) =>
+    status === ENROLMENT_STATUS.PENDING_PAYMENT;
+  const hasPendingPayment =
+    enrolments.some(enrolment => isPending(enrolment.status)) ||
+    preRegistrations.some(item => isPending(item.status));
+  const isEmpty = enrolments.length === 0 && preRegistrations.length === 0;
+
+  const completePayment = (topicId: string, topicTitle: string) => (
+    <Button
+      variant="plain"
+      endIcon="arrowRight"
+      aria-label={`${PAGE_TEXT.myLearningCompletePayment}: ${topicTitle}`}
+      onClick={() => openCheckout(topicId)}
+    >
+      {PAGE_TEXT.myLearningCompletePayment}
+    </Button>
   );
 
   return (
@@ -87,6 +123,17 @@ const MyLearningPage = () => {
                 : undefined,
             )}
           </Text>
+        ) : null}
+        {canViewTeamOrders(auth) ? (
+          <div>
+            <ButtonRouteLink
+              to={APP_ROUTES.TEAM_ORDERS}
+              variant="secondary"
+              endIcon="arrowRight"
+            >
+              {PAGE_TEXT.myLearningTeamOrders}
+            </ButtonRouteLink>
+          </div>
         ) : null}
       </div>
 
@@ -110,15 +157,12 @@ const MyLearningPage = () => {
         />
       ) : null}
 
-      {!isLoading && !hasError && enrolments.length === 0 ? (
+      {!isLoading && !hasError && isEmpty ? (
         <EmptyState
           title={PAGE_TEXT.myLearningEmptyTitle}
           message={PAGE_TEXT.myLearningEmptyMessage}
           action={
-            <ButtonRouteLink
-              to={`${APP_ROUTES.HOME}${toSectionHref(HOME_SECTION_ID.topics)}`}
-              endIcon="arrowRight"
-            >
+            <ButtonRouteLink to={APP_ROUTES.TOPICS} endIcon="arrowRight">
               {PAGE_TEXT.myLearningBrowse}
             </ButtonRouteLink>
           }
@@ -126,7 +170,10 @@ const MyLearningPage = () => {
       ) : null}
 
       {!isLoading && !hasError && enrolments.length > 0 ? (
-        <>
+        <section className={cn('group')} aria-labelledby="my-batches-title">
+          <Heading level={2} variant="title" id="my-batches-title">
+            {PAGE_TEXT.myLearningSeatsTitle}
+          </Heading>
           <CardGrid variant="tiled" columns={2}>
             {enrolments.map(enrolment => (
               <div key={enrolment.id}>
@@ -136,21 +183,69 @@ const MyLearningPage = () => {
                   title={enrolment.topic.title}
                   description={describeEnrolment(enrolment)}
                   footer={
-                    <StatusDot
-                      color={ENROLMENT_STATUS_COLOR[enrolment.status]}
-                      label={ENROLMENT_STATUS_LABEL[enrolment.status]}
-                    />
+                    <div className={cn('footer')}>
+                      <StatusDot
+                        color={ENROLMENT_STATUS_COLOR[enrolment.status]}
+                        label={ENROLMENT_STATUS_LABEL[enrolment.status]}
+                      />
+                      {isPending(enrolment.status)
+                        ? completePayment(
+                            enrolment.topic.id,
+                            enrolment.topic.title,
+                          )
+                        : null}
+                    </div>
                   }
                 />
               </div>
             ))}
           </CardGrid>
-          {hasPendingPayment ? (
-            <Text as="p" variant="small" tone="muted" className={cn('note')}>
-              {PAGE_TEXT.myLearningPaymentNote}
-            </Text>
-          ) : null}
-        </>
+        </section>
+      ) : null}
+
+      {!isLoading && !hasError && preRegistrations.length > 0 ? (
+        <section
+          className={cn('group')}
+          aria-labelledby="my-pre-registrations-title"
+        >
+          <Heading level={2} variant="title" id="my-pre-registrations-title">
+            {PAGE_TEXT.myLearningPreRegisteredTitle}
+          </Heading>
+          <CardGrid variant="tiled" columns={2}>
+            {preRegistrations.map(preRegistration => (
+              <div key={preRegistration.id}>
+                <Card
+                  variant="panel"
+                  label={BOOK_TEXT.topicLabel(preRegistration.topic.level)}
+                  title={preRegistration.topic.title}
+                  description={describePreRegistration(preRegistration)}
+                  footer={
+                    <div className={cn('footer')}>
+                      <StatusDot
+                        color={ENROLMENT_STATUS_COLOR[preRegistration.status]}
+                        label={
+                          PRE_REGISTRATION_STATUS_LABEL[preRegistration.status]
+                        }
+                      />
+                      {isPending(preRegistration.status)
+                        ? completePayment(
+                            preRegistration.topic.id,
+                            preRegistration.topic.title,
+                          )
+                        : null}
+                    </div>
+                  }
+                />
+              </div>
+            ))}
+          </CardGrid>
+        </section>
+      ) : null}
+
+      {!isLoading && !hasError && hasPendingPayment ? (
+        <Text as="p" variant="small" tone="muted" className={cn('note')}>
+          {PAGE_TEXT.myLearningPaymentNote}
+        </Text>
       ) : null}
     </Section>
   );

@@ -75,7 +75,7 @@ const loadEnrolments = async (
         db.all('SELECT * FROM lessons WHERE topic_id = $1 ORDER BY position', [
           row.t_id,
         ]),
-        countActiveEnrolmentsForBatch(db, String(row.id)),
+        countActiveEnrolmentsForBatch(db, String(row.id), now()),
       ]);
 
       return {
@@ -142,7 +142,11 @@ export const createEnrolment = async (
       );
     }
 
-    const activeEnrolments = await countActiveEnrolmentsForBatch(tx, batchId);
+    const activeEnrolments = await countActiveEnrolmentsForBatch(
+      tx,
+      batchId,
+      context.now(),
+    );
     const availability = resolveBatchAvailability(
       batch,
       activeEnrolments,

@@ -72,7 +72,7 @@ const toNullableString = (value: unknown) =>
 const toNullableNumber = (value: unknown) =>
   value === null || value === undefined ? null : Number(value);
 
-const toPrice = (amount: unknown, taxLabel: unknown): Price | null =>
+export const toPrice = (amount: unknown, taxLabel: unknown): Price | null =>
   amount === null || amount === undefined
     ? null
     : {
@@ -106,10 +106,23 @@ export const resolveBatchAvailability = (
   return BATCH_AVAILABILITY.open;
 };
 
-const countActiveEnrolments = async (db: DatabaseClient) => {
+// An unpaid enrolment holds its seat for this long after checkout starts.
+// Abandoned checkouts then stop counting, so a batch never looks full with
+// seats nobody paid for. Paid (confirmed) seats always count.
+export const SEAT_HOLD_MINUTES = 30;
+
+const holdCutoff = (now: Date) =>
+  new Date(now.getTime() - SEAT_HOLD_MINUTES * 60 * 1000).toISOString();
+
+// Seats taken: confirmed, or unpaid and still within the hold
+const SEAT_TAKEN = `(status = 'CONFIRMED'
+  OR (status = 'PENDING_PAYMENT' AND updated_at > $1::timestamptz))`;
+
+const countActiveEnrolments = async (db: DatabaseClient, now: Date) => {
   const rows = await db.all(
     `SELECT batch_id, COUNT(*) AS taken FROM enrolments
-     WHERE status <> 'CANCELLED' GROUP BY batch_id`,
+     WHERE ${SEAT_TAKEN} GROUP BY batch_id`,
+    [holdCutoff(now)],
   );
   return new Map(rows.map(row => [String(row.batch_id), Number(row.taken)]));
 };
@@ -163,7 +176,7 @@ export const getCatalogue = async ({
   now,
 }: AppContext): Promise<Subject[]> => {
   const today = toDateOnly(now());
-  const taken = await countActiveEnrolments(db);
+  const taken = await countActiveEnrolments(db, now());
 
   const [lessonsRows, batchesRows, topicsRows, chaptersRows, subjectsRows] =
     await Promise.all([
@@ -210,14 +223,18 @@ export const getBatchRow = async (db: DatabaseClient, batchId: string) => {
   );
 };
 
+// excludeEnrolmentId leaves out the student's own seat, when renewing it
 export const countActiveEnrolmentsForBatch = async (
   db: DatabaseClient,
   batchId: string,
+  now: Date,
+  excludeEnrolmentId: string | null = null,
 ) => {
   const row = await db.get(
     `SELECT COUNT(*) AS taken FROM enrolments
-     WHERE batch_id = $1 AND status <> 'CANCELLED'`,
-    [batchId],
+     WHERE ${SEAT_TAKEN} AND batch_id = $2
+       AND ($3::text IS NULL OR id <> $3::text)`,
+    [holdCutoff(now), batchId, excludeEnrolmentId],
   );
   return Number(row?.taken ?? 0);
 };

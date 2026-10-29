@@ -10,6 +10,23 @@ import {
   verifyPayment,
   verifyPaymentSchema,
 } from './payments.service.js';
+import { listPreRegistrations } from './preRegistrations.service.js';
+
+// The signed-in student's pre-registrations, for My learning
+export const createPreRegistrationsRouter = (context: AppContext) => {
+  const router = Router();
+
+  router.use(requireAuth);
+
+  router.get('/', async (req, res) => {
+    const { userId } = getRequiredAuth(req.auth);
+    res.json({
+      preRegistrations: await listPreRegistrations(context, userId),
+    });
+  });
+
+  return router;
+};
 
 export const createPaymentsRouter = (context: AppContext) => {
   const router = Router();

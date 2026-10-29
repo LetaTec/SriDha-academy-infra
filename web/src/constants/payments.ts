@@ -1,3 +1,5 @@
+import type { EnrolmentStatus } from './catalogue';
+
 export const CHECKOUT_KIND = {
   enrolment: 'ENROLMENT',
   preRegistration: 'PRE_REGISTRATION',
@@ -27,6 +29,12 @@ export const RAZORPAY = {
   // Matches --color-bg-inverse; Razorpay's checkout takes a hex colour
   themeColor: '#203c39',
 } as const;
+
+export const PRE_REGISTRATION_STATUS_LABEL: Record<EnrolmentStatus, string> = {
+  PENDING_PAYMENT: 'Payment pending',
+  CONFIRMED: 'Pre-registered',
+  CANCELLED: 'Cancelled',
+};
 
 // The action on each topic card and the payment panel it opens
 export const CHECKOUT_TEXT = {
@@ -76,4 +84,6 @@ export const CHECKOUT_TEXT = {
   verifyFailed:
     'We could not confirm this payment. If money was taken, please contact us and we will sort it out',
   loadFailed: 'The payment window could not open. Please try again',
+  paymentFailed: (reason: string) =>
+    `Payment did not go through: ${reason}. You have not been charged; please try again`,
 } as const;

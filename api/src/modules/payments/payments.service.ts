@@ -6,7 +6,15 @@ import type { AppContext } from '../../app/context.js';
 import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { emailSchema, mobileSchema } from '../auth/auth.schema.js';
-import type { Price, Row } from '../catalogue/catalogue.repository.js';
+import {
+  BATCH_AVAILABILITY,
+  countActiveEnrolmentsForBatch,
+  getBatchRow,
+  resolveBatchAvailability,
+  toDateOnly,
+  type Price,
+  type Row,
+} from '../catalogue/catalogue.repository.js';
 import {
   createEnrolment,
   ENROLMENT_STATUS,
@@ -104,6 +112,58 @@ const requirePrice = (pricePaise: unknown) => {
 
 // Reuses an enrolment that is still waiting for payment, so a student can
 // retry a failed or abandoned payment for the same seat.
+// A student coming back to an unpaid seat gets a fresh hold, as long as the
+// batch still has room once their own old hold is left out of the count.
+const renewSeatHold = async (
+  context: AppContext,
+  enrolmentId: string,
+  batchId: string,
+) =>
+  transaction(context.db, async tx => {
+    const now = context.now();
+    const batch = await getBatchRow(tx, batchId);
+    if (!batch) {
+      throw new ApiError(
+        404,
+        ERROR_CODE.batchNotFound,
+        'This batch no longer exists',
+      );
+    }
+
+    const taken = await countActiveEnrolmentsForBatch(
+      tx,
+      batchId,
+      now,
+      enrolmentId,
+    );
+    const availability = resolveBatchAvailability(
+      batch,
+      taken,
+      toDateOnly(now),
+    );
+
+    if (availability === BATCH_AVAILABILITY.full) {
+      throw new ApiError(409, ERROR_CODE.batchFull, 'This batch is full', {
+        availability,
+      });
+    }
+
+    if (availability !== BATCH_AVAILABILITY.open) {
+      throw new ApiError(
+        409,
+        ERROR_CODE.batchUnavailable,
+        'This batch is not open for enrolment',
+        { availability },
+      );
+    }
+
+    await tx.query('UPDATE enrolments SET updated_at = $1 WHERE id = $2', [
+      now.toISOString(),
+      enrolmentId,
+    ]);
+    return enrolmentId;
+  });
+
 const prepareEnrolment = async (
   context: AppContext,
   userId: string,
@@ -142,7 +202,7 @@ const prepareEnrolment = async (
 
   const enrolmentId =
     existing?.status === ENROLMENT_STATUS.pendingPayment
-      ? String(existing.id)
+      ? await renewSeatHold(context, String(existing.id), batchId)
       : (await createEnrolment(context, userId, batchId)).id;
 
   return {
@@ -337,7 +397,7 @@ export const verifyPayment = async (
 ) => {
   const timestamp = context.now().toISOString();
 
-  return transaction(context.db, async tx => {
+  const result = await transaction(context.db, async tx => {
     const payment = await tx.get<Row>(
       'SELECT * FROM payments WHERE id = $1 AND user_id = $2',
       [input.paymentId, userId],
@@ -352,7 +412,7 @@ export const verifyPayment = async (
     }
 
     if (payment.status === PAYMENT_STATUS.paid) {
-      return { paymentId: input.paymentId, status: PAYMENT_STATUS.paid };
+      return { confirmedNow: false };
     }
 
     const isValid =
@@ -373,6 +433,56 @@ export const verifyPayment = async (
 
     await markPaymentPaid(tx, payment, input.providerPaymentId, timestamp);
 
-    return { paymentId: input.paymentId, status: PAYMENT_STATUS.paid };
+    return { confirmedNow: true };
   });
+
+  if (result.confirmedNow) {
+    await sendPaymentConfirmation(context, input.paymentId);
+  }
+
+  return { paymentId: input.paymentId, status: PAYMENT_STATUS.paid };
+};
+
+const formatRupees = (paise: number) =>
+  `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+// Emails the student once their payment is confirmed, by the browser or by
+// Razorpay's webhook. A failed email is logged and never undoes the payment.
+export const sendPaymentConfirmation = async (
+  context: AppContext,
+  paymentId: string,
+) => {
+  if (!context.mailer) return;
+
+  try {
+    const row = await context.db.get<Row>(
+      `SELECT p.id, p.billing_name, p.billing_email, p.amount_paise,
+              p.provider_payment_id, b.name AS batch_name,
+              COALESCE(enrolled.title, registered.title) AS topic_title
+       FROM payments p
+       LEFT JOIN enrolments e ON e.id = p.enrolment_id
+       LEFT JOIN batches b ON b.id = e.batch_id
+       LEFT JOIN topics enrolled ON enrolled.id = b.topic_id
+       LEFT JOIN pre_registrations r ON r.id = p.pre_registration_id
+       LEFT JOIN topics registered ON registered.id = r.topic_id
+       WHERE p.id = $1`,
+      [paymentId],
+    );
+    if (!row) return;
+
+    await context.mailer.sendPaymentConfirmation(String(row.billing_email), {
+      fullName: String(row.billing_name),
+      topic: String(row.topic_title),
+      batch: row.batch_name === null ? null : String(row.batch_name),
+      amount: formatRupees(Number(row.amount_paise)),
+      paymentReference: String(row.provider_payment_id ?? row.id),
+      learningUrl: `${context.config.webOrigin}/my-learning`,
+    });
+  } catch (error) {
+    console.error(
+      '[payments] confirmation email for payment %s failed',
+      paymentId,
+      error,
+    );
+  }
 };

@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
@@ -12,8 +18,9 @@ import {
   loginStudent,
 } from '@services/auth/api';
 import { getCatalogue } from '@services/catalogue/api';
-import { createEnrolment } from '@services/enrolments/api';
-import { createCheckout } from '@services/payments/api';
+import { listTeamOrders } from '@services/admin/api';
+import { createEnrolment, listEnrolments } from '@services/enrolments/api';
+import { createCheckout, listPreRegistrations } from '@services/payments/api';
 import { catalogueFixture, openBatch } from '@/test/catalogueFixture';
 
 import { routes } from './router';
@@ -32,7 +39,9 @@ vi.mock('@services/auth/api', () => ({
 vi.mock('@services/payments/api', () => ({
   createCheckout: vi.fn(),
   verifyPayment: vi.fn(),
+  listPreRegistrations: vi.fn(),
 }));
+vi.mock('@services/admin/api', () => ({ listTeamOrders: vi.fn() }));
 vi.mock('@services/enrolments/api', () => ({
   createEnrolment: vi.fn(),
   listEnrolments: vi.fn(),
@@ -77,6 +86,8 @@ const unauthenticated = () =>
 const LAZY_PAGE_TIMEOUT_MS = 5000;
 // The full sign-in journey loads several lazy pages in one test.
 const JOURNEY_TEST_TIMEOUT_MS = 20_000;
+// The Topics page renders all 156 topic cards on first load
+const TOPICS_PAGE_TIMEOUT_MS = 15_000;
 const GST_TOPIC_ID = 'topic_accounts_gst_class_11';
 
 const renderApp = (initialEntry: string) => {
@@ -98,6 +109,7 @@ describe('app routing', () => {
     // The catalogue request is shared across the page; start each test fresh
     resetCatalogueCache();
     vi.mocked(getCatalogue).mockResolvedValue(catalogueFixture);
+    vi.mocked(listPreRegistrations).mockResolvedValue([]);
     vi.mocked(loginStudent).mockResolvedValue(student);
     vi.mocked(createEnrolment).mockResolvedValue({
       id: 'enrolment-1',
@@ -347,7 +359,7 @@ describe('app routing', () => {
       await screen.findByRole(
         'heading',
         { level: 1, name: /every topic/i },
-        { timeout: LAZY_PAGE_TIMEOUT_MS },
+        { timeout: TOPICS_PAGE_TIMEOUT_MS },
       );
       expect(router.state.location.pathname).toBe('/topics');
       expect(within(nav).getByRole('link', { name: 'Topics' })).toHaveAttribute(
@@ -401,6 +413,120 @@ describe('app routing', () => {
     },
     JOURNEY_TEST_TIMEOUT_MS,
   );
+
+  it('shows the policy pages to signed-out visitors', async () => {
+    vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
+    renderApp('/contact');
+
+    expect(
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: /contact\s*us/i },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('link', { name: 'sridhaacademy1@gmail.com' })[0],
+    ).toHaveAttribute('href', 'mailto:sridhaacademy1@gmail.com');
+    // Every policy page is linked from the footer
+    const help = screen.getByRole('navigation', { name: 'Help' });
+    expect(
+      within(help).getByRole('link', { name: 'Terms and conditions' }),
+    ).toHaveAttribute('href', '/terms');
+    expect(
+      within(help).getByRole('link', { name: 'Refund and cancellation' }),
+    ).toHaveAttribute('href', '/refund-policy');
+  });
+
+  it('lets students pay for a pending pre-registration from My learning', async () => {
+    vi.mocked(getCurrentSession).mockResolvedValue(student);
+    vi.mocked(listEnrolments).mockResolvedValue([]);
+    vi.mocked(listPreRegistrations).mockResolvedValue([
+      {
+        id: 'pre-1',
+        status: 'PENDING_PAYMENT',
+        createdAt: '2026-10-28T09:00:00Z',
+        topic: {
+          id: 'topic_physics_ray_optics_class_12',
+          title: 'Learn Ray optics for Class 12',
+          level: 'Class 12',
+          price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+        },
+      },
+    ]);
+    const user = userEvent.setup();
+    const router = renderApp('/my-learning');
+
+    expect(
+      await screen.findByRole(
+        'heading',
+        { level: 2, name: 'Pre-registered topics' },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Payment pending')).toBeInTheDocument();
+    // Students never see the team's orders link
+    expect(
+      screen.queryByRole('link', { name: /orders and payments/i }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Complete payment: Learn Ray optics for Class 12',
+      }),
+    );
+    expect(router.state.location.search).toContain(
+      'checkout=topic_physics_ray_optics_class_12',
+    );
+  });
+
+  it('keeps orders and payments for the team', async () => {
+    vi.mocked(getCurrentSession).mockResolvedValue(student);
+    renderApp('/team/orders');
+    expect(
+      await screen.findByText(
+        'This page is for the SriDha Academy team',
+        undefined,
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    expect(listTeamOrders).not.toHaveBeenCalled();
+    cleanup();
+
+    vi.mocked(getCurrentSession).mockResolvedValue(superAdmin);
+    vi.mocked(listTeamOrders).mockResolvedValue([
+      {
+        id: 'payment-1',
+        createdAt: '2026-10-28T08:00:00Z',
+        status: 'PAID',
+        provider: 'RAZORPAY',
+        amountPaise: 12900,
+        providerOrderId: 'order_1',
+        providerPaymentId: 'pay_1',
+        kind: 'ENROLMENT',
+        topic: 'Learn GST for Class 11',
+        batch: 'November batch',
+        seatStatus: 'CONFIRMED',
+        student: {
+          accountEmail: 'asha@example.com',
+          name: 'Asha Verma',
+          email: 'asha@example.com',
+          mobile: '+91 73035 48162',
+        },
+      },
+    ]);
+    renderApp('/team/orders');
+
+    const table = await screen.findByRole(
+      'table',
+      { name: 'Orders, newest first' },
+      { timeout: LAZY_PAGE_TIMEOUT_MS },
+    );
+    expect(within(table).getByText('Asha Verma')).toBeInTheDocument();
+    expect(within(table).getByText('pay_1')).toBeInTheDocument();
+    expect(within(table).getByText('Paid')).toBeInTheDocument();
+    expect(screen.getByText('Paid orders')).toBeInTheDocument();
+  });
 
   it('shows AI test papers as in progress, with progress derived from the milestones', async () => {
     vi.mocked(getCurrentSession).mockResolvedValue(student);

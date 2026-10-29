@@ -28,6 +28,7 @@ export const ERROR_CODE = {
   webhookSignatureInvalid: 'WEBHOOK_SIGNATURE_INVALID',
   rateLimitExceeded: 'RATE_LIMIT_EXCEEDED',
   notFound: 'NOT_FOUND',
+  forbidden: 'FORBIDDEN',
   internalError: 'INTERNAL_ERROR',
 } as const;
 

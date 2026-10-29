@@ -1,9 +1,29 @@
 import { MAIL_TRANSPORT, type AppConfig } from '../config/env.js';
 
+// What a paid student is told: the topic, their batch (none for a
+// pre-registration), the amount and where to see it
+export type PaymentConfirmation = {
+  fullName: string;
+  topic: string;
+  batch: string | null;
+  amount: string;
+  paymentReference: string;
+  learningUrl: string;
+};
+
 export type Mailer = {
   sendPasswordReset: (email: string, resetUrl: string) => Promise<void>;
   sendAdminSignInLink: (email: string, signInUrl: string) => Promise<void>;
+  sendPaymentConfirmation: (
+    email: string,
+    confirmation: PaymentConfirmation,
+  ) => Promise<void>;
 };
+
+const describePayment = ({ topic, batch, amount }: PaymentConfirmation) =>
+  batch
+    ? `We have received your payment of ${amount} for ${topic}. Your seat in the ${batch} is confirmed.`
+    : `We have received your payment of ${amount} to pre-register for ${topic}. We will email you as soon as its first batch opens.`;
 
 const consoleMailer: Mailer = {
   sendPasswordReset: async (email, resetUrl) => {
@@ -11,6 +31,14 @@ const consoleMailer: Mailer = {
   },
   sendAdminSignInLink: async (email, signInUrl) => {
     console.info('[mail] admin sign-in link for %s - %s', email, signInUrl);
+  },
+  sendPaymentConfirmation: async (email, confirmation) => {
+    console.info(
+      '[mail] payment confirmation for %s - %s (%s)',
+      email,
+      describePayment(confirmation),
+      confirmation.paymentReference,
+    );
   },
 };
 
@@ -83,6 +111,14 @@ const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
         action: 'Sign in',
         url: signInUrl,
         note: 'This link works once and expires in 15 minutes. If you did not ask to sign in, you can safely ignore this email.',
+      }),
+    sendPaymentConfirmation: (email, confirmation) =>
+      send(email, {
+        subject: `Payment received: ${confirmation.topic}`,
+        intro: describePayment(confirmation),
+        action: 'Go to My learning',
+        url: confirmation.learningUrl,
+        note: `Payment reference: ${confirmation.paymentReference}. Keep it for any questions about this payment. Razorpay also emails a receipt.`,
       }),
   };
 };
