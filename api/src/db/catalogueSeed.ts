@@ -129,6 +129,108 @@ export const CATALOGUE_SEED: readonly SeedSubject[] = [
           },
         ],
       },
+      {
+        id: 'chapter_accounts_fundamentals',
+        title: 'Accountancy fundamentals',
+        topics: [
+          {
+            id: 'topic_accounts_rectification_class_11',
+            title: 'Rectification of errors',
+            summary:
+              'Find where a ledger went wrong and correct it with the right journal entry, before it reaches the final accounts.',
+            level: 'Class 11',
+            pricePaise: null,
+            priceTaxLabel: null,
+            lessons: [
+              {
+                id: 'lesson_rectification_types',
+                title: 'Types of errors',
+                durationMinutes: null,
+              },
+              {
+                id: 'lesson_rectification_trial_balance',
+                title: 'Errors that affect the trial balance',
+                durationMinutes: null,
+              },
+              {
+                id: 'lesson_rectification_suspense',
+                title: 'Suspense account',
+                durationMinutes: null,
+              },
+              {
+                id: 'lesson_rectification_before_after',
+                title: 'Rectifying errors before and after',
+                durationMinutes: null,
+              },
+            ],
+            batches: [],
+          },
+          {
+            id: 'topic_accounts_trial_balance_class_11',
+            title: 'Trial balance',
+            summary:
+              'Prepare a trial balance from ledger balances and locate the errors when the totals do not agree.',
+            level: 'Class 11',
+            pricePaise: null,
+            priceTaxLabel: null,
+            lessons: [
+              {
+                id: 'lesson_trial_balance_meaning',
+                title: 'Meaning and objectives',
+                durationMinutes: null,
+              },
+              {
+                id: 'lesson_trial_balance_ledger',
+                title: 'Preparing it from ledger balances',
+                durationMinutes: null,
+              },
+              {
+                id: 'lesson_trial_balance_methods',
+                title: 'Totals and balances methods',
+                durationMinutes: null,
+              },
+              {
+                id: 'lesson_trial_balance_errors',
+                title: 'Locating errors when it does not agree',
+                durationMinutes: null,
+              },
+            ],
+            batches: [],
+          },
+          {
+            id: 'topic_accounts_brs_class_11',
+            title: 'Bank reconciliation statement',
+            summary:
+              'Reconcile the cash book with the bank passbook and explain every difference between the two balances.',
+            level: 'Class 11',
+            pricePaise: null,
+            priceTaxLabel: null,
+            lessons: [
+              {
+                id: 'lesson_brs_why',
+                title: 'Why the cash book and passbook differ',
+                durationMinutes: null,
+              },
+              {
+                id: 'lesson_brs_pending',
+                title: 'Cheques not yet presented or cleared',
+                durationMinutes: null,
+              },
+              {
+                id: 'lesson_brs_preparing',
+                title: 'Preparing a BRS',
+                durationMinutes: null,
+              },
+              {
+                id: 'lesson_brs_overdraft',
+                title: 'Overdraft balances',
+                durationMinutes: null,
+              },
+            ],
+            batches: [],
+          },
+        ],
+      },
     ],
   },
   {

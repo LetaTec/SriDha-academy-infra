@@ -10,20 +10,21 @@ import { Heading } from '@components/ui/Heading/Heading';
 import { Text } from '@components/ui/Text/Text';
 import {
   AUTH_PAGE_TEXT,
+  AUTH_QUERY_PARAM,
   AUTH_TEXT,
   AUTH_VIEW,
   type AuthView,
 } from '@constants/auth';
+import { CATALOGUE_QUERY_PARAM } from '@constants/catalogue';
 import { APP_ROUTES, AUTH_SECTION_ID } from '@constants/routes';
 import { useAuth } from '@context/AuthContext';
 import { useToast } from '@context/ToastContext';
 import { useCatalogue } from '@hooks/useCatalogue';
 import type { AuthUser } from '@services/auth';
-import { listTopics } from '@services/catalogue';
 
+import { AuthHero } from './components/AuthHero/AuthHero';
 import { FeatureSection } from './components/FeatureSection/FeatureSection';
 import { LearningModelSection } from './components/LearningModelSection/LearningModelSection';
-import { OngoingTopics } from './components/OngoingTopics/OngoingTopics';
 import styles from './AuthPage.module.css';
 
 const cn = cx.bind(styles);
@@ -48,10 +49,23 @@ const AuthPage = ({ view }: AuthPageProps) => {
   const navigate = useNavigate();
   const { search } = useLocation();
 
-  const { subjects } = useCatalogue();
-  const catalogueTopics = listTopics(subjects).map(context => context.topic);
+  const catalogue = useCatalogue();
 
   const goTo = (pathname: string) => navigate({ pathname, search });
+
+  // Choosing a topic on the sign-in screen carries it through registration, so
+  // the student lands on the topic they picked once the account exists.
+  const handleSelectTopic = (topicId: string) => {
+    const destination = `${APP_ROUTES.HOME}?${new URLSearchParams({
+      [CATALOGUE_QUERY_PARAM.topic]: topicId,
+    }).toString()}`;
+
+    navigate(
+      `${APP_ROUTES.REGISTER}?${new URLSearchParams({
+        [AUTH_QUERY_PARAM.redirectTo]: destination,
+      }).toString()}`,
+    );
+  };
 
   const handleAuthenticated = (user: AuthUser) => {
     login(user);
@@ -76,15 +90,21 @@ const AuthPage = ({ view }: AuthPageProps) => {
             tone="accent"
             className={cn('kicker')}
           >
-            <span className={cn('kickerRule')} aria-hidden="true" />
             {AUTH_PAGE_TEXT.kicker}
           </Text>
-          <Heading level={1} variant="title" id={TITLE_ID}>
-            {AUTH_PAGE_TEXT.title}
-            <br />
-            <em>{AUTH_PAGE_TEXT.titleEmphasis}</em>
-            <br />
-            {AUTH_PAGE_TEXT.titleEnd}
+          <Heading
+            level={1}
+            variant="display"
+            id={TITLE_ID}
+            className={cn('headline')}
+          >
+            {AUTH_PAGE_TEXT.title} <em>{AUTH_PAGE_TEXT.titleEmphasis}</em>
+            {AUTH_PAGE_TEXT.titleEnd ? (
+              <>
+                <br />
+                {AUTH_PAGE_TEXT.titleEnd}
+              </>
+            ) : null}
           </Heading>
           <Text as="p" variant="lead" tone="muted" className={cn('lead')}>
             {AUTH_PAGE_TEXT.lead}
@@ -138,7 +158,13 @@ const AuthPage = ({ view }: AuthPageProps) => {
         </section>
 
         <div className={cn('visual')}>
-          <OngoingTopics catalogueTopics={catalogueTopics} />
+          <AuthHero
+            subjects={catalogue.subjects}
+            isLoading={catalogue.isLoading}
+            hasError={catalogue.hasError}
+            onSelect={handleSelectTopic}
+            onRetry={catalogue.reload}
+          />
         </div>
       </Container>
       <LearningModelSection />

@@ -1,12 +1,133 @@
+/* ==========================================================================
+   SriDha Academy — OngoingTopics (Interactive Subject Explorer)
+   Accessible, polished subject showcase with direct interactive selectors.
+   ========================================================================== */
+
 .panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-1);
+  margin-bottom: var(--space-1);
+}
+
+.eyebrow {
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
 }
 
 .title {
-  margin-bottom: var(--space-1-5);
+  font-family: var(--font-serif);
+  font-size: clamp(24px, 2.2vw, 32px);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-1);
+}
+
+.subhead {
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-3);
+  max-width: 520px;
+}
+
+/* ==========================================================================
+   Subject Selector Bar (Interactive Pills)
+   ========================================================================== */
+
+.selectorList {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.selectorPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px 13px;
+  min-height: 36px;
+  border: var(--border-width-base) solid var(--color-border-base);
+  background: var(--color-bg-sheet);
+  color: var(--color-text-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  border-radius: var(--radius-none);
+  cursor: pointer;
+  box-sizing: border-box;
+  text-align: left;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.selectorPill:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-strong);
+}
+
+.selectorPill:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-border-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.selectorPill.active {
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 6px rgb(32 57 47 / 0.12);
+}
+
+.selectorPill.active .pillTitle {
+  color: var(--color-text-inverse);
+  font-weight: var(--weight-semibold);
+}
+
+.pillTitle {
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Featured Preview Slot
+   ========================================================================== */
+
+.featuredSlot {
+  width: 100%;
 }
 
 .action {
-  margin-top: var(--space-2-5);
+  margin-top: var(--space-3);
+}
+
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
+
+@media (--viewport-sm) {
+  .title {
+    font-size: var(--text-display-2xs);
+  }
+
+  .selectorList {
+    gap: 6px;
+  }
+
+  .selectorPill {
+    padding: 6px 10px;
+    font-size: var(--text-2xs);
+    min-height: 34px;
+  }
 }

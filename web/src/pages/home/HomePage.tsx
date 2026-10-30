@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ClosingCta } from '@components/brand/ClosingCta/ClosingCta';
 import { ModelPaperDialog } from '@components/enquiries/ModelPaperDialog/ModelPaperDialog';
 import { CTA_TEXT } from '@constants/home';
-import { APP_ROUTES, HOME_SECTION_ID, toPageSection } from '@constants/routes';
+import { APP_ROUTES } from '@constants/routes';
 import { useCatalogue } from '@hooks/useCatalogue';
 import { useTopicSelection } from '@hooks/useTopicSelection';
 import {
@@ -12,12 +12,12 @@ import {
   type Batch,
 } from '@services/catalogue';
 
-import { AboutSection } from './components/AboutSection/AboutSection';
 import { AiTestDialog } from './components/AiTestDialog/AiTestDialog';
 import { AiTestSection } from './components/AiTestSection/AiTestSection';
 import { HeroSection } from './components/HeroSection/HeroSection';
+import { LearningJourneySection } from './components/LearningJourneySection/LearningJourneySection';
+import { ModelPaperDiscoverySection } from './components/ModelPaperDiscoverySection/ModelPaperDiscoverySection';
 import { ProgramsSection } from './components/ProgramsSection/ProgramsSection';
-import { TeamSection } from './components/TeamSection/TeamSection';
 import { TopicDialog } from './components/TopicDialog/TopicDialog';
 import { TopicsSection } from './components/TopicsSection/TopicsSection';
 
@@ -47,28 +47,48 @@ const HomePage = () => {
 
   return (
     <>
+      {/* 1. Interactive Hero */}
       <HeroSection
         catalogue={catalogue}
         onOpenTopic={openTopic}
         onSelectBatch={handleSelectBatch}
       />
-      <TopicsSection catalogue={catalogue} onOpenTopic={openTopic} />
+
+      {/* 2. Real Subject Discovery */}
+      <TopicsSection
+        catalogue={catalogue}
+        onOpenTopic={openTopic}
+        onSelectBatch={handleSelectBatch}
+      />
+
+      {/* 3. Interactive Learning Journey */}
+      <LearningJourneySection />
+
+      {/* 4. AI Assessment Experience */}
       <AiTestSection />
+
+      {/* 5. Previous-Year and Model-Paper Discovery */}
+      <ModelPaperDiscoverySection
+        onJoinWaitlist={() => setActiveDialog('modelPaper')}
+      />
+
+      {/* 6. Actual Programs and Available Courses */}
       <ProgramsSection
         onSeeTestFlow={() => setActiveDialog('aiTest')}
         onJoinWaitlist={() => setActiveDialog('modelPaper')}
       />
-      <AboutSection />
-      <TeamSection />
+
+      {/* 7. Registration CTA */}
       <ClosingCta
         titleId="cta-title"
         eyebrow={CTA_TEXT.eyebrow}
         title={CTA_TEXT.title}
         titleEmphasis={CTA_TEXT.titleEmphasis}
         actionLabel={CTA_TEXT.action}
-        to={toPageSection(APP_ROUTES.HOME, HOME_SECTION_ID.topics)}
+        to={APP_ROUTES.REGISTER}
       />
 
+      {/* Preserved Modal Dialogs */}
       <TopicDialog
         open={topicContext !== null && activeDialog === null}
         context={topicContext}

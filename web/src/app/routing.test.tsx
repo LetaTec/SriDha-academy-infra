@@ -172,8 +172,8 @@ describe('app routing', () => {
     const router = renderApp('/login');
 
     await screen.findByRole(
-      'group',
-      { name: 'Interactive SriDha Academy book' },
+      'heading',
+      { level: 1 },
       { timeout: LAZY_PAGE_TIMEOUT_MS },
     );
     expect(router.state.location.pathname).toBe('/');
@@ -322,8 +322,8 @@ describe('app routing', () => {
     const router = renderApp('/admin-sign-in?token=one-time-token');
 
     await screen.findByRole(
-      'group',
-      { name: 'Interactive SriDha Academy book' },
+      'heading',
+      { level: 1 },
       { timeout: LAZY_PAGE_TIMEOUT_MS },
     );
     expect(router.state.location.pathname).toBe('/');

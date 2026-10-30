@@ -1,52 +1,52 @@
 :root {
-  /* Colour — white paper, dark green ink and brown accent */
-  --color-bg-page: #ffffff;
-  --color-bg-subtle: #f6f6f3;
-  --color-bg-raised: #f8f8f6;
-  --color-bg-hover: #f1f1ed;
+  /* Colour — Warm ivory paper, dark charcoal ink, deep forest green and antique gold accent */
+  --color-bg-page: #f7f5ef;
+  --color-bg-subtle: #eeece3;
+  --color-bg-raised: #ffffff;
+  --color-bg-hover: #eae7dc;
   --color-bg-sheet: #ffffff;
-  --color-bg-placeholder: #e7e7e2;
-  --color-bg-inverse: #203c39;
-  --color-bg-inverse-deep: #17302e;
-  --color-bg-header: rgb(255 255 255 / 0.92);
-  --color-bg-overlay: rgb(23 48 46 / 0.55);
-  --color-bg-zebra: rgb(255 255 255 / 0.28);
+  --color-bg-placeholder: #e5e0d3;
+  --color-bg-inverse: #20392f;
+  --color-bg-inverse-deep: #162720;
+  --color-bg-header: rgb(247 245 239 / 0.94);
+  --color-bg-overlay: rgb(22 39 32 / 0.65);
+  --color-bg-zebra: rgb(255 255 255 / 0.35);
 
-  --color-text-primary: #203c39;
-  --color-text-muted: #706e66;
-  --color-text-sheet-muted: #77746b;
-  --color-text-inverse: #fbfaf5;
-  --color-text-inverse-muted: rgb(251 250 245 / 0.7);
-  --color-text-inverse-subtle: rgb(251 250 245 / 0.45);
-  --color-text-accent: #8a6748;
+  --color-text-primary: #252823;
+  --color-text-muted: #77776f;
+  --color-text-sheet-muted: #77776f;
+  --color-text-inverse: #f7f5ef;
+  --color-text-inverse-muted: rgb(247 245 239 / 0.72);
+  --color-text-inverse-subtle: rgb(247 245 239 / 0.45);
+  --color-text-accent: #b69a5a;
   --color-text-accent-inverse: #cbb59d;
-  --color-text-accent-inverse-strong: #d1b898;
+  --color-text-accent-inverse-strong: #d8c28c;
   --color-text-danger: #9b3b2f;
-  --color-text-success: #2f6b4f;
+  --color-text-success: #285e43;
 
-  --color-accent: #8a6748;
-  --color-accent-soft: #a4815e;
-  --color-brand-yellow: #f6b52c;
+  --color-accent: #b69a5a;
+  --color-accent-soft: #cbb59d;
+  --color-brand-yellow: #f9b522;
 
-  --color-border-base: #d9d9d3;
-  --color-border-strong: #203c39;
-  --color-border-sheet: #e5e5df;
-  --color-border-header: rgb(217 217 211 / 0.8);
-  --color-border-inverse: rgb(255 255 255 / 0.25);
-  --color-border-inverse-strong: rgb(255 255 255 / 0.6);
-  --color-border-inverse-inner: rgb(255 255 255 / 0.35);
-  --color-border-focus: #8a6748;
+  --color-border-base: #e5e1d7;
+  --color-border-strong: #20392f;
+  --color-border-sheet: #e5e1d7;
+  --color-border-header: rgb(229 225 215 / 0.85);
+  --color-border-inverse: rgb(247 245 239 / 0.2);
+  --color-border-inverse-strong: rgb(247 245 239 / 0.5);
+  --color-border-inverse-inner: rgb(247 245 239 / 0.3);
+  --color-border-focus: #b69a5a;
   --color-border-danger: #9b3b2f;
 
-  --color-status-positive: #3f7d5c;
-  --color-status-warning: #b7832f;
+  --color-status-positive: #285e43;
+  --color-status-warning: #b69a5a;
   --color-status-negative: #9b3b2f;
-  --color-status-neutral: #a39f94;
+  --color-status-neutral: #8f8d83;
 
   /* Illustration palette — muted editorial tints */
   --color-illus-sky: #c8dbd8;
   --color-illus-sand: #ecdcbf;
-  --color-illus-sage: #d3dfc6;
+  --color-illus-sage: #dce4da;
   --color-illus-blush: #efd2c3;
   --color-illus-lilac: #ddd5e4;
   --color-illus-skin: #e9b896;
@@ -55,14 +55,14 @@
   --color-illus-hair: #2c221d;
   --color-illus-paper: #ffffff;
   --color-illus-line: #9fb3b0;
-  --color-illus-gold: #d9a441;
+  --color-illus-gold: #b69a5a;
   --color-illus-rust: #b5623d;
-  --color-illus-teal: #3f7d74;
-  --color-sheet-grain: rgb(32 60 57 / 0.09);
-  --color-sheet-shade: rgb(23 48 46 / 0.075);
+  --color-illus-teal: #20392f;
+  --color-sheet-grain: rgb(32 57 47 / 0.08);
+  --color-sheet-shade: rgb(22 39 32 / 0.07);
   --color-sheet-fold: rgb(0 0 0 / 0.04);
   --color-spine-light: rgb(255 255 255 / 0.75);
-  --color-spine-shade: rgb(23 48 46 / 0.16);
+  --color-spine-shade: rgb(22 39 32 / 0.16);
 
   /* Spacing — 4px base, 8px rhythm */
   --space-0-25: 2px;
@@ -196,6 +196,7 @@
   /* Elevation — the brand uses flat offset blocks instead of soft shadows */
   --shadow-offset-accent: 15px 15px 0 var(--color-accent);
   --shadow-offset-accent-lg: 20px 20px 0 var(--color-accent);
+  --shadow-offset-accent-sm: 8px 8px 0 var(--color-accent-soft);
   --shadow-book: 18px 22px 35px rgb(32 60 57 / 0.16);
   --shadow-sheet: 0 9px 24px rgb(23 48 46 / 0.08);
   --shadow-spine: 0 0 9px rgb(23 48 46 / 0.15);
@@ -217,6 +218,12 @@
   --distance-lift: -2px;
   --distance-lift-card: -5px;
   --distance-reveal: 35px;
+
+  /* Hero deck — one card clears, the next is dealt in */
+  --duration-hero-row: 360ms;
+  --duration-hero-rule: 600ms;
+  --duration-hero-card-in: 460ms;
+  --duration-hero-card-out: 380ms;
 
   /* Book */
   --aspect-photo-landscape: 4 / 3;

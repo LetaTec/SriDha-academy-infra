@@ -4,6 +4,7 @@ import cx from 'classnames/bind';
 import { BrandLogo } from '@components/brand/BrandLogo/BrandLogo';
 import { ButtonRouteLink } from '@components/ui/Button/Button';
 import { Container } from '@components/ui/Container/Container';
+import { FallingSubjectRain } from '@components/ui/FallingSubjectRain/FallingSubjectRain';
 import { AUTH_PAGE_TEXT } from '@constants/auth';
 import { HEADER_TEXT } from '@constants/home';
 import { APP_ROUTES } from '@constants/routes';
@@ -22,7 +23,8 @@ export const AuthShell = () => {
   useScrollToHash();
 
   return (
-    <div className={cn('shell')}>
+    <div className={cn('shell', { whiteTheme: isRegister })}>
+      {isRegister ? <FallingSubjectRain /> : null}
       <header className={cn('header')}>
         <Container className={cn('nav')}>
           <Link

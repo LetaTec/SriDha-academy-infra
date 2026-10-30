@@ -47,7 +47,6 @@ export const ProgramsSection = ({
     },
     {
       program: prediction,
-      id: HOME_SECTION_ID.modelPaper,
       action: (
         <Button
           variant="editorial"
@@ -79,10 +78,9 @@ export const ProgramsSection = ({
         description={PROGRAMS_TEXT.description}
       />
       <CardGrid variant="tiled" columns={3}>
-        {programs.map(({ program, id, action }) => (
+        {programs.map(({ program, action }) => (
           <Reveal key={program.tag}>
             <Card
-              id={id}
               variant="panel"
               label={program.tag}
               title={

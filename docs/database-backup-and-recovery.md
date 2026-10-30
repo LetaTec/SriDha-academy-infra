@@ -18,9 +18,9 @@ This document establishes the official database durability, backup procedures, a
 ## 2. Recovery Objectives
 
 - **Recovery Point Objective (RPO)**:
-  - *Starter Tier ($7/mo)*: Maximum 24 hours of data loss (daily automated backup).
-  - *Pro Tier (PITR)*: Maximum 5 minutes of data loss (continuous WAL archiving).
-  - *Free Tier with Manual `pg_dump`*: Equal to the time elapsed since the last manual dump.
+  - _Starter Tier ($7/mo)_: Maximum 24 hours of data loss (daily automated backup).
+  - _Pro Tier (PITR)_: Maximum 5 minutes of data loss (continuous WAL archiving).
+  - _Free Tier with Manual `pg_dump`_: Equal to the time elapsed since the last manual dump.
 - **Recovery Time Objective (RTO)**:
   - Under 30 minutes to provision a replacement database and restore data.
 
@@ -28,14 +28,14 @@ This document establishes the official database durability, backup procedures, a
 
 ## 3. Tier Comparison & Capabilities
 
-| Feature | Render Free Tier | Render Starter Tier ($7/mo) | Render Standard/Pro Tier |
-| :--- | :--- | :--- | :--- |
-| **Instance Expiration** | **Deletes after 30 days** | **Persistent (No expiration)** | **Persistent (No expiration)** |
-| **Automated Backups** | **None** | Daily automated snapshots | Continuous WAL + daily snapshots |
-| **Backup Retention** | None | 7 daily snapshots | 30 days retention with PITR |
-| **One-Click Restore** | Unavailable | Supported via Render Dashboard | Supported via Render Dashboard |
-| **RAM & CPU** | 256 MB RAM, shared CPU | 1 GB RAM, 0.5 CPU | 4 GB+ RAM, dedicated CPU |
-| **Recommended Usage** | Testing / prototyping only | Production launch minimum | High-traffic scale |
+| Feature                 | Render Free Tier           | Render Starter Tier ($7/mo)    | Render Standard/Pro Tier         |
+| :---------------------- | :------------------------- | :----------------------------- | :------------------------------- |
+| **Instance Expiration** | **Deletes after 30 days**  | **Persistent (No expiration)** | **Persistent (No expiration)**   |
+| **Automated Backups**   | **None**                   | Daily automated snapshots      | Continuous WAL + daily snapshots |
+| **Backup Retention**    | None                       | 7 daily snapshots              | 30 days retention with PITR      |
+| **One-Click Restore**   | Unavailable                | Supported via Render Dashboard | Supported via Render Dashboard   |
+| **RAM & CPU**           | 256 MB RAM, shared CPU     | 1 GB RAM, 0.5 CPU              | 4 GB+ RAM, dedicated CPU         |
+| **Recommended Usage**   | Testing / prototyping only | Production launch minimum      | High-traffic scale               |
 
 ---
 
@@ -96,6 +96,7 @@ To ensure backups are recoverable without touching or endangering production dat
 ### Recovery Drill Steps
 
 1. **Spin up an empty target test database**:
+
    ```bash
    # Example: using local Docker PostgreSQL
    docker run --name pg-drill -e POSTGRES_PASSWORD=drillpass -p 5433:5432 -d postgres:16
@@ -103,6 +104,7 @@ To ensure backups are recoverable without touching or endangering production dat
    ```
 
 2. **Execute restoration into the drill database**:
+
    ```bash
    pg_restore \
      --dbname="$DRILL_DATABASE_URL" \
@@ -114,6 +116,7 @@ To ensure backups are recoverable without touching or endangering production dat
    ```
 
 3. **Verify record counts and schema integrity**:
+
    ```sql
    psql "$DRILL_DATABASE_URL" -c "
      SELECT 'users' as table_name, count(*) as count FROM users
