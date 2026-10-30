@@ -5,6 +5,7 @@ import { ModelPaperDialog } from '@components/enquiries/ModelPaperDialog/ModelPa
 import { CTA_TEXT } from '@constants/home';
 import { APP_ROUTES, HOME_SECTION_ID, toPageSection } from '@constants/routes';
 import { useCatalogue } from '@hooks/useCatalogue';
+import { useCheckout } from '@hooks/useCheckout';
 import { useTopicSelection } from '@hooks/useTopicSelection';
 import {
   findBatchContext,
@@ -27,6 +28,7 @@ const HomePage = () => {
   const catalogue = useCatalogue();
   const { topicId, batchId, openTopic, selectBatch, clearBatch, closeTopic } =
     useTopicSelection();
+  const { openCheckout } = useCheckout();
   const [activeDialog, setActiveDialog] = useState<HomeDialog | null>(null);
 
   const topicContext = findTopicContext(catalogue.subjects, topicId);
@@ -79,7 +81,9 @@ const HomePage = () => {
           topicContext && handleSelectBatch(topicContext.topic.id, batch)
         }
         onClearBatch={clearBatch}
-        onEnrolmentChange={catalogue.reload}
+        onContinueToPayment={selection =>
+          openCheckout(selection.topic.id, selection.batch.id)
+        }
       />
       <AiTestDialog open={activeDialog === 'aiTest'} onClose={closeDialog} />
       <ModelPaperDialog

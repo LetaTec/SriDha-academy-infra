@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
 
-import { z } from 'zod';
-
 import type { AppContext } from '../../app/context.js';
 import { transaction } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
@@ -25,12 +23,6 @@ export const ENROLMENT_STATUS = {
   confirmed: 'CONFIRMED',
   cancelled: 'CANCELLED',
 } as const;
-
-// The client only names the batch. The student is always the signed-in
-// account — any user identifier in the body is rejected by the strict schema.
-export const createEnrolmentSchema = z.strictObject({
-  batchId: z.string().trim().min(1, 'Select a batch').max(100),
-});
 
 export type Enrolment = {
   id: string;
@@ -107,6 +99,7 @@ const loadEnrolments = async (
 export const listEnrolments = async (context: AppContext, userId: string) =>
   loadEnrolments(context, userId);
 
+// Starts an unpaid seat for checkout; only the payments module calls this.
 export const createEnrolment = async (
   context: AppContext,
   userId: string,

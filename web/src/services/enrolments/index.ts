@@ -1,2 +1,2 @@
-export { createEnrolment, listEnrolments } from './api';
-export type { CreateEnrolmentRequest, Enrolment } from './types';
+export { listEnrolments } from './api';
+export type { Enrolment } from './types';
