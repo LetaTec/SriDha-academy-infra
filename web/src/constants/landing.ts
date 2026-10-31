@@ -47,6 +47,7 @@ export const LANDING_TEXT = {
   // The topics panel beside the sign-in form
   ongoingEyebrow: 'Topics running now',
   ongoingTitle: 'Learn one topic at a time',
+  ongoingAction: 'Create your free student ID to explore all batches',
   topicsTitle: 'Pick a topic,',
   topicsTitleEmphasis: 'not a whole subject.',
   searchLabel: 'Search topics',
@@ -65,24 +66,34 @@ export const LANDING_TEXT = {
   featurePlate: (index: number) => `Plate ${String(index).padStart(2, '0')}`,
   featuresTitle: 'How',
   featuresTitleEmphasis: 'SriDha Academy works.',
+  featuresDescription:
+    'Every big subject becomes easier when you take it one step at a time. Here’s how we help you move from understanding a concept to feeling confident about it.',
   features: [
     {
       illustration: 'live',
-      title: 'Topic-wise live classes',
+      title: 'Learn at your pace',
+      supportingHeading: 'Understand it. Don’t just memorise it.',
       description:
-        'Join a live batch for one topic. Ask questions and clear doubts while the class is on',
+        'Some topics take a little longer to click. That’s perfectly fine. Our topic-wise live classes break difficult concepts into smaller, clearer lessons, so you can ask questions, clear your doubts, and learn at a pace that works for you.',
+      closingLine: 'One topic at a time. One step closer to understanding.',
     },
     {
       illustration: 'test',
-      title: 'AI test papers',
+      title: 'Put your learning to the test',
+      supportingHeading:
+        'Because understanding feels better when you can prove it.',
       description:
-        'Practise with a different paper for every student, marked with a percentile when you finish',
+        'Once you’ve learnt a topic, it’s time to see how well it has stayed with you. Practise with topic-wise questions, check your answers, and discover where you need a little more practice.',
+      closingLine: 'Learn it. Try it. Understand it better.',
     },
     {
       illustration: 'model',
-      title: 'AI model papers',
+      title: 'Walk into your exam prepared',
+      supportingHeading: 'Practise today. Face tomorrow with confidence.',
       description:
-        'Model papers built from the last five years of exams, planned for delivery seven days before your exam',
+        'Get familiar with the way questions appear in exams through previous-year question papers and carefully structured model papers. Learn to recognise question patterns, manage your time, and approach your preparation with greater clarity.',
+      closingLine:
+        'Preparation isn’t about knowing everything at once. It’s about knowing what to do next.',
     },
   ],
 } as const;

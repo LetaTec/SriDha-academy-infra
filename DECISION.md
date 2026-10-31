@@ -548,6 +548,7 @@ During production testing on live environments:
 A rigorous production security audit was conducted against the SriDha Academy platform (`LetaTec/LetEd`) across authentication, session lifetimes, rate limiting, password recovery, HTTP transport security, and database resilience.
 
 Key concerns identified:
+
 1. **Lack of Session Rotation**: When logging in with valid credentials, if an existing session token was already present in the request (`req.auth.sessionId`), a new session was inserted into the database without revoking the previous session, leading to orphaned active sessions accumulating in PostgreSQL.
 2. **Missing Granular Rate Limiting**: The public enquiry waitlist (`POST /api/enquiries`) and password reset confirmation (`POST /api/auth/password-reset/confirm`) lacked dedicated rate limiting, exposing them to automated spam and brute-force token enumeration.
 3. **Missing HTTP Security Headers**: API responses on Render lacked defensive security headers (`Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and HSTS).
@@ -598,6 +599,7 @@ Key concerns identified:
 ### 1. Problem or Requirement
 
 The website previously relied on a single unoptimized 64x64 PNG (`favicon.png`). Modern web clients, mobile browsers, and desktop bookmarks expect standard multi-format favicon assets:
+
 1. An SVG vector favicon (`favicon.svg`) that scales infinitely and responds cleanly to light and dark browser themes.
 2. High-DPI raster icons (`favicon-32x32.png`, `favicon-16x16.png`) for high-resolution desktop browser tabs.
 3. A multi-resolution Microsoft Windows ICO file (`favicon.ico`) containing 16x16, 32x32, and 48x48 PNG frames for bookmark bars and legacy desktop clients.
@@ -661,3 +663,183 @@ The transparent background on browser tab favicons can lead to reduced legibilit
 - `npm run test`: Passed (67/67 tests).
 - `npm run build`: Succeeded. All assets copied to `web/dist/` with opaque white backgrounds verified.
 - `git diff --check`: Passed (clean whitespace).
+
+---
+
+## DEC-017: Premium Animated Subject-Card Showcase on Login Page
+
+- **Date & Time**: `2026-10-24T12:35:00+05:30` (IST)
+- **Decision Title**: Implement Fast, Continuous FLIP-Animated Academic Subject Deck on Login Page
+- **Status**: Implemented & Verified
+
+### 1. Problem or Requirement
+
+The right-hand section of the SriDha Academy login page (`/login`) required an upgraded, premium visual identity to match modern high-end education platforms.
+Key requirements:
+
+1. **Continuous Autonomous Motion**: The card deck must continuously rotate through subjects without requiring mouse interaction, and hovering or interacting with the form must never pause or alter the shuffle timing.
+2. **Faster, Rhythmic Animation**:
+   - Initial delay: ~1,000 ms.
+   - Shuffle start interval: 1,850 ms (within the 1,600–2,000 ms specification).
+   - Card movement duration: 550 ms (within 500–650 ms) using `cubic-bezier(0.22, 0.61, 0.36, 1)`.
+   - Card stagger: 45 ms per slot (within 40–80 ms).
+3. **Significantly Larger Cards**:
+   - Prominent 2-column desktop layout with minimum 220 px height (within 200–260 px).
+   - Generous internal padding (24 px), larger typography (25 px serif `Cormorant Garamond`), 44 px circular icon badges.
+   - Visual-only hover effects (fine border highlight and soft box shadow) without CSS hover transforms to avoid interfering with FLIP coordinates.
+4. **Expanded Subject Collection (23 Subjects)**:
+   - Includes all 11 original subjects (GST, Science, English, Accounts, Economics, Mathematics, Business Studies, Banking Reasoning, Rectification of Errors, Trial Balance, Bank Reconciliation Statement).
+   - Plus all 12 requested subjects (Accountancy, Business Mathematics, Statistics, Logical Reasoning, Quantitative Aptitude, English Grammar, Reading Comprehension, Financial Accounting, Partnership Accounts, Cash Flow Statements, Probability, Data Interpretation) with dedicated Lucide icons.
+5. **Clean Two-Column AuthPage Composition**:
+   - Left side: SriDha Academy logo, student access eyebrow, editorial heading, topic-wise learning description, and prominent login form.
+   - Right side: Explore Subjects eyebrow, rotating subjects counter badge with pulsing dot, and the 4-card animated deck.
+   - Dynamic `prefers-reduced-motion` compliance.
+
+### 2. Architecture & Decision Taken
+
+1. **First-Last-Invert-Play (FLIP) Animation Architecture**:
+   - Standard, in-flow 2-column CSS Grid (`grid-template-columns: repeat(2, minmax(0, 1fr))`).
+   - Before React updates visible subjects, `handleBeforeShuffle()` records exact DOM coordinates using `getBoundingClientRect()`.
+   - React updates the visible array of 4 subjects with stable `key={subject.id}` props.
+   - Synchronously in `useLayoutEffect`:
+     - Calculates delta translation `(dx, dy)`.
+     - Inverts position with `transform: translate3d(dx, dy, 0)`.
+     - Forces reflow (`void el.offsetHeight`).
+     - In `requestAnimationFrame`, transitions `transform` to `translate3d(0, 0, 0)` over 550 ms with a 45 ms slot stagger.
+     - New incoming cards smoothly glide in with `opacity: 0 -> 1` and `scale(0.96) -> scale(1)`.
+     - Cleans up inline transforms after 800 ms.
+2. **Continuous Timer & Complete Hover Separation**:
+   - The shuffle timer runs strictly in `useSubjectShuffle` via recursive `setTimeout` with `document.hidden` awareness.
+   - All hover/focus pause handlers (`onMouseEnter`, `onMouseLeave`, `onFocusCapture`, `onBlurCapture`) were eliminated.
+   - Card `:hover` styles use `box-shadow` and `border-color`, completely avoiding `transform` conflicts with active FLIP animations.
+3. **Design System & Typography**:
+   - Uses SriDha Academy's official design tokens: `#1e332c` (forest green), `#faf9f6` (warm white), `#ffffff` (card background), `#946d50` (warm brown), `#f9b522` (gold accent).
+   - Editorial serif `Cormorant Garamond` for headings and subject titles; sans-serif for metadata and labels.
+
+### 3. Verification Evidence
+
+- `npm run typecheck`: Passed (0 errors across `api` and `web`).
+- `npm run lint`: Passed (0 errors, 0 warnings across all files).
+- `npm run test -w web`: **41/41 tests passed (100% PASS)**, including all tests in `OngoingTopics.test.tsx` verifying continuous shuffling, hover independence, unmount cleanup, and reduced-motion stability.
+- `npm run build -w web`: Production Vite build succeeded cleanly in 1.32s.
+- `git diff --check`: Clean whitespace, no warnings.
+
+---
+
+## DEC-018: SriDha — The Living Library (Floating Layered Academic Deck Redesign)
+
+- **Date & Time**: `2026-10-24T13:24:00+05:30` (IST)
+- **Decision Title**: Implement SriDha — The Living Library Art-Directed Floating Subject Deck
+- **Status**: Implemented & Verified
+
+### 1. Problem or Requirement
+
+The previous implementation of the login page showcased four cards in an ordinary 2x2 grid. While the animation was technically functional, the visual composition felt like a conventional SaaS template rather than a bespoke, art-directed editorial experience for an elite academic academy.
+
+Key requirements:
+
+1. **The Living Library Floating Deck**: Replace the uniform 2x2 grid with an intentional, layered arrangement of floating subject cards featuring depth, subtle rotations (`-4.5deg` to `+4deg`), overlapping foreground and background layers, and rich ambient shadows.
+2. **Autonomous Continuous Dealing Motion**: Cards physically travel continuously through deck layers:
+   - Initial delay: `700 ms`
+   - Cycle interval: `1,400 ms`
+   - Movement duration: `750 ms` with cubic-bezier easing `cubic-bezier(0.25, 1, 0.5, 1)`
+   - Hero card (Slot 0) deals off with a graceful exit glide; background cards step forward through the fan layers (`slot3 -> slot2 -> slot1 -> slot0`); upcoming subjects emerge into the back of the deck (`slot3`).
+3. **Controlled Visual Themes for All 23 Subjects**:
+   - Each subject belongs to one of 8 bespoke academic themes with distinctive background palettes, typographic weights, and SVG/CSS visual motifs:
+     - `tax-ledger`: Forest green (`#1e332c`), gold stamp, fiscal invoice rules (GST, Cash Flow, Bank Reconciliation).
+     - `ledger-ivory`: Warm ivory (`#fbfaf6`), double-entry ledger ruling, debit/credit guides (Accountancy, Financial Accounting, Partnership, Rectification, Trial Balance).
+     - `terracotta-data`: Muted terracotta (`#b5623d`), vector trend curves, data equilibrium (Economics, Statistics, Data Interpretation).
+     - `graphite-geometric`: Deep slate graphite (`#212826`), Cartesian coordinate grid, calculus & matrix notation (Mathematics, Business Math, Probability, Quantitative Aptitude).
+     - `sage-molecular`: Pale sage (`#f3f7f1`), concentric orbital concept rings (Science).
+     - `ochre-logic`: Muted gold/ochre (`#c99738`), syllogistic deduction matrix (Banking Reasoning, Logical Reasoning).
+     - `editorial-serif`: Editorial white (`#ffffff`), prominent quotation ornament, syntax lines (English, English Grammar, Reading Comprehension).
+     - `architectural-green`: Classical pine (`#1a342c`), architectural enterprise foundation pillars (Business Studies).
+4. **Art-Directed Page Composition**:
+   - Left side: Official SriDha Academy `BrandLogo` masthead, `STUDENT ACCESS` kicker, editorial headline ("Big Subjects. Broken Into Small Victories."), lead paragraph, and fully functional authentication form.
+   - Right side: `The Living Library` eyebrow, rotating counter badge (`Rotating 23 Subjects`), editorial subhead, and the 3D-perspective floating deck stage (`height: 420px`).
+5. **Robustness & Accessibility**:
+   - Decoupled from hover: pointer movement never pauses or resets the animation.
+   - Dynamic `prefers-reduced-motion` compliance: provides a stable, elegant stacked fan composition without active motion when reduced motion is requested.
+   - Bounded visibility listener: pauses when `document.hidden`, resumes when active.
+
+### 2. Verification Evidence
+
+- `npm run typecheck`: Passed (0 errors across `api` and `web`).
+- `npm run lint`: Passed (0 errors, 0 warnings).
+- `npm run test -w web`: **41/41 tests passed (100% PASS)**, including comprehensive timer and deck cycle tests in `OngoingTopics.test.tsx`.
+- `npm run build -w web`: Built clean production bundle in 1.31s.
+- `git diff --check`: Clean whitespace, zero warnings.
+
+---
+
+## DEC-019: SriDha Academy — Complete Premium Frontend Redesign (Contemporary Editorial & Academic Atlas)
+
+- **Date & Time**: `2026-10-27T19:08:00+05:30` (IST)
+- **Decision Title**: Execute complete premium frontend redesign across design system tokens, `/login`, and the homepage
+- **Status**: Implemented & Verified
+
+### 1. Problem & Creative Direction
+
+SriDha Academy required a comprehensive transformation from a generic digital product aesthetic into a distinctive, luxurious, and academically sophisticated educational platform styled around the concept:
+
+> _"An exceptional academic institution, expressed through contemporary editorial design."_
+
+The redesign strictly avoids generic SaaS tropes (no purple-blue gradients, no default glassmorphism, no random floating blobs, no repetitive card clones, and no chaotic card animations). Instead, it elevates composition, whitespace, typography, and architectural restraint.
+
+### 2. Implementation Architecture
+
+1. **Shared Design System Tokens (`web/src/styles/tokens.css`)**:
+   - Primary Editorial Canvas: Warm ivory `#F7F5EF` (`--color-bg-page`)
+   - Surface Contrast & Sheet: Pure white `#FFFFFF` (`--color-bg-sheet`, `--color-bg-raised`)
+   - Primary Brand Ink & Actions: Deep forest green `#20392F` (`--color-bg-inverse`, `--color-border-strong`)
+   - Primary Body Ink: Dark charcoal `#252823` (`--color-text-primary`)
+   - Accent Moments: Antique gold `#B69A5A` (`--color-accent`, `--color-text-accent`, `--color-border-focus`)
+   - Muted Editorial Tint: Muted sage `#DCE4DA` (`--color-illus-sage`)
+   - Secondary Text: `#77776F` (`--color-text-muted`)
+   - Subtle Architectural Hairline: `#E5E1D7` (`--color-border-base`)
+   - Typographic System: Google Fonts `Cormorant Garamond` (editorial serif) + `DM Sans` (legible modern sans) with responsive `clamp()` scaling.
+
+2. **Login Page (`/login`) — Two-Part Art-Directed Experience**:
+   - **Left (Authentication Area)**:
+     - Official SriDha Academy `BrandLogo` masthead with institutional border divider.
+     - Institutional kicker: `STUDENT ACCESS` with fine antique gold rule.
+     - Editorial display headline: _"Master one concept at a time."_
+     - Focused topic-wise explanation: _"Complex subjects become manageable through structured, topic-wise learning. Complete verifiable concept milestones, test with AI assessment papers, and attend scheduled live batches."_
+     - Trustworthy authentication form with crisp hairline borders, pure white card face, antique gold focus states, and deep forest green primary action button.
+     - Institutional security footnote: _"INSTITUTIONAL ACCESS · SriDha Academy Academic Delivery Framework · Secure Session Verification"_.
+   - **Right (The Academic Atlas Folio)**:
+     - Replaced the arcade-style floating card deck with an **Editorial Curriculum Folio Plate**.
+     - Institutional Folio Header: `FOLIO SPECIFICATION · REF 2026` and `ACADEMIC PLATE 01`.
+     - **Featured Major Subject Plate** (`slot0`):
+       - Generous pure white card face with subtle border and elevation.
+       - Discipline kicker with antique gold rule: e.g. `SECTION I · FEATURED DISCIPLINE` / `COMMERCE & TAX`.
+       - Oversized Cormorant Garamond title (`GST`, `Science`, `Accounts`, `Economics`).
+       - Authentic discipline motif stamps and SVG vector seals.
+       - Verified curriculum module checklist (`• Live Topic Classes`, `• AI Test Paper Included`, `• Concept Verification`).
+       - Clear tuition fee / batch schedule and accessible primary action.
+     - **Secondary Curriculum Index Grid** (`slot1`, `slot2`, `slot3`):
+       - 3-column ruled index row displaying upcoming subjects with numerical tags (`02`, `03`, `04`), discipline tags, iconography, and semantic status dots.
+     - **Controlled Editorial Transition**: The frame, folio header, and layout remain completely stable; the featured subject and index entries transition smoothly with quiet opacity and subtle slide (`--transition-reveal: 800ms`), with zero wild tilting or disorienting movement.
+     - Accessible button roles ensuring 100% test compatibility with `OngoingTopics.test.tsx`.
+
+3. **Homepage (`/`) Redesign**:
+   - `SiteHeader`: Warm ivory translucent bar (`rgb(247 245 239 / 0.94)`), subtle border, uppercase navigation tracking with antique gold active underline indicator, and deep forest green primary button.
+   - `HeroSection`: Generous editorial rhythm, Cormorant Garamond hero headline (_"Big Subjects. Broken Into Small Victories."_), StatList with architectural vertical hairline dividers, and seamless integration with `InteractiveBook`.
+   - `TopicPreviewGrid`: Refined white cards on ivory canvas, antique gold focus rings, clear price and batch start indicators.
+   - `AiTestSection`: Deep forest green inverse canvas (`#20392F`) with `SampleTestPaper` styled like an authentic university examination manuscript with OMR answer bubbles.
+   - `ProgramsSection`: Tiled grid with pure white card faces, Roman numeral discipline tags (`01 / CLASSES`, `02 / ASSESSMENT`, `03 / PREDICTION`), and editorial buttons.
+   - `AboutSection` & `TeamSection`: Refined two-column editorial layout and monogrammed faculty cards.
+   - `SiteFooter`: Deep forest green institutional base with official stacked light logo, antique gold section headers, and copyright notices.
+
+4. **Preservation of Core Functionality**:
+   - All authentication flows (login, register, forgot password, super-admin sign-in), token parameters (`redirect_to`), session restorations, and catalogue API bindings are 100% preserved.
+
+### 3. Verification Evidence
+
+- `npm run typecheck`: Passed (0 errors across `api` and `web`).
+- `npm run lint -w web`: Passed (0 errors, 0 warnings).
+- `npm run lint -w api`: Passed (0 errors, 0 warnings).
+- `npm run test -w web`: **41/41 tests passed (100% PASS)** across all 7 test files (`routing.test.tsx`, `OngoingTopics.test.tsx`, `SampleTestPaper.test.tsx`, `bookPages.test.ts`, `bookState.test.ts`, `api.test.ts`, `formatters.test.ts`).
+- `npm run build -w web`: Production Vite build succeeded in 1.28s with 0 warnings.
+- `npm run format:check`: Passed (All matched files use Prettier code style).
+- `git diff --check`: Passed cleanly with zero whitespace or conflict markers.

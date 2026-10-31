@@ -16,8 +16,8 @@ const cn = cx.bind(styles);
 
 const TITLE_ID = 'ai-test-title';
 
-// "Start a sample test" brings the sample paper into view and puts keyboard
-// focus on its first answer.
+// Live interactive assessment preview: Try a sample test paper right in the browser.
+// Focuses the first answer option when clicking "Start sample test".
 export const AiTestSection = () => {
   const paperRef = useRef<HTMLDivElement>(null);
 
@@ -33,7 +33,7 @@ export const AiTestSection = () => {
   return (
     <Section id={HOME_SECTION_ID.aiTest} tone="inverse" labelledBy={TITLE_ID}>
       <div className={cn('grid')}>
-        <Reveal>
+        <Reveal className={cn('copy')}>
           <Text as="div" variant="eyebrow" tone="accentInverse">
             {AI_TEST_TEXT.eyebrow}
           </Text>
@@ -51,6 +51,22 @@ export const AiTestSection = () => {
           <Text as="p" tone="inverseMuted" className={cn('description')}>
             {AI_TEST_TEXT.description}
           </Text>
+
+          <ul className={cn('featuresList')}>
+            <li className={cn('featureItem')}>
+              <span className={cn('featureDot')} aria-hidden="true" />
+              <span>Algorithmic paper generation from syllabus blueprints</span>
+            </li>
+            <li className={cn('featureItem')}>
+              <span className={cn('featureDot')} aria-hidden="true" />
+              <span>Instant step-marking with detailed reasoning</span>
+            </li>
+            <li className={cn('featureItem')}>
+              <span className={cn('featureDot')} aria-hidden="true" />
+              <span>Client-side demonstration · No login required</span>
+            </li>
+          </ul>
+
           <Button
             variant="secondary"
             tone="inverse"
@@ -62,8 +78,14 @@ export const AiTestSection = () => {
           </Button>
         </Reveal>
 
-        <div ref={paperRef}>
+        <div ref={paperRef} className={cn('paperWrapper')}>
           <Reveal>
+            <div className={cn('paperBanner')}>
+              <span>Interactive Assessment Preview</span>
+              <span className={cn('bannerPip')}>
+                5 Questions · Auto-Marking
+              </span>
+            </div>
             <SampleTestPaper />
           </Reveal>
         </div>

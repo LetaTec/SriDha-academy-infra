@@ -58,13 +58,19 @@ test.describe('sign-in gate', () => {
     await expect(book(page)).toHaveCount(0);
     await expect(page.getByText('Topics to begin with')).toHaveCount(0);
 
-    // Beside the form: the four topics running now. Below it: our model.
-    const ongoing = page.getByRole('region', {
-      name: 'Learn one topic at a time',
-    });
+    // Beside the form: the shuffling subject cards. Below it: our model.
+    const hero = page.getByRole('region', { name: 'What we teach' });
+    await expect(hero.getByRole('article')).toBeVisible();
     await expect(
-      ongoing.getByRole('button', { name: /^(Enrol now|Pre-register now):/ }),
-    ).toHaveCount(4);
+      hero.getByRole('heading', {
+        level: 2,
+        name: /Class 11 Accounts|Class 11 Economics|Class 11 Science|DLT registration|Class 11 Mathematics/,
+      }),
+    ).toBeVisible();
+    await expect(
+      hero.getByRole('button', { name: 'Pause subject shuffle' }),
+    ).toBeVisible();
+
     await expect(
       page.getByRole('heading', {
         level: 2,
@@ -178,7 +184,7 @@ test.describe('homepage', () => {
     await expect(
       page.getByRole('heading', {
         level: 1,
-        name: /big subjects\.\s*broken into\s*small victories/i,
+        name: /a subject isn't learned in a day/i,
       }),
     ).toBeVisible();
     // The topic search lives in the header (inside the menu on phones)
@@ -224,6 +230,7 @@ test.describe('interactive book', () => {
     await page.goto('/');
     await expect(book(page)).toBeVisible();
     await expect(page.getByText(/spread 1 of/i)).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
     const initial = await bookBox(page);
 
     for (const [x, y] of [
@@ -350,10 +357,10 @@ test.describe('student journey', () => {
     await signedIn(page, `${testInfo.project.name}-waitlist`);
     await page.goto('/#model-paper');
     await expect(
-      page.getByRole('heading', { name: /ai model\s*paper/i }),
+      page.getByRole('heading', { level: 3, name: 'AI Model Paper' }),
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Join waitlist' }).click();
+    await page.getByRole('button', { name: 'Join waitlist' }).first().click();
     const dialog = page.getByRole('dialog', { name: /prepare\s*ahead/i });
     await dialog.getByLabel('Exam').selectOption('NEET');
     await dialog.getByRole('button', { name: /join waitlist/i }).click();

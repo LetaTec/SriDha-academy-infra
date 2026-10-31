@@ -13,6 +13,10 @@ import { redirectToCanonicalHost } from './app/canonicalHost';
 import { preloadPriceFonts } from './app/preloadPriceFonts';
 import { router } from './app/router';
 
+// Every visitor starts on the sign-in screen. Warming that chunk at boot means
+// the page paints on the first frame instead of flashing a loader first.
+void import('@pages/auth/AuthPage');
+
 // The site's Content-Security-Policy forbids eval. Without this, zod probes
 // for eval at start-up and every page load reports a (harmless) violation.
 z.config({ jitless: true });

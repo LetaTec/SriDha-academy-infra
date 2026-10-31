@@ -8,9 +8,10 @@ import { TOPICS_TEXT } from '@constants/home';
 import { APP_ROUTES, HOME_SECTION_ID } from '@constants/routes';
 import { HOME_TOPIC_COUNT, TOPIC_PREVIEWS } from '@constants/topics';
 import type { CatalogueState } from '@hooks/useCatalogue';
+import { listTopics, type Batch } from '@services/catalogue';
 import { useCheckout } from '@hooks/useCheckout';
-import { listTopics } from '@services/catalogue';
 
+import { InteractiveBook } from '../InteractiveBook/InteractiveBook';
 import styles from './TopicsSection.module.css';
 
 const cn = cx.bind(styles);
@@ -19,11 +20,17 @@ const TITLE_ID = 'topics-title';
 
 export type TopicsSectionProps = {
   catalogue: CatalogueState;
+  onOpenTopic?: (topicId: string) => void;
+  onSelectBatch?: (nextTopicId: string, batch: Batch) => void;
 };
 
-// The first topics on offer, second on the homepage, with their own search
-// and a link to every topic on the Topics page.
-export const TopicsSection = ({ catalogue }: TopicsSectionProps) => {
+// Section 2: Real subject and topic discovery.
+// Combines the Living Syllabus interactive book with topic batch previews and direct checkout.
+export const TopicsSection = ({
+  catalogue,
+  onOpenTopic = () => {},
+  onSelectBatch = () => {},
+}: TopicsSectionProps) => {
   const { openCheckout } = useCheckout();
   const catalogueTopics = listTopics(catalogue.subjects).map(
     context => context.topic,
@@ -42,6 +49,17 @@ export const TopicsSection = ({ catalogue }: TopicsSectionProps) => {
         }
         description={TOPICS_TEXT.description}
       />
+
+      {/* Living Syllabus Interactive Book */}
+      <div style={{ marginBottom: 'var(--space-8)' }}>
+        <InteractiveBook
+          catalogue={catalogue}
+          onOpenTopic={onOpenTopic}
+          onSelectBatch={onSelectBatch}
+        />
+      </div>
+
+      {/* Topic Batch Previews */}
       <TopicPreviewGrid
         catalogueTopics={catalogueTopics}
         onChooseTopic={openCheckout}

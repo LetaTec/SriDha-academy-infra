@@ -1,12 +1,32 @@
 .shell {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background: var(--color-bg-raised);
+}
+
+.shell.whiteTheme {
+  /* Registration is pure white from header to footer. The tokens are
+     redefined on this element only, so every other route keeps the ivory
+     paper. Each surface still has its own light border. */
+  --color-bg-page: #fff;
+  --color-bg-subtle: #fff;
+  --color-bg-raised: #fff;
+  --color-bg-sheet: #fff;
+  --color-bg-header: #fff;
+  --color-bg-zebra: #fff;
+}
+
+.whiteTheme :is(input, select, textarea) {
+  background-color: #fff;
 }
 
 .header {
+  position: relative;
+  z-index: 1;
   border-bottom: var(--border-width-base) solid var(--color-border-header);
-  background: var(--color-bg-header);
+  background: var(--color-bg-raised);
 }
 
 .nav {
@@ -24,11 +44,36 @@
 }
 
 .main {
+  position: relative;
+  z-index: 1;
   flex: 1;
+}
+
+/* Keeps the footer above the decorative rain layer on the register page. */
+.shell > footer {
+  position: relative;
+  z-index: 1;
 }
 
 @media (--viewport-sm) {
   .actions {
     gap: var(--space-1);
+  }
+}
+
+/* Narrow phones: tighten the header so the logo and both buttons fit. */
+@media (max-width: 24em) {
+  .header .nav {
+    padding-inline: var(--space-2);
+    gap: var(--space-1);
+  }
+
+  .nav .actions {
+    gap: var(--space-0-5);
+  }
+
+  .nav .actions a {
+    padding-inline: var(--space-1-5);
+    font-size: var(--text-sm);
   }
 }
