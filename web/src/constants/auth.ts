@@ -1,3 +1,5 @@
+import type { UserRole } from '@contracts/auth';
+
 // redirect_to carries the page (including any chosen topic and batch) a
 // visitor was heading to, so sign-in returns them there.
 export const AUTH_QUERY_PARAM = {
@@ -10,9 +12,9 @@ export const AUTH_QUERY_PARAM = {
 export const USER_ROLE = {
   student: 'STUDENT',
   superAdmin: 'SUPER_ADMIN',
-} as const;
+} as const satisfies Record<string, UserRole>;
 
-export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
+export type { UserRole };
 
 export const USER_ROLE_LABEL: Record<UserRole, string> = {
   STUDENT: 'Student',

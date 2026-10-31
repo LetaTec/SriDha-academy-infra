@@ -27,6 +27,7 @@
       "@hooks/*": ["src/hooks/*"],
       "@utils/*": ["src/utils/*"],
       "@constants/*": ["src/constants/*"],
+      "@contracts/*": ["../api/src/contracts/*"],
       "@styles/*": ["src/styles/*"]
     }
   },

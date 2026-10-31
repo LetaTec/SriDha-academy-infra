@@ -7,8 +7,8 @@ import {
   type StreamKey,
   type SubjectKey,
   type TopicAvailability,
-  type TopicPreview,
 } from '@constants/topics';
+import type { TopicPreview } from '@services/catalogue';
 import { parseClassQuery } from '@utils/classLevel';
 import { searchTopicPreviews } from '@utils/topicSearch';
 

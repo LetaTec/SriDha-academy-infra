@@ -6,6 +6,11 @@ export {
   isBatchOpen,
   listTopics,
 } from './mappers';
+export {
+  hasBatches,
+  toTopicPreviews,
+  type TopicPreview,
+} from './topicPreviews';
 export type {
   Batch,
   BatchContext,

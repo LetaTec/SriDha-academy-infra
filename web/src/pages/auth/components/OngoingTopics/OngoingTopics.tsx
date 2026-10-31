@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import cx from 'classnames/bind';
 
 import { TopicPreviewGrid } from '@components/catalogue/TopicPreviewGrid/TopicPreviewGrid';
+import { TopicsStatus } from '@components/catalogue/TopicsStatus/TopicsStatus';
 import { Heading } from '@components/ui/Heading/Heading';
 import { Text } from '@components/ui/Text/Text';
 import { AUTH_QUERY_PARAM } from '@constants/auth';
@@ -9,7 +10,7 @@ import { CATALOGUE_QUERY_PARAM } from '@constants/catalogue';
 import { LANDING_TEXT } from '@constants/landing';
 import { SIGN_IN_TOPIC_COUNT } from '@constants/topics';
 import { APP_ROUTES } from '@constants/routes';
-import type { Topic } from '@services/catalogue';
+import { useTopicPreviews } from '@hooks/useTopicPreviews';
 
 import styles from './OngoingTopics.module.css';
 
@@ -17,15 +18,12 @@ const cn = cx.bind(styles);
 
 const TITLE_ID = 'ongoing-topics-title';
 
-export type OngoingTopicsProps = {
-  catalogueTopics: readonly Topic[];
-};
-
 // The topics running now, beside the sign-in form. Enrolling or
 // pre-registering asks the visitor to register first, then opens that
 // topic's payment panel.
-export const OngoingTopics = ({ catalogueTopics }: OngoingTopicsProps) => {
+export const OngoingTopics = () => {
   const navigate = useNavigate();
+  const { previews, isLoading, hasError, reload } = useTopicPreviews();
 
   const handleChooseTopic = (topicId: string) => {
     const destination = `${APP_ROUTES.TOPICS}?${new URLSearchParams({
@@ -46,13 +44,17 @@ export const OngoingTopics = ({ catalogueTopics }: OngoingTopicsProps) => {
       <Heading level={2} variant="item" id={TITLE_ID} className={cn('title')}>
         {LANDING_TEXT.ongoingTitle}
       </Heading>
-      <TopicPreviewGrid
-        catalogueTopics={catalogueTopics}
-        onChooseTopic={handleChooseTopic}
-        showSearch={false}
-        columns={2}
-        limit={SIGN_IN_TOPIC_COUNT}
-      />
+      {isLoading || hasError ? (
+        <TopicsStatus hasError={hasError} onRetry={reload} />
+      ) : (
+        <TopicPreviewGrid
+          previews={previews}
+          onChooseTopic={handleChooseTopic}
+          showSearch={false}
+          columns={2}
+          limit={SIGN_IN_TOPIC_COUNT}
+        />
+      )}
     </section>
   );
 };

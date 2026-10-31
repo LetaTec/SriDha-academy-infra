@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import { CheckoutPanel } from '@components/payments/CheckoutPanel/CheckoutPanel';
-import { TOPIC_PREVIEWS } from '@constants/topics';
-import { useCatalogue } from '@hooks/useCatalogue';
 import { useCheckout } from '@hooks/useCheckout';
-import { listTopics } from '@services/catalogue';
+import { useTopicPreviews } from '@hooks/useTopicPreviews';
 
 type CheckoutSession = { topicId: string; count: number };
 
@@ -14,7 +12,7 @@ type CheckoutSession = { topicId: string; count: number };
 // parameter goes, so it can slide out instead of vanishing.
 export const SiteCheckout = () => {
   const { checkoutTopicId, checkoutBatchId, closeCheckout } = useCheckout();
-  const { subjects, isLoading, reload } = useCatalogue();
+  const { previews, isLoading, hasError, reload } = useTopicPreviews();
   // Each opening starts a fresh panel, even for the same topic
   const [session, setSession] = useState<CheckoutSession | null>(null);
 
@@ -28,21 +26,17 @@ export const SiteCheckout = () => {
 
   if (!session) return null;
 
-  const preview = TOPIC_PREVIEWS.find(
-    item => item.catalogueTopicId === session.topicId,
-  );
-  if (!preview) return null;
-
-  const topic =
-    listTopics(subjects).find(context => context.topic.id === session.topicId)
-      ?.topic ?? null;
+  // Until the catalogue arrives the panel opens with a loading state; a
+  // topic that is not in the catalogue opens nothing
+  const preview =
+    previews.find(item => item.catalogueTopicId === session.topicId) ?? null;
+  if (!preview && !isLoading && !hasError) return null;
 
   return (
     <CheckoutPanel
       key={`${session.topicId}-${session.count}`}
       open={checkoutTopicId === session.topicId}
       preview={preview}
-      topic={topic}
       preferredBatchId={checkoutBatchId}
       isLoading={isLoading}
       onRetry={reload}

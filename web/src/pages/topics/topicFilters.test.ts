@@ -1,4 +1,6 @@
-import { SUBJECT, TOPIC_PREVIEWS, type TopicPreview } from '@constants/topics';
+import { SUBJECT } from '@constants/topics';
+import { toTopicPreviews, type TopicPreview } from '@services/catalogue';
+import { topicCatalogueFixture } from '@/test/topicCatalogueFixture';
 
 import {
   countTopicsBySubject,
@@ -17,6 +19,8 @@ const NO_FILTERS: TopicFilters = {
   availability: null,
 };
 
+const TOPIC_PREVIEWS = toTopicPreviews(topicCatalogueFixture);
+
 const isGst = (preview: TopicPreview) => preview.title === 'GST';
 
 const titles = (filters: Partial<TopicFilters>) =>
@@ -25,10 +29,6 @@ const titles = (filters: Partial<TopicFilters>) =>
   );
 
 describe('topic filters', () => {
-  it('teaches at least a hundred topics', () => {
-    expect(TOPIC_PREVIEWS.length).toBeGreaterThanOrEqual(100);
-  });
-
   it('reads filters from the URL and ignores unknown values', () => {
     expect(
       readTopicFilters(

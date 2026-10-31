@@ -54,7 +54,7 @@ const HomePage = () => {
         onOpenTopic={openTopic}
         onSelectBatch={handleSelectBatch}
       />
-      <TopicsSection catalogue={catalogue} />
+      <TopicsSection />
       <AiTestSection />
       <ProgramsSection
         onSeeTestFlow={() => setActiveDialog('aiTest')}

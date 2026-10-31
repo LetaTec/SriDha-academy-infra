@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import cx from 'classnames/bind';
 
 import { TopicPreviewGrid } from '@components/catalogue/TopicPreviewGrid/TopicPreviewGrid';
+import { TopicsStatus } from '@components/catalogue/TopicsStatus/TopicsStatus';
 import { Button } from '@components/ui/Button/Button';
 import { EmptyState } from '@components/ui/EmptyState/EmptyState';
 import { Heading } from '@components/ui/Heading/Heading';
@@ -12,15 +13,10 @@ import { Section } from '@components/ui/Section/Section';
 import { Text } from '@components/ui/Text/Text';
 import { LANDING_TEXT } from '@constants/landing';
 import { PAGE_TEXT } from '@constants/pages';
-import {
-  SUBJECT_LABEL,
-  TOPIC_FILTER_PARAM,
-  TOPIC_PREVIEWS,
-  type TopicPreview,
-} from '@constants/topics';
-import { useCatalogue } from '@hooks/useCatalogue';
+import { SUBJECT_LABEL, TOPIC_FILTER_PARAM } from '@constants/topics';
 import { useCheckout } from '@hooks/useCheckout';
-import { listTopics } from '@services/catalogue';
+import { useTopicPreviews } from '@hooks/useTopicPreviews';
+import { hasBatches } from '@services/catalogue';
 
 import { SubjectTabs } from './components/SubjectTabs/SubjectTabs';
 import { ActiveFilters } from './components/ActiveFilters/ActiveFilters';
@@ -44,7 +40,7 @@ const TITLE_ID = 'topics-page-title';
 // each class has its own row. "Enrol now" and "Pre-register now" open the
 // payment panel over this page.
 const TopicsPage = () => {
-  const { subjects } = useCatalogue();
+  const { previews, isLoading, hasError, reload } = useTopicPreviews();
   const { openCheckout } = useCheckout();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -58,27 +54,13 @@ const TopicsPage = () => {
     [query, classNumber, subject, stream, availability],
   );
 
-  const catalogueTopics = useMemo(
-    () => listTopics(subjects).map(context => context.topic),
-    [subjects],
-  );
-
   const { resultsInAnySubject, results, groups } = useMemo(() => {
-    const openTopicIds = new Set(
-      catalogueTopics
-        .filter(topic => topic.batches.length > 0)
-        .map(topic => topic.id),
-    );
-    const isOpen = (preview: TopicPreview) =>
-      preview.catalogueTopicId !== undefined &&
-      openTopicIds.has(preview.catalogueTopicId);
-
     // Subject tabs count topics under every other filter, then pick one
     // subject
     const inAnySubject = filterTopics(
-      TOPIC_PREVIEWS,
+      previews,
       { ...filters, subject: null },
-      isOpen,
+      hasBatches,
     );
     const inSubject = filters.subject
       ? inAnySubject.filter(preview => preview.subject === filters.subject)
@@ -89,7 +71,7 @@ const TopicsPage = () => {
       results: inSubject,
       groups: groupTopicsBySubject(inSubject),
     };
-  }, [catalogueTopics, filters]);
+  }, [previews, filters]);
 
   // Replacing the history entry keeps Back for leaving the page
   // Builds on the latest change even before the page re-renders, so two
@@ -149,11 +131,13 @@ const TopicsPage = () => {
           }
         />
         <Text as="p" variant="small" tone="muted" aria-live="polite">
-          {PAGE_TEXT.topicsCount(results.length, TOPIC_PREVIEWS.length)}
+          {PAGE_TEXT.topicsCount(results.length, previews.length)}
         </Text>
       </div>
 
-      {groups.length > 0 ? (
+      {isLoading || hasError ? (
+        <TopicsStatus hasError={hasError} onRetry={reload} />
+      ) : groups.length > 0 ? (
         <div className={cn('groups')}>
           {groups.map(group => {
             const groupTitleId = `topics-group-${group.subject}`;
@@ -183,7 +167,6 @@ const TopicsPage = () => {
                     </Heading>
                     <TopicPreviewGrid
                       previews={classGroup.topics}
-                      catalogueTopics={catalogueTopics}
                       onChooseTopic={openCheckout}
                       showSearch={false}
                     />

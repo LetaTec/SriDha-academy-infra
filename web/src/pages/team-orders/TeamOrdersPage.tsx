@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import cx from 'classnames/bind';
 
 import { canViewTeamOrders } from '@/access/team';
@@ -20,7 +20,7 @@ import {
   TEAM_ORDERS_TEXT as TEXT,
 } from '@constants/team';
 import { useAuth } from '@context/AuthContext';
-import { listTeamOrders, type TeamOrder } from '@services/admin';
+import { useTeamOrders } from '@hooks/useTeamOrders';
 import { formatPaise } from '@utils/currency';
 import { formatDateTime } from '@utils/date';
 
@@ -35,26 +35,8 @@ const TITLE_ID = 'team-orders-title';
 const TeamOrdersPage = () => {
   const auth = useAuth();
   const canView = canViewTeamOrders(auth);
-  const [orders, setOrders] = useState<TeamOrder[]>([]);
-  const [isLoading, setIsLoading] = useState(canView);
-  const [hasError, setHasError] = useState(false);
+  const { orders, isLoading, hasError, reload } = useTeamOrders(canView);
   const [statusFilter, setStatusFilter] = useState('');
-
-  const load = useCallback(() => {
-    setIsLoading(true);
-    setHasError(false);
-    listTeamOrders()
-      .then(setOrders)
-      .catch(error => {
-        console.error('[team] failed to load orders', error);
-        setHasError(true);
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  useEffect(() => {
-    if (canView) load();
-  }, [canView, load]);
 
   if (!canView) {
     return (
@@ -99,7 +81,7 @@ const TeamOrdersPage = () => {
         <EmptyState
           title={TEXT.loadError}
           action={
-            <Button variant="secondary" onClick={load}>
+            <Button variant="secondary" onClick={reload}>
               {TEXT.retry}
             </Button>
           }

@@ -17,9 +17,7 @@ import {
 import { APP_ROUTES, AUTH_SECTION_ID } from '@constants/routes';
 import { useAuth } from '@context/AuthContext';
 import { useToast } from '@context/ToastContext';
-import { useCatalogue } from '@hooks/useCatalogue';
 import type { AuthUser } from '@services/auth';
-import { listTopics } from '@services/catalogue';
 
 import { FeatureSection } from './components/FeatureSection/FeatureSection';
 import { LearningModelSection } from './components/LearningModelSection/LearningModelSection';
@@ -47,9 +45,6 @@ const AuthPage = ({ view }: AuthPageProps) => {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const { search } = useLocation();
-
-  const { subjects } = useCatalogue();
-  const catalogueTopics = listTopics(subjects).map(context => context.topic);
 
   const goTo = (pathname: string) => navigate({ pathname, search });
 
@@ -138,7 +133,7 @@ const AuthPage = ({ view }: AuthPageProps) => {
         </section>
 
         <div className={cn('visual')}>
-          <OngoingTopics catalogueTopics={catalogueTopics} />
+          <OngoingTopics />
         </div>
       </Container>
       <LearningModelSection />

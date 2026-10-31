@@ -5,7 +5,6 @@ import { ButtonBase } from '@components/ui/ButtonBase/ButtonBase';
 import { Icon } from '@components/ui/Icon/Icon';
 import { Text } from '@components/ui/Text/Text';
 import { TICKER_TEXT } from '@constants/home';
-import { TOPIC_PREVIEWS } from '@constants/topics';
 import { useCatalogue } from '@hooks/useCatalogue';
 import { useCheckout } from '@hooks/useCheckout';
 import { isBatchOpen, listTopics, type Batch } from '@services/catalogue';
@@ -47,17 +46,14 @@ export const BatchTicker = () => {
   const { subjects } = useCatalogue();
   const { openCheckout } = useCheckout();
 
-  const items: TickerItem[] = listTopics(subjects).flatMap(({ topic }) => {
-    const preview = TOPIC_PREVIEWS.find(
-      item => item.catalogueTopicId === topic.id,
-    );
-    return topic.batches.filter(isBatchOpen).map(batch => ({
+  const items: TickerItem[] = listTopics(subjects).flatMap(({ topic }) =>
+    topic.batches.filter(isBatchOpen).map(batch => ({
       topicId: topic.id,
-      topic: preview?.title ?? topic.title,
-      level: preview?.level ?? topic.level ?? '',
+      topic: topic.shortTitle,
+      level: topic.level ?? '',
       batch,
-    }));
-  });
+    })),
+  );
 
   // The list is shown twice so the loop has no seam; only the first copy
   // is read out or reachable by keyboard

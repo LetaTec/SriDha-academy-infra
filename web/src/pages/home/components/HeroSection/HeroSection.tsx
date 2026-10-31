@@ -1,9 +1,9 @@
 import cx from 'classnames/bind';
 
+import { TopicStatList } from '@components/catalogue/TopicStatList/TopicStatList';
 import { ButtonLink, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Container } from '@components/ui/Container/Container';
 import { Heading } from '@components/ui/Heading/Heading';
-import { StatList } from '@components/ui/StatList/StatList';
 import { Text } from '@components/ui/Text/Text';
 import { HERO_TEXT } from '@constants/home';
 import { APP_ROUTES, HOME_SECTION_ID, toSectionHref } from '@constants/routes';
@@ -47,7 +47,7 @@ export const HeroSection = (bookProps: HeroSectionProps) => (
             {HERO_TEXT.secondaryAction}
           </ButtonRouteLink>
         </div>
-        <StatList items={HERO_TEXT.stats} className={cn('stats')} />
+        <TopicStatList items={HERO_TEXT.stats} className={cn('stats')} />
       </div>
 
       <InteractiveBook {...bookProps} />

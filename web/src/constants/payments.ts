@@ -1,27 +1,31 @@
+import type {
+  CheckoutKind,
+  PaymentProvider,
+  PaymentStatus,
+} from '@contracts/payments';
+
 import type { EnrolmentStatus } from './catalogue';
 
 export const CHECKOUT_KIND = {
   enrolment: 'ENROLMENT',
   preRegistration: 'PRE_REGISTRATION',
-} as const;
+} as const satisfies Record<string, CheckoutKind>;
 
-export type CheckoutKind = (typeof CHECKOUT_KIND)[keyof typeof CHECKOUT_KIND];
+export type { CheckoutKind };
 
 export const PAYMENT_PROVIDER = {
   razorpay: 'RAZORPAY',
   test: 'TEST',
-} as const;
+} as const satisfies Record<string, PaymentProvider>;
 
-export type PaymentProvider =
-  (typeof PAYMENT_PROVIDER)[keyof typeof PAYMENT_PROVIDER];
+export type { PaymentProvider };
 
 export const PAYMENT_STATUS = {
   created: 'CREATED',
   paid: 'PAID',
-} as const;
+} as const satisfies Record<string, PaymentStatus>;
 
-export type PaymentStatus =
-  (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS];
+export type { PaymentStatus };
 
 export const RAZORPAY = {
   scriptUrl: 'https://checkout.razorpay.com/v1/checkout.js',
@@ -40,7 +44,8 @@ export const PRE_REGISTRATION_STATUS_LABEL: Record<EnrolmentStatus, string> = {
 export const CHECKOUT_TEXT = {
   enrolAction: 'Enrol now',
   preRegisterAction: 'Pre-register now',
-  loadingPrice: 'Loading fee and dates',
+  // The panel's title until the topic has loaded
+  topicPending: 'Your topic',
   loadingTopic: 'Loading this topic',
   loadFailedTopic:
     'We could not load this topic. Check your connection and try again',

@@ -32,6 +32,8 @@ export default defineConfig({
       '@hooks': path.resolve(__dirname, 'src/hooks'),
       '@utils': path.resolve(__dirname, 'src/utils'),
       '@constants': path.resolve(__dirname, 'src/constants'),
+      // What the API sends and accepts, shared with it (types only)
+      '@contracts': path.resolve(__dirname, '../api/src/contracts'),
       '@styles': path.resolve(__dirname, 'src/styles'),
     },
   },

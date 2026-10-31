@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { z } from 'zod';
 
 import { AuthProvider } from '@context/AuthContext';
@@ -11,6 +12,13 @@ import '@styles/typography.css';
 
 import { redirectToCanonicalHost } from './app/canonicalHost';
 import { preloadPriceFonts } from './app/preloadPriceFonts';
+import {
+  CATALOGUE_CACHE_MAX_AGE_MS,
+  createQueryClient,
+  QUERY_CACHE_VERSION,
+  queryPersister,
+  shouldPersistQuery,
+} from './app/queryClient';
 import { router } from './app/router';
 
 // The site's Content-Security-Policy forbids eval. Without this, zod probes
@@ -28,11 +36,21 @@ if (!redirectToCanonicalHost()) {
 
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <ToastProvider>
-        <AuthProvider>
-          <RouterProvider router={router} />
-        </AuthProvider>
-      </ToastProvider>
+      <PersistQueryClientProvider
+        client={createQueryClient()}
+        persistOptions={{
+          persister: queryPersister,
+          maxAge: CATALOGUE_CACHE_MAX_AGE_MS,
+          buster: QUERY_CACHE_VERSION,
+          dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+        }}
+      >
+        <ToastProvider>
+          <AuthProvider>
+            <RouterProvider router={router} />
+          </AuthProvider>
+        </ToastProvider>
+      </PersistQueryClientProvider>
     </React.StrictMode>,
   );
 }

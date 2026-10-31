@@ -1,8 +1,5 @@
-import {
-  SUBJECT_KEYWORDS,
-  SUBJECT_LABEL,
-  type TopicPreview,
-} from '@constants/topics';
+import { SUBJECT_KEYWORDS, SUBJECT_LABEL } from '@constants/topics';
+import type { TopicPreview } from '@services/catalogue';
 
 import { parseClassQuery } from './classLevel';
 

@@ -42,6 +42,9 @@ export const catalogueFixture: Subject[] = [
           {
             id: 'topic_accounts_gst_class_11',
             title: 'Learn GST for Class 11',
+            shortTitle: 'GST',
+            icon: 'topicGst',
+            featuredRank: 1,
             summary: 'A focused topic on GST.',
             level: 'Class 11',
             price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
@@ -71,7 +74,74 @@ export const catalogueFixture: Subject[] = [
           {
             id: 'topic_physics_ray_optics_class_12',
             title: 'Learn Ray optics for Class 12',
+            shortTitle: 'Ray optics',
+            icon: 'topicOptics',
+            featuredRank: 3,
             summary: 'Mirrors, lenses and optical instruments.',
+            level: 'Class 12',
+            price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+            lessons: [],
+            batches: [],
+          },
+        ],
+      },
+    ],
+  },
+  // Topics without batches in two more subjects, for search and the
+  // Topics page's subject groups
+  {
+    id: 'subject_chemistry',
+    slug: 'chemistry',
+    name: 'Chemistry',
+    description: 'Class 11 & 12 chemistry taught one topic at a time',
+    status: SUBJECT_STATUS.AVAILABLE,
+    listPrice: null,
+    chapters: [
+      {
+        id: 'chapter_chemistry_bonding',
+        title: 'Chemical bonding',
+        topics: [
+          {
+            id: 'topic_chemistry_bonding_class_11',
+            title: 'Learn Chemical bonding for Class 11',
+            shortTitle: 'Chemical bonding',
+            icon: 'topicBonding',
+            featuredRank: 2,
+            summary: 'Bonds, shapes and hybridisation.',
+            level: 'Class 11',
+            price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+            lessons: [
+              {
+                id: 'lesson_bonding_1',
+                title: 'Hybridisation',
+                durationMinutes: null,
+              },
+            ],
+            batches: [],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'subject_biology',
+    slug: 'biology',
+    name: 'Biology',
+    description: 'Class 11 & 12 biology taught one topic at a time',
+    status: SUBJECT_STATUS.AVAILABLE,
+    listPrice: null,
+    chapters: [
+      {
+        id: 'chapter_biology_ecosystem',
+        title: 'Ecosystem',
+        topics: [
+          {
+            id: 'topic_biology_ecosystem_class_12',
+            title: 'Learn Ecosystem for Class 12',
+            shortTitle: 'Ecosystem',
+            icon: null,
+            featuredRank: null,
+            summary: 'Energy flow and ecological pyramids.',
             level: 'Class 12',
             price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
             lessons: [],

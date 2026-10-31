@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
 import cx from 'classnames/bind';
 
 import { canViewTeamOrders } from '@/access/team';
@@ -25,8 +24,9 @@ import { PRE_REGISTRATION_STATUS_LABEL } from '@constants/payments';
 import { APP_ROUTES } from '@constants/routes';
 import { useAuth } from '@context/AuthContext';
 import { useCheckout } from '@hooks/useCheckout';
-import { listEnrolments, type Enrolment } from '@services/enrolments';
-import { listPreRegistrations, type PreRegistration } from '@services/payments';
+import { useMyLearning } from '@hooks/useMyLearning';
+import type { Enrolment } from '@services/enrolments';
+import type { PreRegistration } from '@services/payments';
 import { formatDateOnly } from '@utils/date';
 
 import styles from './MyLearningPage.module.css';
@@ -61,30 +61,8 @@ const MyLearningPage = () => {
   const auth = useAuth();
   const { user } = auth;
   const { openCheckout } = useCheckout();
-  const [enrolments, setEnrolments] = useState<Enrolment[]>([]);
-  const [preRegistrations, setPreRegistrations] = useState<PreRegistration[]>(
-    [],
-  );
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-
-  const load = useCallback(() => {
-    setIsLoading(true);
-    setHasError(false);
-
-    Promise.all([listEnrolments(), listPreRegistrations()])
-      .then(([nextEnrolments, nextPreRegistrations]) => {
-        setEnrolments(nextEnrolments);
-        setPreRegistrations(nextPreRegistrations);
-      })
-      .catch(error => {
-        console.error('[my-learning] failed to load', error);
-        setHasError(true);
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  useEffect(load, [load]);
+  const { enrolments, preRegistrations, isLoading, hasError, reload } =
+    useMyLearning();
 
   const isPending = (status: Enrolment['status']) =>
     status === ENROLMENT_STATUS.PENDING_PAYMENT;
@@ -150,7 +128,7 @@ const MyLearningPage = () => {
         <EmptyState
           title={PAGE_TEXT.myLearningLoadError}
           action={
-            <Button variant="secondary" onClick={load}>
+            <Button variant="secondary" onClick={reload}>
               {CATALOGUE_TEXT.retry}
             </Button>
           }
