@@ -7,6 +7,8 @@ export const CATALOGUE_QUERY_PARAM = {
   batch: 'batch',
   // The catalogue topic whose payment panel is open, on any signed-in page
   checkout: 'checkout',
+  // A batch chosen before checkout opened, preselected in the panel
+  checkoutBatch: 'checkoutBatch',
 } as const;
 
 export const SUBJECT_STATUS = {
@@ -55,7 +57,7 @@ export type EnrolmentStatus =
   (typeof ENROLMENT_STATUS)[keyof typeof ENROLMENT_STATUS];
 
 export const ENROLMENT_STATUS_LABEL: Record<EnrolmentStatus, string> = {
-  PENDING_PAYMENT: 'Seat reserved — payment pending',
+  PENDING_PAYMENT: 'Payment pending',
   CONFIRMED: 'Enrolment confirmed',
   CANCELLED: 'Cancelled',
 };
@@ -105,13 +107,9 @@ export const CATALOGUE_TEXT = {
     level ? `Topic / ${level}` : 'Topic',
   reviewTitle: 'Review your',
   reviewTitleEmphasis: 'selection.',
-  reserveSeat: 'Reserve seat',
-  paymentPendingNote:
-    'Online payment is not live yet. Reserving records your seat for this batch; the SriDha Academy team will contact you to complete payment.',
-  reservedTitle: 'Seat',
-  reservedTitleEmphasis: 'reserved.',
-  reservedToast: 'Seat reserved — payment pending',
-  alreadyReservedMessage: 'You have already reserved a seat in this batch',
+  continueToPayment: 'Continue to payment',
+  paymentNextNote:
+    'You pay on the next step. Your seat is held for 30 minutes while you pay',
   viewMyLearning: 'Go to my learning',
   batchNotFound: 'This batch is no longer available. Please choose another.',
   noBatchesMessage: 'Batches for this topic will be announced soon',

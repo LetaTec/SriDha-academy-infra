@@ -16,7 +16,3 @@ export type Enrolment = {
   };
   batch: Batch;
 };
-
-export type CreateEnrolmentRequest = {
-  batchId: string;
-};

@@ -9,6 +9,8 @@ import '@styles/tokens.css';
 import '@styles/reset.css';
 import '@styles/typography.css';
 
+import { redirectToCanonicalHost } from './app/canonicalHost';
+import { preloadPriceFonts } from './app/preloadPriceFonts';
 import { router } from './app/router';
 
 // Every visitor starts on the sign-in screen. Warming that chunk at boot means
@@ -25,12 +27,16 @@ if (!rootElement) {
   throw new Error('Root element not found');
 }
 
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <ToastProvider>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </ToastProvider>
-  </React.StrictMode>,
-);
+if (!redirectToCanonicalHost()) {
+  preloadPriceFonts();
+
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <ToastProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </ToastProvider>
+    </React.StrictMode>,
+  );
+}

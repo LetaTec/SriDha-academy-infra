@@ -1,0 +1,145 @@
+/* A thin enrolment strip above the menu bar, in the brand's dark green */
+.ticker {
+  display: flex;
+  align-items: stretch;
+  height: var(--height-ticker);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+}
+
+.label {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border-right: var(--border-width-base) solid var(--color-border-inverse);
+  color: var(--color-brand-yellow);
+  white-space: nowrap;
+}
+
+/* Items fade out at both edges instead of being cut off */
+.window {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    var(--color-bg-inverse) var(--space-4),
+    var(--color-bg-inverse) calc(100% - var(--space-4)),
+    transparent
+  );
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  height: 100%;
+  animation: run calc(var(--ticker-items) * var(--duration-ticker-item)) linear
+    infinite;
+}
+
+.window:hover .track,
+.window:focus-within .track {
+  animation-play-state: paused;
+}
+
+.list {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+}
+
+/* A small yellow square between batches, like a printed ticker */
+.item::after {
+  content: '';
+  width: var(--space-0-5);
+  height: var(--space-0-5);
+  margin: 0 var(--space-3);
+  background: var(--color-brand-yellow);
+}
+
+.entry {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: var(--space-0-5) 0;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.entry:focus-visible {
+  outline-color: var(--color-brand-yellow);
+}
+
+.topic {
+  color: var(--color-text-inverse);
+}
+
+.level,
+.details {
+  color: var(--color-text-inverse-muted);
+}
+
+.enrol {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-0-5);
+  margin-left: var(--space-0-5);
+  border-bottom: var(--border-width-base) solid currentcolor;
+  color: var(--color-brand-yellow);
+  align-self: center;
+}
+
+.entry:hover .enrol {
+  color: var(--color-text-inverse);
+}
+
+.quiet {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-left: var(--space-3);
+  color: var(--color-text-inverse-muted);
+  white-space: nowrap;
+}
+
+@keyframes run {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (--viewport-sm) {
+  .label {
+    padding: 0 var(--space-1-5);
+  }
+}
+
+/* Still for people who prefer less motion: the row scrolls by hand instead */
+@media (--reduced-motion) {
+  .window {
+    overflow-x: auto;
+    mask-image: none;
+  }
+
+  .track {
+    animation: none;
+  }
+
+  .repeat {
+    display: none;
+  }
+}

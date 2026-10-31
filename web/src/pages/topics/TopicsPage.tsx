@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import cx from 'classnames/bind';
 
@@ -47,29 +47,49 @@ const TopicsPage = () => {
   const { subjects } = useCatalogue();
   const { openCheckout } = useCheckout();
   const [searchParams, setSearchParams] = useSearchParams();
-  const filters = readTopicFilters(searchParams);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
-  const catalogueTopics = listTopics(subjects).map(context => context.topic);
-  const openTopicIds = new Set(
-    catalogueTopics
-      .filter(topic => topic.batches.length > 0)
-      .map(topic => topic.id),
+  // The topic rows are rebuilt only when the filters or the catalogue
+  // change, not when the payment panel's ?checkout= changes the URL
+  const { query, classNumber, subject, stream, availability } =
+    readTopicFilters(searchParams);
+  const filters = useMemo(
+    () => ({ query, classNumber, subject, stream, availability }),
+    [query, classNumber, subject, stream, availability],
   );
-  const isOpen = (preview: TopicPreview) =>
-    preview.catalogueTopicId !== undefined &&
-    openTopicIds.has(preview.catalogueTopicId);
 
-  // Subject tabs count topics under every other filter, then pick one subject
-  const resultsInAnySubject = filterTopics(
-    TOPIC_PREVIEWS,
-    { ...filters, subject: null },
-    isOpen,
+  const catalogueTopics = useMemo(
+    () => listTopics(subjects).map(context => context.topic),
+    [subjects],
   );
-  const results = filters.subject
-    ? resultsInAnySubject.filter(preview => preview.subject === filters.subject)
-    : resultsInAnySubject;
-  const groups = groupTopicsBySubject(results);
+
+  const { resultsInAnySubject, results, groups } = useMemo(() => {
+    const openTopicIds = new Set(
+      catalogueTopics
+        .filter(topic => topic.batches.length > 0)
+        .map(topic => topic.id),
+    );
+    const isOpen = (preview: TopicPreview) =>
+      preview.catalogueTopicId !== undefined &&
+      openTopicIds.has(preview.catalogueTopicId);
+
+    // Subject tabs count topics under every other filter, then pick one
+    // subject
+    const inAnySubject = filterTopics(
+      TOPIC_PREVIEWS,
+      { ...filters, subject: null },
+      isOpen,
+    );
+    const inSubject = filters.subject
+      ? inAnySubject.filter(preview => preview.subject === filters.subject)
+      : inAnySubject;
+
+    return {
+      resultsInAnySubject: inAnySubject,
+      results: inSubject,
+      groups: groupTopicsBySubject(inSubject),
+    };
+  }, [catalogueTopics, filters]);
 
   // Replacing the history entry keeps Back for leaving the page
   // Builds on the latest change even before the page re-renders, so two

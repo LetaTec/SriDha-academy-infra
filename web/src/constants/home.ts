@@ -18,6 +18,19 @@ export const NAV_LINKS = [
   { label: 'About', to: APP_ROUTES.ABOUT, isSection: false },
 ] as const;
 
+// The "Now enrolling" ticker at the top of every signed-in page
+export const TICKER_TEXT = {
+  label: 'Now enrolling',
+  regionLabel: 'Batches open for enrolment',
+  starts: 'starts',
+  seatsLeft: (seats: number) =>
+    `${seats} ${seats === 1 ? 'seat' : 'seats'} left`,
+  enrol: 'Enrol',
+  enrolLabel: (topic: string, batch: string) => `Enrol in ${topic}, ${batch}`,
+  quiet:
+    'New batches open every month. Pre-register for any topic to keep a seat',
+} as const;
+
 export const HEADER_TEXT = {
   myLearning: 'My learning',
   logout: 'Log out',

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { memo, useId, useState } from 'react';
 import cx from 'classnames/bind';
 
 import { TopicSubtopicsOverlay } from '@components/catalogue/TopicSubtopicsOverlay/TopicSubtopicsOverlay';
@@ -74,7 +74,7 @@ export type TopicPreviewGridProps = {
 // Grid of topic cards. The whole card is one button that opens the payment
 // panel: "Enrol now" when batches are published, "Pre-register now" when
 // they are not. Hovering the card reveals what the topic teaches.
-export const TopicPreviewGrid = ({
+const TopicPreviewGridView = ({
   catalogueTopics,
   onChooseTopic,
   showSearch = true,
@@ -165,3 +165,7 @@ export const TopicPreviewGrid = ({
     </div>
   );
 };
+
+// Memoised: a page can hold all 156 cards, and opening the payment panel
+// changes the URL, which must not rebuild them while the panel slides in
+export const TopicPreviewGrid = memo(TopicPreviewGridView);

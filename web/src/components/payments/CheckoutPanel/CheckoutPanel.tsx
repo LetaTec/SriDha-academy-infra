@@ -71,6 +71,8 @@ export type CheckoutPanelProps = {
   preview: TopicPreview;
   // Null while the catalogue is still loading (or failed to load)
   topic: Topic | null;
+  // A batch the student already chose, preselected when still open
+  preferredBatchId?: string | null;
   isLoading: boolean;
   onRetry: () => void;
   onClose: () => void;
@@ -84,6 +86,7 @@ export const CheckoutPanel = ({
   open,
   preview,
   topic,
+  preferredBatchId = null,
   isLoading,
   onRetry,
   onClose,
@@ -94,8 +97,13 @@ export const CheckoutPanel = ({
   const isEnrolment = batches.length > 0;
   const openBatches = batches.filter(isBatchOpen);
   const [chosenBatchId, setBatchId] = useState<string | null>(null);
-  // The next open batch until the student picks another
-  const batchId = chosenBatchId ?? openBatches[0]?.id ?? null;
+  // The batch chosen earlier, else the next open one, until the student
+  // picks another
+  const preferredOpenBatch = openBatches.find(
+    batch => batch.id === preferredBatchId,
+  );
+  const batchId =
+    chosenBatchId ?? preferredOpenBatch?.id ?? openBatches[0]?.id ?? null;
   const [stage, setStage] = useState<Stage>({ name: 'details' });
   // Problems with Razorpay's window, which are not API errors
   const [paymentError, setPaymentError] = useState<string | null>(null);

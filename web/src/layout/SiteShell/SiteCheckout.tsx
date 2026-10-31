@@ -13,7 +13,7 @@ type CheckoutSession = { topicId: string; count: number };
 // sign-in page and opens straight after. The panel stays mounted after the
 // parameter goes, so it can slide out instead of vanishing.
 export const SiteCheckout = () => {
-  const { checkoutTopicId, closeCheckout } = useCheckout();
+  const { checkoutTopicId, checkoutBatchId, closeCheckout } = useCheckout();
   const { subjects, isLoading, reload } = useCatalogue();
   // Each opening starts a fresh panel, even for the same topic
   const [session, setSession] = useState<CheckoutSession | null>(null);
@@ -43,6 +43,7 @@ export const SiteCheckout = () => {
       open={checkoutTopicId === session.topicId}
       preview={preview}
       topic={topic}
+      preferredBatchId={checkoutBatchId}
       isLoading={isLoading}
       onRetry={reload}
       onClose={closeCheckout}

@@ -20,11 +20,12 @@ export type TopicDialogProps = {
   onClose: () => void;
   onSelectBatch: (batch: Batch) => void;
   onClearBatch: () => void;
-  onEnrolmentChange: () => void;
+  // Hands the chosen batch over to the payment panel
+  onContinueToPayment: (selection: BatchContext) => void;
 };
 
-// One topic: its lessons and batches, then the enrolment review for the
-// chosen batch. The dialog's state lives in the URL.
+// One topic: its lessons and batches, then a review of the chosen batch
+// before payment. The dialog's state lives in the URL.
 export const TopicDialog = ({
   open,
   context,
@@ -33,7 +34,7 @@ export const TopicDialog = ({
   onClose,
   onSelectBatch,
   onClearBatch,
-  onEnrolmentChange,
+  onContinueToPayment,
 }: TopicDialogProps) => (
   <Modal
     open={open}
@@ -69,7 +70,7 @@ export const TopicDialog = ({
           key={selection.batch.id}
           context={selection}
           onChooseAnother={onClearBatch}
-          onEnrolmentChange={onEnrolmentChange}
+          onContinueToPayment={() => onContinueToPayment(selection)}
         />
       ) : null}
       {!selection && context ? (
