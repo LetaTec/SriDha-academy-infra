@@ -315,6 +315,9 @@ describe('auth', () => {
       WEB_ORIGIN: 'https://sridhaacademy.com',
       ALLOWED_ORIGINS: 'https://www.sridhaacademy.com',
       DATABASE_URL: 'postgres://localhost/test',
+      RAZORPAY_KEY_ID: 'rzp_live_example',
+      RAZORPAY_KEY_SECRET: 'secret',
+      RAZORPAY_WEBHOOK_SECRET: 'webhook-secret',
     });
 
     assert.equal(prodConfig.secureCookies, true);

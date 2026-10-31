@@ -220,4 +220,18 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX payments_user_id_idx ON payments (user_id);
     `,
   },
+  {
+    // The hourly clean-up deletes expired sessions and links by expiry,
+    // and order lists join payments to the seat they paid for.
+    id: '006_cleanup_and_payment_indexes',
+    sql: `
+      CREATE INDEX sessions_expires_at_idx ON sessions (expires_at);
+      CREATE INDEX password_reset_tokens_expires_at_idx
+        ON password_reset_tokens (expires_at);
+      CREATE INDEX sign_in_links_expires_at_idx ON sign_in_links (expires_at);
+      CREATE INDEX payments_enrolment_id_idx ON payments (enrolment_id);
+      CREATE INDEX payments_pre_registration_id_idx
+        ON payments (pre_registration_id);
+    `,
+  },
 ];

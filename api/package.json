@@ -15,8 +15,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
-    "db:seed": "tsx src/db/seed.ts",
-    "db:migrate:sqlite": "tsx src/db/migrateSqliteToPostgres.ts"
+    "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

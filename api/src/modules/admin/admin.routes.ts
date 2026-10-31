@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from 'express';
 
 import type { AppContext } from '../../app/context.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
+import { findUserRole } from '../auth/auth.repository.js';
 import { USER_ROLE } from '../auth/roles.js';
 import { getRequiredAuth, requireAuth } from '../auth/session.js';
 import { listTeamOrders } from './admin.service.js';
@@ -12,12 +13,7 @@ const requireSuperAdmin =
   ({ db }: AppContext): RequestHandler =>
   async (req, _res, next) => {
     const { userId } = getRequiredAuth(req.auth);
-    const user = await db.get<{ role: string }>(
-      'SELECT role FROM users WHERE id = $1',
-      [userId],
-    );
-
-    if (user?.role !== USER_ROLE.superAdmin) {
+    if ((await findUserRole(db, userId)) !== USER_ROLE.superAdmin) {
       throw new ApiError(
         403,
         ERROR_CODE.forbidden,

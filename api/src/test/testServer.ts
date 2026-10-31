@@ -5,6 +5,7 @@ import { loadConfig } from '../config/env.js';
 import { seedCatalogue } from '../db/catalogueSeed.js';
 import { openDatabase, runMigrations } from '../db/client.js';
 import type { Mailer } from '../mail/mailer.js';
+import { configureLogger } from '../logging/logger.js';
 import { syncSuperAdmins } from '../modules/auth/roles.js';
 import type { PaymentGateway } from '../modules/payments/gateway.js';
 
@@ -75,6 +76,7 @@ export const startTestServer = async ({
       ? { RAZORPAY_WEBHOOK_SECRET: razorpayWebhookSecret }
       : {}),
   });
+  configureLogger({ level: config.logLevel, pretty: true });
   await syncSuperAdmins(db, config.superAdminEmails, clock.now());
   const app = createApp({
     db,

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { AppContext } from '../../app/context.js';
 import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
+import { logger } from '../../logging/logger.js';
 import { emailSchema, mobileSchema } from '../auth/auth.schema.js';
 import {
   BATCH_AVAILABILITY,
@@ -16,10 +17,26 @@ import {
   type Row,
 } from '../catalogue/catalogue.repository.js';
 import {
+  findEnrolmentForBatch,
+  renewEnrolmentHold,
+  setEnrolmentStatus,
+} from '../enrolments/enrolments.repository.js';
+import {
   createEnrolment,
   ENROLMENT_STATUS,
 } from '../enrolments/enrolments.service.js';
 import type { PaymentGateway, PaymentProvider } from './gateway.js';
+import {
+  findBatchForPurchase,
+  findPaymentConfirmationRow,
+  findPaymentForUser,
+  findPreRegistration,
+  findTopicForPreRegistration,
+  insertPayment,
+  insertPreRegistration,
+  setPaymentPaid,
+  setPreRegistrationStatus,
+} from './payments.repository.js';
 
 export const CHECKOUT_KIND = {
   enrolment: 'ENROLMENT',
@@ -157,10 +174,7 @@ const renewSeatHold = async (
       );
     }
 
-    await tx.query('UPDATE enrolments SET updated_at = $1 WHERE id = $2', [
-      now.toISOString(),
-      enrolmentId,
-    ]);
+    await renewEnrolmentHold(tx, enrolmentId, now.toISOString());
     return enrolmentId;
   });
 
@@ -170,12 +184,7 @@ const prepareEnrolment = async (
   batchId: string,
 ): Promise<Purchase> => {
   const { db } = context;
-  const batch = await db.get<Row>(
-    `SELECT b.id, b.name, b.schedule_label, t.id AS t_id, t.title AS t_title,
-            t.level AS t_level, t.price_paise AS t_price_paise
-     FROM batches b JOIN topics t ON t.id = b.topic_id WHERE b.id = $1`,
-    [batchId],
-  );
+  const batch = await findBatchForPurchase(db, batchId);
 
   if (!batch) {
     throw new ApiError(
@@ -186,10 +195,7 @@ const prepareEnrolment = async (
   }
 
   const amountPaise = requirePrice(batch.t_price_paise);
-  const existing = await db.get<{ id: string; status: string }>(
-    'SELECT id, status FROM enrolments WHERE user_id = $1 AND batch_id = $2',
-    [userId, batchId],
-  );
+  const existing = await findEnrolmentForBatch(db, userId, batchId);
 
   if (existing?.status === ENROLMENT_STATUS.confirmed) {
     throw new ApiError(
@@ -228,13 +234,7 @@ const preparePreRegistration = async (
   const timestamp = context.now().toISOString();
 
   return transaction(context.db, async tx => {
-    const topic = await tx.get<Row>(
-      `SELECT t.id AS t_id, t.title AS t_title, t.level AS t_level,
-              t.price_paise AS t_price_paise,
-              (SELECT COUNT(*) FROM batches b WHERE b.topic_id = t.id) AS batch_count
-       FROM topics t WHERE t.id = $1`,
-      [topicId],
-    );
+    const topic = await findTopicForPreRegistration(tx, topicId);
 
     if (!topic) {
       throw new ApiError(
@@ -253,10 +253,7 @@ const preparePreRegistration = async (
     }
 
     const amountPaise = requirePrice(topic.t_price_paise);
-    const existing = await tx.get<{ id: string; status: string }>(
-      'SELECT id, status FROM pre_registrations WHERE user_id = $1 AND topic_id = $2',
-      [userId, topicId],
-    );
+    const existing = await findPreRegistration(tx, userId, topicId);
 
     if (existing?.status === PRE_REGISTRATION_STATUS.confirmed) {
       throw new ApiError(
@@ -269,24 +266,21 @@ const preparePreRegistration = async (
     let preRegistrationId: string;
     if (existing) {
       preRegistrationId = String(existing.id);
-      await tx.query(
-        'UPDATE pre_registrations SET status = $1, updated_at = $2 WHERE id = $3',
-        [PRE_REGISTRATION_STATUS.pendingPayment, timestamp, preRegistrationId],
+      await setPreRegistrationStatus(
+        tx,
+        preRegistrationId,
+        PRE_REGISTRATION_STATUS.pendingPayment,
+        timestamp,
       );
     } else {
       preRegistrationId = randomUUID();
-      await tx.query(
-        `INSERT INTO pre_registrations (id, user_id, topic_id, status, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          preRegistrationId,
-          userId,
-          topicId,
-          PRE_REGISTRATION_STATUS.pendingPayment,
-          timestamp,
-          timestamp,
-        ],
-      );
+      await insertPreRegistration(tx, {
+        id: preRegistrationId,
+        userId,
+        topicId,
+        status: PRE_REGISTRATION_STATUS.pendingPayment,
+        timestamp,
+      });
     }
 
     return {
@@ -318,28 +312,21 @@ export const createCheckout = async (
   });
   const timestamp = context.now().toISOString();
 
-  await context.db.query(
-    `INSERT INTO payments (id, user_id, enrolment_id, pre_registration_id, amount_paise, currency,
-       provider, provider_order_id, status, billing_name, billing_email, billing_mobile,
-       created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-    [
-      paymentId,
-      userId,
-      purchase.enrolmentId,
-      purchase.preRegistrationId,
-      purchase.amountPaise,
-      PAYMENT_CURRENCY,
-      gateway.provider,
-      orderId,
-      PAYMENT_STATUS.created,
-      input.fullName,
-      input.email,
-      input.mobile,
-      timestamp,
-      timestamp,
-    ],
-  );
+  await insertPayment(context.db, {
+    id: paymentId,
+    userId,
+    enrolmentId: purchase.enrolmentId,
+    preRegistrationId: purchase.preRegistrationId,
+    amountPaise: purchase.amountPaise,
+    currency: PAYMENT_CURRENCY,
+    provider: gateway.provider,
+    providerOrderId: orderId,
+    status: PAYMENT_STATUS.created,
+    billingName: input.fullName,
+    billingEmail: input.email,
+    billingMobile: input.mobile,
+    timestamp,
+  });
 
   return {
     paymentId,
@@ -364,25 +351,27 @@ export const markPaymentPaid = async (
   providerPaymentId: string,
   timestamp: string,
 ) => {
-  await tx.query(
-    `UPDATE payments SET status = $1, provider_payment_id = $2, updated_at = $3
-     WHERE id = $4`,
-    [PAYMENT_STATUS.paid, providerPaymentId, timestamp, String(payment.id)],
+  await setPaymentPaid(
+    tx,
+    String(payment.id),
+    PAYMENT_STATUS.paid,
+    providerPaymentId,
+    timestamp,
   );
 
   if (payment.enrolment_id !== null) {
-    await tx.query(
-      'UPDATE enrolments SET status = $1, updated_at = $2 WHERE id = $3',
-      [ENROLMENT_STATUS.confirmed, timestamp, String(payment.enrolment_id)],
+    await setEnrolmentStatus(
+      tx,
+      String(payment.enrolment_id),
+      ENROLMENT_STATUS.confirmed,
+      timestamp,
     );
   } else {
-    await tx.query(
-      'UPDATE pre_registrations SET status = $1, updated_at = $2 WHERE id = $3',
-      [
-        PRE_REGISTRATION_STATUS.confirmed,
-        timestamp,
-        String(payment.pre_registration_id),
-      ],
+    await setPreRegistrationStatus(
+      tx,
+      String(payment.pre_registration_id),
+      PRE_REGISTRATION_STATUS.confirmed,
+      timestamp,
     );
   }
 };
@@ -398,10 +387,7 @@ export const verifyPayment = async (
   const timestamp = context.now().toISOString();
 
   const result = await transaction(context.db, async tx => {
-    const payment = await tx.get<Row>(
-      'SELECT * FROM payments WHERE id = $1 AND user_id = $2',
-      [input.paymentId, userId],
-    );
+    const payment = await findPaymentForUser(tx, input.paymentId, userId);
 
     if (!payment) {
       throw new ApiError(
@@ -455,19 +441,7 @@ export const sendPaymentConfirmation = async (
   if (!context.mailer) return;
 
   try {
-    const row = await context.db.get<Row>(
-      `SELECT p.id, p.billing_name, p.billing_email, p.amount_paise,
-              p.provider_payment_id, b.name AS batch_name,
-              COALESCE(enrolled.title, registered.title) AS topic_title
-       FROM payments p
-       LEFT JOIN enrolments e ON e.id = p.enrolment_id
-       LEFT JOIN batches b ON b.id = e.batch_id
-       LEFT JOIN topics enrolled ON enrolled.id = b.topic_id
-       LEFT JOIN pre_registrations r ON r.id = p.pre_registration_id
-       LEFT JOIN topics registered ON registered.id = r.topic_id
-       WHERE p.id = $1`,
-      [paymentId],
-    );
+    const row = await findPaymentConfirmationRow(context.db, paymentId);
     if (!row) return;
 
     await context.mailer.sendPaymentConfirmation(String(row.billing_email), {
@@ -479,10 +453,6 @@ export const sendPaymentConfirmation = async (
       learningUrl: `${context.config.webOrigin}/my-learning`,
     });
   } catch (error) {
-    console.error(
-      '[payments] confirmation email for payment %s failed',
-      paymentId,
-      error,
-    );
+    logger.error('payments.confirmation_email_failed', { paymentId, error });
   }
 };

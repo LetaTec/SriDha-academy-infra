@@ -6,10 +6,17 @@ import {
   openDatabase,
   runMigrations,
 } from './db/client.js';
+import { startCleanupJobs } from './jobs/cleanup.js';
+import { configureLogger, logger } from './logging/logger.js';
 import { createMailer } from './mail/mailer.js';
 import { syncSuperAdmins } from './modules/auth/roles.js';
 
 const config = loadConfigFromEnvironment();
+configureLogger({
+  level: config.logLevel,
+  pretty: config.env !== 'production',
+});
+
 const db = await openDatabase(config.databaseUrl, config.pgMaxConnections);
 await runMigrations(db);
 
@@ -19,35 +26,38 @@ const superAdminCount = await syncSuperAdmins(
   config.superAdminEmails,
   new Date(),
 );
-console.log('[auth] super admin accounts: %d', superAdminCount);
+logger.info('auth.super_admins_synced', { count: superAdminCount });
 
 // An in-memory database starts empty on every run and no other process can
 // reach it, so the server loads the catalogue itself. The seed is idempotent.
 if (isInMemoryDatabase(config.databaseUrl)) {
   await seedCatalogue(db);
-  console.log('[db] in-memory database - catalogue seeded');
+  logger.info('db.in_memory_seeded');
 }
 
 const mailer = createMailer(config);
 
 if (!mailer) {
-  console.warn(
-    '[api] MAIL_TRANSPORT is not configured - password recovery will respond with PASSWORD_RECOVERY_UNAVAILABLE',
-  );
+  logger.warn('mail.not_configured', {
+    effect:
+      'password recovery responds PASSWORD_RECOVERY_UNAVAILABLE and payment confirmation emails are not sent',
+  });
 }
 
-const app = createApp({ db, config, mailer, now: () => new Date() });
+const now = () => new Date();
+const app = createApp({ db, config, mailer, now });
+const stopCleanupJobs = startCleanupJobs({ db, now });
 
 const server = app.listen(config.port, () => {
-  console.log(
-    '[api] listening - port %d, env %s, web origin %s',
-    config.port,
-    config.env,
-    config.webOrigin,
-  );
+  logger.info('api.listening', {
+    port: config.port,
+    env: config.env,
+    webOrigin: config.webOrigin,
+  });
 });
 
 const shutdown = () => {
+  stopCleanupJobs();
   server.close(async () => {
     await db.close();
     process.exit(0);

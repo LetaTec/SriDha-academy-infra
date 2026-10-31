@@ -1,5 +1,5 @@
 import type { AppContext } from '../../app/context.js';
-import type { Row } from '../catalogue/catalogue.repository.js';
+import { listOrderRows } from './admin.repository.js';
 import { CHECKOUT_KIND } from '../payments/payments.service.js';
 
 // The most recent orders the team can see at once
@@ -30,24 +30,7 @@ export type TeamOrder = {
 export const listTeamOrders = async ({
   db,
 }: AppContext): Promise<TeamOrder[]> => {
-  const rows = await db.all<Row>(
-    `SELECT p.id, p.created_at, p.status, p.provider, p.amount_paise,
-            p.provider_order_id, p.provider_payment_id, p.billing_name,
-            p.billing_email, p.billing_mobile, u.email AS account_email,
-            p.enrolment_id, b.name AS batch_name,
-            COALESCE(enrolled.title, registered.title) AS topic_title,
-            COALESCE(e.status, r.status) AS seat_status
-     FROM payments p
-     JOIN users u ON u.id = p.user_id
-     LEFT JOIN enrolments e ON e.id = p.enrolment_id
-     LEFT JOIN batches b ON b.id = e.batch_id
-     LEFT JOIN topics enrolled ON enrolled.id = b.topic_id
-     LEFT JOIN pre_registrations r ON r.id = p.pre_registration_id
-     LEFT JOIN topics registered ON registered.id = r.topic_id
-     ORDER BY p.created_at DESC
-     LIMIT $1`,
-    [ORDER_LIMIT],
-  );
+  const rows = await listOrderRows(db, ORDER_LIMIT);
 
   return rows.map(row => ({
     id: String(row.id),

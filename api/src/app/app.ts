@@ -12,6 +12,8 @@ import {
   notFoundHandler,
 } from '../http/errors.js';
 import { createOriginGuard } from '../http/originGuard.js';
+import { REQUEST_ID_HEADER, requestContext } from '../http/requestContext.js';
+import { logger } from '../logging/logger.js';
 import { createAuthRouter } from '../modules/auth/auth.routes.js';
 import { createSessionMiddleware } from '../modules/auth/session.js';
 import { createCatalogueRouter } from '../modules/catalogue/catalogue.routes.js';
@@ -76,6 +78,7 @@ const createCorsMiddleware = (
         'Access-Control-Allow-Headers',
         'Content-Type, Authorization, Cookie, Accept, X-Requested-With',
       );
+      res.setHeader('Access-Control-Expose-Headers', REQUEST_ID_HEADER);
       res.setHeader('Access-Control-Max-Age', '86400');
       res.setHeader('Vary', 'Origin');
     }
@@ -93,6 +96,7 @@ export const createApp = (context: AppContext) => {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
+  app.use(requestContext);
   app.use(securityHeaders);
 
   const api = express.Router();
@@ -122,11 +126,9 @@ export const createApp = (context: AppContext) => {
         timestamp: context.now().toISOString(),
       });
     } catch (error) {
-      res.status(503).json({
-        status: 'error',
-        database: 'disconnected',
-        message: (error as Error).message,
-      });
+      // The database's own message stays in the log; it can name hosts
+      logger.error('health.database_unreachable', { error });
+      res.status(503).json({ status: 'error', database: 'disconnected' });
     }
   });
 

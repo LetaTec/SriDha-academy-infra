@@ -1,5 +1,5 @@
 import type { AppContext } from '../../app/context.js';
-import type { DatabaseClient } from '../../db/client.js';
+import type { DatabaseClient, Row } from '../../db/client.js';
 
 export const BATCH_AVAILABILITY = {
   open: 'OPEN',
@@ -63,8 +63,6 @@ export type Subject = {
   listPrice: Price | null;
   chapters: Chapter[];
 };
-
-export type Row = Record<string, unknown>;
 
 const toNullableString = (value: unknown) =>
   value === null || value === undefined ? null : String(value);
@@ -217,6 +215,11 @@ export const getCatalogue = async ({
   }));
 };
 
+export const listTopicLessons = (db: DatabaseClient, topicId: string) =>
+  db.all<Row>('SELECT * FROM lessons WHERE topic_id = $1 ORDER BY position', [
+    topicId,
+  ]);
+
 export const getBatchRow = async (db: DatabaseClient, batchId: string) => {
   return (
     (await db.get('SELECT * FROM batches WHERE id = $1', [batchId])) ?? null
@@ -239,4 +242,4 @@ export const countActiveEnrolmentsForBatch = async (
   return Number(row?.taken ?? 0);
 };
 
-export { toDateOnly };
+export { toDateOnly, type Row };

@@ -8,6 +8,9 @@ const { Pool } = pg;
 
 export type QueryResultRow = Record<string, any>;
 
+// A row as read from the database, before a repository maps it
+export type Row = Record<string, unknown>;
+
 export type QueryResult<T = QueryResultRow> = {
   rows: T[];
   rowCount: number;
@@ -33,6 +36,11 @@ export type Database = DatabaseClient & {
 };
 
 const IN_MEMORY_DATABASE = ':memory:';
+
+// PGlite reports rows changed by INSERT, UPDATE and DELETE as affectedRows;
+// a SELECT has none, so its row count is the rows it returned
+const pgliteRowCount = (result: { rows: unknown[]; affectedRows?: number }) =>
+  result.affectedRows ?? result.rows.length;
 
 // No DATABASE_URL (or ":memory:") means the embedded in-memory PostgreSQL.
 export const isInMemoryDatabase = (
@@ -132,7 +140,7 @@ export const openDatabase = async (
   const clientWrapper: DatabaseClient = {
     query: async <T = QueryResultRow>(sql: string, params?: unknown[]) => {
       const res = await pglite.query(sql, params as any[]);
-      return { rows: res.rows as T[], rowCount: res.rows.length };
+      return { rows: res.rows as T[], rowCount: pgliteRowCount(res) };
     },
     get: async <T = QueryResultRow>(sql: string, params?: unknown[]) => {
       const res = await pglite.query(sql, params as any[]);
@@ -144,7 +152,7 @@ export const openDatabase = async (
     },
     run: async (sql: string, params?: unknown[]) => {
       const res = await pglite.query(sql, params as any[]);
-      return { rowCount: res.rows.length };
+      return { rowCount: pgliteRowCount(res) };
     },
     exec: async (sql: string) => {
       await pglite.exec(sql);
@@ -161,7 +169,7 @@ export const openDatabase = async (
             params?: unknown[],
           ) => {
             const res = await tx.query(sql, params as any[]);
-            return { rows: res.rows as R[], rowCount: res.rows.length };
+            return { rows: res.rows as R[], rowCount: pgliteRowCount(res) };
           },
           get: async <R = QueryResultRow>(sql: string, params?: unknown[]) => {
             const res = await tx.query(sql, params as any[]);
@@ -173,7 +181,7 @@ export const openDatabase = async (
           },
           run: async (sql: string, params?: unknown[]) => {
             const res = await tx.query(sql, params as any[]);
-            return { rowCount: res.rows.length };
+            return { rowCount: pgliteRowCount(res) };
           },
           exec: async (sql: string) => {
             await tx.exec(sql);

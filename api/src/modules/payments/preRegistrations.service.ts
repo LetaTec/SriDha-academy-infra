@@ -1,9 +1,6 @@
 import type { AppContext } from '../../app/context.js';
-import {
-  toPrice,
-  type Price,
-  type Row,
-} from '../catalogue/catalogue.repository.js';
+import { toPrice, type Price } from '../catalogue/catalogue.repository.js';
+import { listPreRegistrationRows } from './payments.repository.js';
 import { PRE_REGISTRATION_STATUS } from './payments.service.js';
 
 export type PreRegistration = {
@@ -23,14 +20,10 @@ export const listPreRegistrations = async (
   { db }: AppContext,
   userId: string,
 ): Promise<PreRegistration[]> => {
-  const rows = await db.all<Row>(
-    `SELECT r.id, r.status, r.created_at, t.id AS t_id, t.title AS t_title,
-            t.level AS t_level, t.price_paise AS t_price_paise,
-            t.price_tax_label AS t_price_tax_label
-     FROM pre_registrations r JOIN topics t ON t.id = r.topic_id
-     WHERE r.user_id = $1 AND r.status <> $2
-     ORDER BY r.created_at DESC`,
-    [userId, PRE_REGISTRATION_STATUS.cancelled],
+  const rows = await listPreRegistrationRows(
+    db,
+    userId,
+    PRE_REGISTRATION_STATUS.cancelled,
   );
 
   return rows.map(row => ({
