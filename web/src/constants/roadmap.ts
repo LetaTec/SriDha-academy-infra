@@ -71,10 +71,10 @@ export const getRoadmapProgress = (milestones: readonly Milestone[]) => {
 };
 
 export const AI_TEST_ROADMAP: FeatureRoadmap = {
-  eyebrow: 'AI Test Paper / Coming soon',
+  eyebrow: 'Practice Tests / Coming soon',
   title: 'Practice',
   titleEmphasis: 'without repetition.',
-  lead: 'Test papers generated from the subject material, different for every student, marked automatically with a percentile result. We are building it now',
+  lead: 'Practise with questions designed around your syllabus, different for every student and marked automatically. We are building it now',
   milestones: [
     {
       title: 'Question bank',
@@ -103,7 +103,7 @@ export const AI_TEST_ROADMAP: FeatureRoadmap = {
     },
     {
       title: 'Open to every student',
-      description: 'AI test papers for every topic on SriDha Academy',
+      description: 'Practice tests for every topic on SriDha Academy',
       status: 'next',
     },
   ],
@@ -132,10 +132,10 @@ export const AI_TEST_ROADMAP: FeatureRoadmap = {
 };
 
 export const MODEL_PAPER_ROADMAP: FeatureRoadmap = {
-  eyebrow: 'AI Model Paper / Coming soon',
+  eyebrow: 'Sample Papers / Coming soon',
   title: 'Revise with',
   titleEmphasis: 'what matters.',
-  lead: 'Model papers prepared from the last five years of papers and the subject book, reviewed by teachers and delivered seven days before the exam',
+  lead: 'Sample papers prepared from the last five years of papers and the subject book, reviewed by teachers and planned for release seven days before the exam',
   milestones: [
     {
       title: 'Five years of past papers',
@@ -149,7 +149,7 @@ export const MODEL_PAPER_ROADMAP: FeatureRoadmap = {
     },
     {
       title: 'Teacher review panel',
-      description: 'Every model paper checked by subject teachers',
+      description: 'Every sample paper checked by subject teachers',
       status: 'next',
     },
     {
@@ -159,7 +159,7 @@ export const MODEL_PAPER_ROADMAP: FeatureRoadmap = {
     },
     {
       title: 'First papers',
-      description: 'Model papers for Class 11 and Class 12 students',
+      description: 'Sample papers for Class 11 and Class 12 students',
       status: 'next',
     },
   ],
@@ -182,7 +182,7 @@ export const MODEL_PAPER_ROADMAP: FeatureRoadmap = {
     {
       label: '04',
       title: 'Seven days before',
-      description: 'Your model paper arrives a week before the exam',
+      description: 'Your sample paper arrives a week before the exam',
     },
   ],
 };

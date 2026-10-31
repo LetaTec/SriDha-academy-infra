@@ -423,7 +423,7 @@ export const SAMPLE_TEST_PAPERS: Record<
 export const SAMPLE_TEST_DURATION_SECONDS = 5 * 60;
 
 export const SAMPLE_TEST_TEXT = {
-  brand: 'SriDha Academy / AI Assessment',
+  brand: 'SriDha Academy / Practice Test',
   count: (total: number) => `Q 01–${String(total).padStart(2, '0')}`,
   title: 'Test',
   titleEnd: 'Paper',

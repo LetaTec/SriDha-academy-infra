@@ -193,7 +193,6 @@ export const InteractiveBook = ({
           onClick={turnBack}
         />
         <Text variant="label" tone="muted" className={cn('instruction')}>
-          <i aria-hidden="true" className={cn('pulse')} />
           {BOOK_TEXT.instruction}
         </Text>
         <Text

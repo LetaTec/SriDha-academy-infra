@@ -31,7 +31,6 @@ export const HeroSection = ({ onOpenTopic }: HeroSectionProps) => (
         {/* Left Column: Headline and Primary Actions (~44%) */}
         <div className={cn('copyColumn')}>
           <div className={cn('kicker')}>
-            <span className={cn('kickerDot')} aria-hidden="true" />
             <Text
               as="span"
               variant="eyebrow"
@@ -84,15 +83,9 @@ export const HeroSection = ({ onOpenTopic }: HeroSectionProps) => (
           </div>
 
           <div className={cn('methodPillRow')} aria-hidden="true">
-            <span className={cn('methodPill')}>
-              <span className={cn('pillDot')} /> Live Topic Batches
-            </span>
-            <span className={cn('methodPill')}>
-              <span className={cn('pillDot')} /> Verifiable Concept Milestones
-            </span>
-            <span className={cn('methodPill')}>
-              <span className={cn('pillDot')} /> AI Assessment Papers
-            </span>
+            <span className={cn('methodPill')}>Live Topic Batches</span>
+            <span className={cn('methodPill')}>Clear Topic Milestones</span>
+            <span className={cn('methodPill')}>Practice Tests</span>
           </div>
         </div>
 

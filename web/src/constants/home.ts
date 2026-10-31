@@ -5,7 +5,7 @@ import { READY_TOPIC_COUNT } from './topics';
 export const BRAND = {
   name: 'SriDha Academy',
   footerLead:
-    'A focused education platform for topic-wise classes, assessment, examination preparation and AI model papers',
+    'A simpler way to study, practise and prepare for exams, one topic at a time',
   copyright: '© 2026 SriDha Academy',
   footerNote: 'Designed as an editorial learning experience',
 } as const;
@@ -13,8 +13,8 @@ export const BRAND = {
 // isSection: a jump to a section of a page, never shown as the current page.
 export const NAV_LINKS = [
   { label: 'Topics', to: APP_ROUTES.TOPICS, isSection: false },
-  { label: 'AI Test', to: APP_ROUTES.AI_TEST, isSection: false },
-  { label: 'Model Paper', to: APP_ROUTES.MODEL_PAPER, isSection: false },
+  { label: 'Practice Tests', to: APP_ROUTES.AI_TEST, isSection: false },
+  { label: 'Sample Papers', to: APP_ROUTES.MODEL_PAPER, isSection: false },
   { label: 'About', to: APP_ROUTES.ABOUT, isSection: false },
 ] as const;
 
@@ -22,9 +22,9 @@ export const NAV_LINKS = [
 export const TICKER_TEXT = {
   label: 'Now enrolling',
   regionLabel: 'Batches open for enrolment',
-  starts: 'starts',
+  starts: 'Starts',
   seatsLeft: (seats: number) =>
-    `${seats} ${seats === 1 ? 'seat' : 'seats'} left`,
+    `${seats} ${seats === 1 ? 'seat' : 'seats'} available`,
   enrol: 'Enrol',
   enrolLabel: (topic: string, batch: string) => `Enrol in ${topic}, ${batch}`,
   quiet:
@@ -102,9 +102,9 @@ export const LEARNING_JOURNEY_TEXT = {
 export const MODEL_PAPER_DISCOVERY_TEXT = {
   eyebrow: '05 / Examination Preparation',
   title: 'Past board papers.',
-  titleEmphasis: 'And AI model papers.',
+  titleEmphasis: 'And sample papers.',
   description:
-    'We draw a strict distinction between authentic past-year board questions and predictive, teacher-reviewed AI model papers',
+    'Practise with real past-year board questions, then prepare with carefully reviewed sample papers. We keep the two clearly separate',
   pyqBadge: 'Authentic Archives',
   pyqTitle: "Past 5 Years' Board Questions",
   pyqDescription:
@@ -116,23 +116,23 @@ export const MODEL_PAPER_DISCOVERY_TEXT = {
   ],
   pyqAction: 'Explore Topics with PYQs',
   modelPaperBadge: 'In Development · Waitlist Open',
-  modelPaperTitle: 'AI-Synthesised Model Papers',
+  modelPaperTitle: 'Reviewed Sample Papers',
   modelPaperDescription:
-    'Prepared from five years of question pattern analysis and textbook weightage, vetted by subject teachers, and delivered seven days before exams.',
+    'Prepared from the last five years of papers and the textbook, reviewed by subject teachers, and planned for release seven days before exams. They are practice, not a forecast of the real paper.',
   modelPaperItems: [
     'Weighted to current exam blueprints',
     'Vetted by senior subject faculty',
     'Delivered 7 days before examinations',
   ],
-  modelPaperAction: 'Join Model Paper Waitlist',
+  modelPaperAction: 'Join Sample Paper Waitlist',
 } as const;
 
 export const AI_TEST_TEXT = {
-  eyebrow: '04 / Assessment Experience',
+  eyebrow: '04 / Practice Tests',
   title: 'Test your understanding.',
   titleEmphasis: 'Without repetition.',
   description:
-    'Test papers are generated dynamically from subject material using in-house SriDha tools. Each student receives a unique paper for their topic, followed by instant marking, step-by-step explanations, and percentile feedback',
+    'Practise with questions designed around your syllabus. Each student gets a different paper for their topic, followed by instant marking, step-by-step explanations and a view of which topics need more practice',
   action: 'Start sample test',
 } as const;
 
@@ -149,7 +149,7 @@ export const PROGRAMS_TEXT = {
   title: 'The',
   titleEmphasis: 'three paths.',
   description:
-    'SriDha Academy brings three services together: topic-wise online classes, AI test papers and AI model papers',
+    'SriDha Academy brings three ways to learn together: topic-wise online classes, practice tests and sample papers',
   items: [
     {
       tag: '01 / Classes',
@@ -160,19 +160,19 @@ export const PROGRAMS_TEXT = {
       action: 'Browse classes',
     },
     {
-      tag: '02 / Assessment',
-      title: 'AI Test',
-      titleEnd: 'Paper',
+      tag: '02 / Practice',
+      title: 'Practice',
+      titleEnd: 'Tests',
       description:
-        'Students create a profile, take a generated paper and receive marking in percentile after completion',
+        'Create a profile, take a paper made for your topic and see where you are improving once you finish',
       action: 'See test flow',
     },
     {
-      tag: '03 / Prediction',
-      title: 'AI Model',
-      titleEnd: 'Paper',
+      tag: '03 / Preparation',
+      title: 'Sample',
+      titleEnd: 'Papers',
       description:
-        'Model papers prepared from the last five years of papers and the subject book, reviewed by teachers and planned for delivery seven days before the exam',
+        'Sample papers prepared from the last five years of papers and the subject book, reviewed by teachers and planned for release seven days before the exam',
       action: 'Join waitlist',
     },
   ],
@@ -186,7 +186,7 @@ export const ABOUT_TEXT = {
     'SriDha Academy is designed around a simple proposition: make the path from choosing a topic to preparing for an examination feel coherent',
     'Instead of selling a whole subject at once, we break it into chapters and topics, teach them in focused batches and help students measure progress along the way',
   ],
-  note: 'Topic-wise online classes · AI assessment · AI model paper',
+  note: 'Topic-wise online classes · Practice tests · Sample papers',
   readMore: 'Read our story',
 } as const;
 
@@ -220,8 +220,8 @@ export const FOOTER_COLUMNS = [
     title: 'Explore',
     links: [
       { label: 'Topics', to: APP_ROUTES.TOPICS },
-      { label: 'AI Test', to: APP_ROUTES.AI_TEST },
-      { label: 'Model Paper', to: APP_ROUTES.MODEL_PAPER },
+      { label: 'Practice Tests', to: APP_ROUTES.AI_TEST },
+      { label: 'Sample Papers', to: APP_ROUTES.MODEL_PAPER },
     ],
   },
   {
@@ -260,7 +260,7 @@ export const BOOK_TEXT = {
     items: [
       '01 — Topic-wise classes',
       '02 — Practice & tests',
-      '03 — Model papers',
+      '03 — Sample papers',
     ],
   },
   topicLabel: (level: string | null) => (level ? `Topic / ${level}` : 'Topic'),
@@ -279,19 +279,15 @@ export const BOOK_TEXT = {
       title: 'Test your',
       titleEmphasis: 'progress.',
       description:
-        'Build a profile and receive a different test generated from your learning material',
-      items: [
-        'AI Test Paper',
-        'Daily paper generation',
-        'Performance percentile',
-      ],
+        'Build a profile and practise with a test made from your learning material',
+      items: ['Practice tests', 'A new paper each time', 'Topics to revisit'],
     },
     {
       label: 'Chapter / 03',
       title: 'Prepare for',
       titleEmphasis: "what's next.",
       description:
-        'AI model papers are planned for delivery before examinations, with teacher review',
+        'Sample papers are planned for release before examinations, with teacher review',
       items: ["Last 5 years' papers", 'Subject material', 'Exam preparation'],
     },
     {
@@ -300,7 +296,7 @@ export const BOOK_TEXT = {
       titleEmphasis: 'chapter.',
       description:
         'Choose your first topic and start building a stronger study routine',
-      items: ['Classes', 'Assessment', 'Model papers'],
+      items: ['Classes', 'Practice tests', 'Sample papers'],
     },
   ],
 } as const;

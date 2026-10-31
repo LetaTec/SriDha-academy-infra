@@ -201,13 +201,6 @@
   font-weight: var(--weight-bold);
 }
 
-.cardDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
-}
-
 .cardTitle {
   font-family: var(--font-serif);
   font-size: var(--text-md);

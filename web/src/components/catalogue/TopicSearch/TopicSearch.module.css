@@ -1,6 +1,6 @@
 .search {
   position: relative;
-  width: var(--width-header-search);
+  width: 100%;
 }
 
 .input {
@@ -115,12 +115,8 @@
   padding: var(--space-1-5) var(--space-2);
 }
 
-/* In the phone menu the search fills the width */
-@media (--viewport-md) {
-  .search {
-    width: 100%;
-  }
-
+/* In the folded menu the results line up with the search box */
+@media (--viewport-nav) {
   .results {
     left: 0;
     width: auto;

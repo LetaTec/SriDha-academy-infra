@@ -73,7 +73,7 @@ test.describe('FeatureSection - Three Learning Chapters', () => {
     ).toBeVisible();
     await expect(
       page.getByText(
-        'Get familiar with the way questions appear in exams through previous-year question papers and carefully structured model papers. Learn to recognise question patterns, manage your time, and approach your preparation with greater clarity.',
+        'Get familiar with the way questions appear in exams through previous-year question papers and carefully reviewed sample papers. Learn to recognise question patterns, manage your time, and approach your preparation with greater clarity.',
       ),
     ).toBeVisible();
     await expect(

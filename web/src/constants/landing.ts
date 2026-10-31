@@ -38,7 +38,7 @@ export const LEARNING_MODEL_TEXT = {
       photo: 'writing',
       title: 'Test Paper',
       description:
-        'We develop online test papers for students so they can track their progress. This is done with the help of in-house AI tools.',
+        'Online test papers help students see their progress and which topics need more practice.',
     },
   ],
 } as const;
@@ -91,7 +91,7 @@ export const LANDING_TEXT = {
       title: 'Walk into your exam prepared',
       supportingHeading: 'Practise today. Face tomorrow with confidence.',
       description:
-        'Get familiar with the way questions appear in exams through previous-year question papers and carefully structured model papers. Learn to recognise question patterns, manage your time, and approach your preparation with greater clarity.',
+        'Get familiar with the way questions appear in exams through previous-year question papers and carefully reviewed sample papers. Learn to recognise question patterns, manage your time, and approach your preparation with greater clarity.',
       closingLine:
         'Preparation isn’t about knowing everything at once. It’s about knowing what to do next.',
     },

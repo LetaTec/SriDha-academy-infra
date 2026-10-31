@@ -179,32 +179,8 @@
   margin-right: auto;
 }
 
-/* The line grows and shrinks by scaling, not by width, so the browser
-   never has to lay the page out again on every frame */
-.pulse {
-  display: block;
-  width: var(--space-6);
-  height: var(--border-width-base);
-  background: var(--color-accent);
-  transform-origin: left center;
-  animation: line-pulse var(--duration-pulse) infinite;
-}
-
 .position {
   white-space: nowrap;
-}
-
-@keyframes line-pulse {
-  0%,
-  100% {
-    transform: scaleX(var(--scale-pulse-min));
-    opacity: var(--opacity-pulse-min);
-  }
-
-  50% {
-    transform: none;
-    opacity: 1;
-  }
 }
 
 /* Narrow books get taller pages so topic and batch content is not clipped */
@@ -217,10 +193,6 @@
 @media (--reduced-motion) {
   .leaf {
     transition: none;
-  }
-
-  .pulse {
-    animation: none;
   }
 }
 

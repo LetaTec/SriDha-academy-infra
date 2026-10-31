@@ -98,10 +98,7 @@ export const ConceptMap = ({ onOpenTopic, className }: ConceptMapProps) => {
           >
             {CONCEPT_MAP_TEXT.eyebrow}
           </Text>
-          <span className={cn('badge')}>
-            <span className={cn('badgeDot')} aria-hidden="true" />
-            {currentSubject.level}
-          </span>
+          <span className={cn('badge')}>{currentSubject.level}</span>
         </div>
 
         <div
@@ -157,9 +154,6 @@ export const ConceptMap = ({ onOpenTopic, className }: ConceptMapProps) => {
               >
                 <div className={cn('nodeHeader')}>
                   <span className={cn('nodeStep')}>{node.step}</span>
-                  {isSelected ? (
-                    <span className={cn('nodeActivePip')} aria-hidden="true" />
-                  ) : null}
                 </div>
                 <span className={cn('nodeTitle')}>{node.title}</span>
                 <span className={cn('nodeCategory')}>{node.category}</span>

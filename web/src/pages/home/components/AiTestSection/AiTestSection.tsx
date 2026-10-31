@@ -54,15 +54,12 @@ export const AiTestSection = () => {
 
           <ul className={cn('featuresList')}>
             <li className={cn('featureItem')}>
-              <span className={cn('featureDot')} aria-hidden="true" />
               <span>Algorithmic paper generation from syllabus blueprints</span>
             </li>
             <li className={cn('featureItem')}>
-              <span className={cn('featureDot')} aria-hidden="true" />
               <span>Instant step-marking with detailed reasoning</span>
             </li>
             <li className={cn('featureItem')}>
-              <span className={cn('featureDot')} aria-hidden="true" />
               <span>Client-side demonstration · No login required</span>
             </li>
           </ul>

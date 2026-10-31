@@ -73,13 +73,13 @@ export const ABOUT_PAGE_TEXT = {
         label: '03',
         title: 'Practise',
         description:
-          'Take an AI test paper made for you, so no two students sit the same questions',
+          'Take a practice paper made for you, so no two students sit the same questions',
       },
       {
         label: '04',
         title: 'Revise with confidence',
         description:
-          'Before the exam, revise with a teacher-reviewed model paper built from past papers',
+          'Before the exam, revise with a teacher-reviewed sample paper built from past papers',
       },
     ],
   },

@@ -47,7 +47,6 @@ export const ModelPaperDiscoverySection = ({
             <span className={cn('badge')}>
               {MODEL_PAPER_DISCOVERY_TEXT.pyqBadge}
             </span>
-            <span className={cn('dot')} aria-hidden="true" />
           </div>
 
           <Heading level={3} variant="feature" className={cn('cardTitle')}>
@@ -91,7 +90,6 @@ export const ModelPaperDiscoverySection = ({
             <span className={cn('badge', 'badgeFeatured')}>
               {MODEL_PAPER_DISCOVERY_TEXT.modelPaperBadge}
             </span>
-            <span className={cn('dot')} aria-hidden="true" />
           </div>
 
           <Heading level={3} variant="feature" className={cn('cardTitle')}>

@@ -5,5 +5,7 @@
  */
 @custom-media --viewport-md (max-width: 56.25em);
 @custom-media --viewport-sm (max-width: 35em);
+/* The site header folds into a menu when its links, search and account buttons no longer fit in one row */
+@custom-media --viewport-nav (max-width: 75em);
 @custom-media --reduced-motion (prefers-reduced-motion: reduce);
 @custom-media --no-hover (hover: none);
