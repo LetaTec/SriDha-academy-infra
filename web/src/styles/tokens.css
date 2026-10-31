@@ -119,6 +119,9 @@
   --height-card-panel: 300px;
   --height-card-centered: 236px;
   --height-topic-preview: 220px;
+  /* Placeholder height of a class row of topics the browser has not drawn
+     yet; once drawn, its real height is remembered */
+  --height-topic-group-estimate: 640px;
   --section-padding: 144px;
   --section-padding-sm: 88px;
 
@@ -198,6 +201,7 @@
   --blur-header: 12px;
   --blur-book-shadow: 22px;
   --opacity-pulse-min: 0.4;
+  --scale-pulse-min: 0.5;
   --size-grain-dot: 0.55px;
   --size-grain-cell: 7px;
   --focus-ring-width: 2px;

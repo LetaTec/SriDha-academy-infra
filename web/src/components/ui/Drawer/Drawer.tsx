@@ -19,11 +19,11 @@ export type DrawerProps = {
   footer?: React.ReactNode;
 };
 
-// How long the exit animation runs, read from the panel's own CSS so the
-// two never disagree. No animation (reduced motion, tests) closes at once.
+// How long the slide-out runs, read from the panel's own CSS so the two
+// never disagree. No transition (reduced motion, tests) closes at once.
 const exitDurationMs = (panel: HTMLElement | null) => {
   if (!panel) return 0;
-  const seconds = Number.parseFloat(getComputedStyle(panel).animationDuration);
+  const seconds = Number.parseFloat(getComputedStyle(panel).transitionDuration);
   return Number.isFinite(seconds) ? seconds * 1000 : 0;
 };
 
@@ -31,6 +31,11 @@ const exitDurationMs = (panel: HTMLElement | null) => {
 // again before it closes. Built on the native <dialog> element like Modal:
 // showModal() provides the focus trap, Escape handling, inert background
 // and focus return; the page behind stops scrolling while it is open.
+//
+// The slide starts only once the panel has mounted and the browser has
+// drawn it in place off screen. Opening a modal makes the browser restyle
+// the whole page behind it; starting the slide at the same moment made it
+// jump ahead after that pause instead of gliding.
 export const Drawer = ({
   open,
   onClose,
@@ -43,9 +48,10 @@ export const Drawer = ({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const [isClosing, setIsClosing] = useState(false);
+  // In place on screen; false while waiting to slide in and while sliding out
+  const [isShown, setIsShown] = useState(false);
   // The content stays mounted until the dialog has really closed, so the
-  // exit animation has something to animate
+  // slide-out has something to move
   const [isMounted, setIsMounted] = useState(open);
 
   useEffect(() => {
@@ -54,18 +60,22 @@ export const Drawer = ({
 
     if (open) {
       setIsMounted(true);
-      setIsClosing(false);
       if (!dialog.open) dialog.showModal();
-      return undefined;
+
+      // The first frame draws the panel off screen; the slide starts on the
+      // one after, when the work of opening is done
+      let frame = window.requestAnimationFrame(() => {
+        frame = window.requestAnimationFrame(() => setIsShown(true));
+      });
+      return () => window.cancelAnimationFrame(frame);
     }
 
     if (!dialog.open) return undefined;
 
-    // Play the exit animation first, then close the dialog
-    setIsClosing(true);
+    // Slide out first, then close the dialog
+    setIsShown(false);
     const timer = window.setTimeout(() => {
       dialog.close();
-      setIsClosing(false);
       setIsMounted(false);
     }, exitDurationMs(panelRef.current));
 
@@ -89,7 +99,7 @@ export const Drawer = ({
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <dialog
       ref={dialogRef}
-      className={cn('drawer', { closing: isClosing })}
+      className={cn('drawer', { shown: isShown })}
       aria-labelledby={titleId}
       onCancel={handleCancel}
       onClick={handleClick}

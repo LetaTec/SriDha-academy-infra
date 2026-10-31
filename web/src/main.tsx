@@ -10,6 +10,7 @@ import '@styles/reset.css';
 import '@styles/typography.css';
 
 import { redirectToCanonicalHost } from './app/canonicalHost';
+import { preloadPriceFonts } from './app/preloadPriceFonts';
 import { router } from './app/router';
 
 // The site's Content-Security-Policy forbids eval. Without this, zod probes
@@ -23,6 +24,8 @@ if (!rootElement) {
 }
 
 if (!redirectToCanonicalHost()) {
+  preloadPriceFonts();
+
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <ToastProvider>
