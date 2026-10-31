@@ -4,13 +4,16 @@ These rules follow the pro-web conventions, adapted to SriDha Academy. Differenc
 
 ## Repository layout
 
-- `api/` — Node + Express 5 + TypeScript API. SQLite via the built-in `node:sqlite` module. Owns authentication, sessions, the catalogue, enrolments and enquiries.
+- `api/` — Node + Express 5 + TypeScript API. PostgreSQL through `pg` in production; PGlite (an in-memory PostgreSQL) when `DATABASE_URL` is unset, locally and in tests. Owns authentication, sessions, the catalogue, checkout and payments, enrolments and enquiries.
 - `web/` — Vite + React 19 + TypeScript + CSS Modules website.
 - The API is the only source of truth for identity, catalogue data and permissions. The website never generates identifiers for persisted records.
+- `api/src/contracts` defines every request and response shape, types only. The API checks its responses with `satisfies <Response>` and its schemas with `satisfies z.ZodType<Request>`; the website imports the same files as `@contracts/*` (type-only) instead of declaring its own.
 
 ## Architecture (web)
 
-- Pages, layouts, components and hooks talk to domain services in `src/services/*` (`auth`, `catalogue`, `enrolments`, `enquiries`). Only services import the shared Axios client from `src/services/http/api.ts`.
+- Pages, layouts, components and hooks talk to domain services in `src/services/*` (`auth`, `catalogue`, `enrolments`, `payments`, `admin`, `enquiries`). Only services import the shared Axios client from `src/services/http/api.ts`.
+- Server data is read through TanStack Query hooks in `src/hooks` (`useCatalogue`, `useTopicPreviews`, `useMyLearning`, `useTeamOrders`), with keys in `QUERY_KEY` (`src/app/queryClient.ts`). Do not fetch in `useEffect`; after a change on the server, invalidate the keys it affects (see `useRefreshAfterPayment`).
+- Topics come only from the catalogue: use `useTopicPreviews` for topic cards. The topic list lives in `api/src/db/topicLibrary.ts`; never copy topic names or lists into the website.
 - Dependency direction: pages/layouts compose services, hooks, constants and components; services own backend calls; utilities stay pure and side-effect free.
 - Keep generic display formatting in `src/utils/*` (`currency`, `date`, `url`) or domain mappers. Components must not define local date, currency or entity formatters.
 - Use route-local `components/` folders (for example `pages/home/components`) for code used by one route. Promote to `src/components`, `src/hooks` or `src/services` only when reuse is real.
@@ -27,7 +30,9 @@ These rules follow the pro-web conventions, adapted to SriDha Academy. Differenc
 - Every error response is `{ message: string, code: string, details: unknown | null }`. Validation errors use `code: "REQUEST_VALIDATION_FAILED"` with field issues under `details.body`.
 - Validate every request body with a strict zod schema (`z.strictObject`) through `http/validate.ts`. Never accept a user or student ID from the client; use `req.auth.userId`.
 - Error codes live in `ERROR_CODE` (`api/src/http/errors.ts`). Never hardcode error-code strings elsewhere.
-- Schema changes are new entries appended to `api/src/db/migrations.ts`. Never edit an applied migration.
+- Schema changes are new entries appended to `api/src/db/migrations.ts`. Never edit an applied migration. Production is migrated on start-up but seeded by hand, so a migration that adds columns fills existing rows itself.
+- Layers per module: routes validate and respond, services hold the rules, and every SQL statement lives in the module's `*.repository.ts`.
+- Log with `logger` (`api/src/logging/logger.ts`), never `console`: a named event (`payments.webhook_amount_mismatch`) and fields. Every line carries the request id; error-level events also go to Sentry when `SENTRY_DSN` is set. Never log passwords, tokens or card details.
 
 ## Form error handling
 
@@ -74,5 +79,6 @@ These rules follow the pro-web conventions, adapted to SriDha Academy. Differenc
 ## Verification
 
 - `npm run lint`, `npm run typecheck`, `npm run test` and `npm run build` must pass from the repository root.
-- Browser tests: `npm run test:e2e -w web` starts the API (throwaway SQLite file) and the dev server, then drives Chrome at desktop and mobile sizes.
+- Browser tests: `npm run test:e2e -w web` starts the API (on a throwaway in-memory database) and the dev server, then drives Chrome at desktop and mobile sizes.
+- GitHub Actions (`.github/workflows/checks.yml`) runs all of the above on every pull request.
 - Run `npm run format` before pushing.

@@ -106,15 +106,3 @@ The Vite development server starts on `http://localhost:5173`. Open your browser
   ```bash
   npm run test -w web
   ```
-
----
-
-## 6. Migrating Existing SQLite Data (Optional)
-
-If you have existing local SQLite data in `api/data/leta-ed.sqlite`:
-
-```bash
-npm run db:migrate:sqlite -w api
-```
-
-This transfers users, profiles, sessions, and enrolments into your PostgreSQL instance without modifying the original SQLite file.
