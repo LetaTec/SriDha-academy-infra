@@ -176,7 +176,6 @@ export const LearningJourneySection = () => {
           <div className={cn('previewCard')}>
             <div className={cn('cardHeader')}>
               <span className={cn('cardBadge')}>{activeStage.cardBadge}</span>
-              <span className={cn('cardDot')} aria-hidden="true" />
             </div>
 
             <Heading level={4} variant="title" className={cn('cardTitle')}>

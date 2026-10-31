@@ -41,7 +41,7 @@ export const ShowcaseCard = ({
 
   const highlights = subject.highlights ?? [
     'Structured topic-wise sessions',
-    'AI-generated assessment paper included',
+    'Practice test paper included',
     'Concept verification & doubt clearing',
   ];
 
@@ -81,7 +81,6 @@ export const ShowcaseCard = ({
       >
         {highlights.map((milestone, idx) => (
           <li key={idx} className={cn('milestoneItem')}>
-            <span className={cn('milestoneDot')} aria-hidden="true" />
             <span className={cn('milestoneText')}>{milestone}</span>
           </li>
         ))}

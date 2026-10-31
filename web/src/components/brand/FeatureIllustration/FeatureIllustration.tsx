@@ -127,7 +127,7 @@ export const FeatureIllustration = ({ variant }: FeatureIllustrationProps) => (
         {[
           { x: 64, label: 'MCQ', rotate: -12 },
           { x: 156, label: 'LIVE', rotate: 0 },
-          { x: 248, label: 'AI', rotate: 14 },
+          { x: 248, label: 'TIMED', rotate: 14 },
           { x: 336, label: 'SCORE', rotate: 6 },
         ].map(tag => (
           <g
@@ -211,7 +211,7 @@ export const FeatureIllustration = ({ variant }: FeatureIllustrationProps) => (
           className={cn('window')}
         />
         <text x="136" y="92" className={cn('sheetTitle')}>
-          Model paper
+          Sample paper
         </text>
         <rect
           x="136"

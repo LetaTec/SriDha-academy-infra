@@ -77,7 +77,7 @@ describe('LearningJourneySection Interactive Learning Process', () => {
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getByText(/In-House AI Test Engine/i)).toBeInTheDocument();
+    expect(screen.getByText(/SriDha Practice Tests/i)).toBeInTheDocument();
 
     const assessLink = screen.getByRole('link', {
       name: /Try Live Sample Assessment/i,
@@ -85,11 +85,11 @@ describe('LearningJourneySection Interactive Learning Process', () => {
     expect(assessLink).toHaveAttribute('href', '#ai-test');
   });
 
-  it('updates the demonstration panel when selecting Stage 5 (Past & Model Papers)', () => {
+  it('updates the demonstration panel when selecting Stage 5 (Past & Sample Papers)', () => {
     render(<LearningJourneySection />);
 
     const reviewTab = screen.getByRole('tab', {
-      name: /5\. Past & model papers/i,
+      name: /5\. Past & sample papers/i,
     });
     fireEvent.click(reviewTab);
 
@@ -98,12 +98,12 @@ describe('LearningJourneySection Interactive Learning Process', () => {
     expect(
       screen.getByRole('heading', {
         level: 3,
-        name: /Practise with verified papers & model papers/i,
+        name: /Practise with past papers & sample papers/i,
       }),
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText(/Authentic Archives vs Predictive Papers/i),
+      screen.getByText(/Past Papers and Sample Papers/i),
     ).toBeInTheDocument();
   });
 });

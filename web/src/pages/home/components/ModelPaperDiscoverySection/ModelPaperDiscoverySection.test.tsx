@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ModelPaperDiscoverySection } from './ModelPaperDiscoverySection';
 
 describe('ModelPaperDiscoverySection', () => {
-  it('renders both Verified PYQs and AI Model Papers distinctly', () => {
+  it('renders both past papers and sample papers distinctly', () => {
     render(<ModelPaperDiscoverySection onJoinWaitlist={vi.fn()} />);
 
     expect(
@@ -24,11 +24,11 @@ describe('ModelPaperDiscoverySection', () => {
     });
     expect(pyqLink).toHaveAttribute('href', '#topics');
 
-    // Column 2: Predictive AI Model Papers
+    // Column 2: Sample papers
     expect(
       screen.getByRole('heading', {
         level: 3,
-        name: /AI-Synthesised Model Papers/i,
+        name: /Reviewed Sample Papers/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -36,13 +36,13 @@ describe('ModelPaperDiscoverySection', () => {
     ).toBeInTheDocument();
   });
 
-  it('triggers onJoinWaitlist when clicking Join Model Paper Waitlist', () => {
+  it('triggers onJoinWaitlist when clicking Join Sample Paper Waitlist', () => {
     const handleJoinWaitlist = vi.fn();
 
     render(<ModelPaperDiscoverySection onJoinWaitlist={handleJoinWaitlist} />);
 
     const waitlistButton = screen.getByRole('button', {
-      name: /Join Model Paper Waitlist/i,
+      name: /Join Sample Paper Waitlist/i,
     });
     fireEvent.click(waitlistButton);
 

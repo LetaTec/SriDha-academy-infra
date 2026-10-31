@@ -28,15 +28,15 @@
   pointer-events: none;
 }
 
+/* Width and gutters come from the shared Container */
 .container {
   position: relative;
   z-index: 1;
-  width: 100%;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: 44% 56%;
+  grid-template-columns: minmax(0, 44fr) minmax(0, 56fr);
   align-items: center;
   gap: clamp(var(--space-4), 3.5vw, var(--space-8));
   width: 100%;
@@ -58,13 +58,6 @@
   align-items: center;
   gap: var(--space-1);
   margin-bottom: var(--space-2-5);
-}
-
-.kickerDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
 }
 
 .kickerText {
@@ -150,13 +143,6 @@
   color: var(--color-text-inverse-subtle);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-}
-
-.pillDot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--color-accent);
 }
 
 /* ==========================================================================

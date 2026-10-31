@@ -111,14 +111,14 @@ export const JOURNEY_STAGES: readonly JourneyStage[] = [
     cyclePhase: 'Assess',
     navTitle: '4. Topic assessment',
     title: 'Take a topic-wise assessment',
-    lead: 'Every student receives an independently generated test paper drawn from topic material so rote memorization cannot substitute for genuine understanding.',
-    cardBadge: 'In-House AI Test Engine',
-    cardTitle: 'Representative Assessment Workflow',
+    lead: 'Every student gets a paper drawn from the topic material, so practice builds understanding rather than memorised answers.',
+    cardBadge: 'SriDha Practice Tests',
+    cardTitle: 'How a Practice Test Works',
     items: [
       {
         label: 'Dynamic Papers',
         value:
-          'Algorithmic paper generation from verified subject blueprints ensures distinct question variations across student cohorts.',
+          'Papers are built from reviewed subject blueprints, so each student sees a different set of questions.',
       },
       {
         label: 'Timed Discipline',
@@ -128,7 +128,7 @@ export const JOURNEY_STAGES: readonly JourneyStage[] = [
       {
         label: 'Diagnostic Feedback',
         value:
-          'Immediate question marking, step explanations, and performance percentile upon submission.',
+          'Instant marking, step-by-step explanations and a view of which topics need more practice.',
       },
     ],
     actionText: 'Try Live Sample Assessment',
@@ -138,11 +138,11 @@ export const JOURNEY_STAGES: readonly JourneyStage[] = [
     id: 'review',
     stepNumber: '05',
     cyclePhase: 'Review',
-    navTitle: '5. Past & model papers',
-    title: 'Practise with verified papers & model papers',
-    lead: 'Test examination readiness against verified past-year board questions (CBSE & ISC) and teacher-reviewed predictive AI model papers.',
-    cardBadge: 'Authentic Archives vs Predictive Papers',
-    cardTitle: 'Dual Preparation Architecture',
+    navTitle: '5. Past & sample papers',
+    title: 'Practise with past papers & sample papers',
+    lead: 'Test examination readiness against verified past-year board questions (CBSE & ISC) and reviewed sample papers.',
+    cardBadge: 'Past Papers and Sample Papers',
+    cardTitle: 'Two Ways to Prepare',
     items: [
       {
         label: 'Verified PYQs',
@@ -150,17 +150,17 @@ export const JOURNEY_STAGES: readonly JourneyStage[] = [
           'Actual board examination questions from the past five years indexed topic-by-topic with official step-marking criteria.',
       },
       {
-        label: 'AI Model Papers',
+        label: 'Sample Papers',
         value:
-          'Synthesised from 5-year pattern analysis and textbook weightage, vetted by senior faculty, and released 7 days before exams.',
+          'Prepared from the last five years of papers and textbook weightage, reviewed by senior faculty, and planned for release 7 days before exams.',
       },
       {
         label: 'Honest Distinction',
         value:
-          'PYQs represent historical truth. AI model papers represent teacher-reviewed forecasts. Neither is fabricated.',
+          'Past papers are real questions from earlier exams. Sample papers are practice material and do not predict the real paper.',
       },
     ],
-    actionText: 'Explore Model Papers',
+    actionText: 'Explore Sample Papers',
     actionHref: '#model-paper',
   },
   {

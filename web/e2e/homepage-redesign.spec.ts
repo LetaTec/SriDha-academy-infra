@@ -155,7 +155,7 @@ test.describe('Homepage Redesign Responsiveness and Quality', () => {
       await expect(
         modelPaperSection.getByRole('heading', {
           level: 3,
-          name: /AI-Synthesised Model Papers/i,
+          name: /Reviewed Sample Papers/i,
         }),
       ).toBeVisible();
     });

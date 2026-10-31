@@ -1,10 +1,12 @@
-/* A thin enrolment strip above the menu bar, in the brand's dark green */
+/* A thin enrolment strip above the menu bar: ivory paper, forest-green ink
+   and a restrained gold rule */
 .ticker {
   display: flex;
   align-items: stretch;
   height: var(--height-ticker);
-  background: var(--color-bg-inverse);
-  color: var(--color-text-inverse);
+  background: var(--color-bg-raised);
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
+  color: var(--color-bg-inverse);
 }
 
 .label {
@@ -12,8 +14,8 @@
   flex-shrink: 0;
   align-items: center;
   padding: 0 var(--space-2);
-  border-right: var(--border-width-base) solid var(--color-border-inverse);
-  color: var(--color-brand-yellow);
+  border-right: var(--border-width-base) solid var(--color-accent);
+  color: var(--color-bg-inverse);
   white-space: nowrap;
 }
 
@@ -26,8 +28,8 @@
   mask-image: linear-gradient(
     to right,
     transparent,
-    var(--color-bg-inverse) var(--space-4),
-    var(--color-bg-inverse) calc(100% - var(--space-4)),
+    #000 var(--space-4),
+    #000 calc(100% - var(--space-4)),
     transparent
   );
 }
@@ -58,13 +60,13 @@
   align-items: center;
 }
 
-/* A small yellow square between batches, like a printed ticker */
+/* A small gold square between batches, like a printed ticker */
 .item::after {
   content: '';
   width: var(--space-0-5);
   height: var(--space-0-5);
   margin: 0 var(--space-3);
-  background: var(--color-brand-yellow);
+  background: var(--color-accent);
 }
 
 .entry {
@@ -77,16 +79,16 @@
 }
 
 .entry:focus-visible {
-  outline-color: var(--color-brand-yellow);
+  outline-color: var(--color-border-focus);
 }
 
 .topic {
-  color: var(--color-text-inverse);
+  color: var(--color-bg-inverse);
 }
 
 .level,
 .details {
-  color: var(--color-text-inverse-muted);
+  color: var(--color-text-primary);
 }
 
 .enrol {
@@ -94,13 +96,13 @@
   align-items: center;
   gap: var(--space-0-5);
   margin-left: var(--space-0-5);
-  border-bottom: var(--border-width-base) solid currentcolor;
-  color: var(--color-brand-yellow);
+  border-bottom: var(--border-width-base) solid var(--color-accent);
+  color: var(--color-bg-inverse);
   align-self: center;
 }
 
 .entry:hover .enrol {
-  color: var(--color-text-inverse);
+  border-bottom-color: var(--color-bg-inverse);
 }
 
 .quiet {
@@ -108,7 +110,7 @@
   align-items: center;
   height: 100%;
   padding-left: var(--space-3);
-  color: var(--color-text-inverse-muted);
+  color: var(--color-text-primary);
   white-space: nowrap;
 }
 

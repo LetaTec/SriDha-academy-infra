@@ -117,16 +117,6 @@
   gap: var(--space-1-5);
 }
 
-.milestoneDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  flex-shrink: 0;
-  position: relative;
-  top: -2px;
-}
-
 .milestoneText {
   font-size: var(--text-xs);
   line-height: 1.5;

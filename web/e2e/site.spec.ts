@@ -357,7 +357,11 @@ test.describe('student journey', () => {
     await signedIn(page, `${testInfo.project.name}-waitlist`);
     await page.goto('/#model-paper');
     await expect(
-      page.getByRole('heading', { level: 3, name: 'AI Model Paper' }),
+      page.getByRole('heading', {
+        level: 3,
+        name: 'Sample Papers',
+        exact: true,
+      }),
     ).toBeVisible();
 
     await page.getByRole('button', { name: 'Join waitlist' }).first().click();
@@ -365,7 +369,7 @@ test.describe('student journey', () => {
     await dialog.getByLabel('Exam').selectOption('NEET');
     await dialog.getByRole('button', { name: /join waitlist/i }).click();
     await expect(
-      page.getByText('You have been added to the model paper waitlist'),
+      page.getByText('You have been added to the sample paper waitlist'),
     ).toBeVisible();
   });
 });

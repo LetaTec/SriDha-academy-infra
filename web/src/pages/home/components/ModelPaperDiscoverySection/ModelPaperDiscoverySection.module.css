@@ -56,13 +56,6 @@
   border-color: rgba(182, 154, 90, 0.4);
 }
 
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
-}
-
 .cardTitle {
   font-family: var(--font-serif);
   font-size: clamp(24px, 2.2vw, 32px);
