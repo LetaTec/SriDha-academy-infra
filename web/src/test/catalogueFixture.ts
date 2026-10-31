@@ -56,6 +56,32 @@ export const catalogueFixture: Subject[] = [
     ],
   },
   {
+    id: 'subject_physics',
+    slug: 'physics',
+    name: 'Physics',
+    description: 'Class 11 & 12 physics taught one topic at a time',
+    status: SUBJECT_STATUS.AVAILABLE,
+    listPrice: null,
+    chapters: [
+      {
+        id: 'chapter_physics_ray_optics',
+        title: 'Ray optics',
+        topics: [
+          // Priced but without batches yet: students pre-register
+          {
+            id: 'topic_physics_ray_optics_class_12',
+            title: 'Learn Ray optics for Class 12',
+            summary: 'Mirrors, lenses and optical instruments.',
+            level: 'Class 12',
+            price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+            lessons: [],
+            batches: [],
+          },
+        ],
+      },
+    ],
+  },
+  {
     id: 'subject_neet',
     slug: 'neet',
     name: 'NEET',

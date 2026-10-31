@@ -2,13 +2,15 @@ import { useCallback, useId, useState } from 'react';
 import cx from 'classnames/bind';
 
 import { Button } from '@components/ui/Button/Button';
+import { ButtonBase } from '@components/ui/ButtonBase/ButtonBase';
 import { Confetti } from '@components/ui/Confetti/Confetti';
 import { Text } from '@components/ui/Text/Text';
 import {
   SAMPLE_TEST_DURATION_SECONDS,
-  SAMPLE_TEST_QUESTIONS as QUESTIONS,
+  SAMPLE_TEST_PAPERS,
   SAMPLE_TEST_TEXT as TEXT,
 } from '@constants/assessment';
+import { SUBJECT, SUBJECT_LABEL, type SubjectKey } from '@constants/topics';
 import { useCountdown } from '@hooks/useCountdown';
 import { formatCountdown } from '@utils/date';
 
@@ -16,7 +18,9 @@ import styles from './SampleTestPaper.module.css';
 
 const cn = cx.bind(styles);
 
-const TOTAL = QUESTIONS.length;
+const SUBJECTS = Object.values(SUBJECT);
+// Every paper has the same number of questions
+const TOTAL = SAMPLE_TEST_PAPERS[SUBJECTS[0]].length;
 const GOOD_SCORE = TOTAL - 2;
 
 const resultMessage = (score: number) => {
@@ -25,11 +29,14 @@ const resultMessage = (score: number) => {
   return TEXT.resultStart;
 };
 
-// A five-question sample test on a paper sheet. The clock starts with the
+// A five-question sample test on a paper sheet, one paper per subject,
+// chosen with the subject links under the heading. The clock starts with the
 // first answer; submitting (or running out of time) marks the paper, shows
 // the right answers and a score out of five, with confetti for full marks.
 export const SampleTestPaper = () => {
   const paperId = useId();
+  const [subject, setSubject] = useState<SubjectKey>(SUBJECTS[0]);
+  const questions = SAMPLE_TEST_PAPERS[subject];
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isMarked, setIsMarked] = useState(false);
   const [hasTimedOut, setHasTimedOut] = useState(false);
@@ -43,7 +50,7 @@ export const SampleTestPaper = () => {
   const countdown = useCountdown(SAMPLE_TEST_DURATION_SECONDS, handleExpire);
 
   const answeredCount = Object.keys(answers).length;
-  const score = QUESTIONS.filter(
+  const score = questions.filter(
     question => answers[question.id] === question.answer,
   ).length;
   const isFullMarks = isMarked && score === TOTAL;
@@ -67,6 +74,13 @@ export const SampleTestPaper = () => {
     setAttempt(current => current + 1);
   };
 
+  // A new subject is a new paper: fresh answers and a fresh clock
+  const handleSubject = (next: SubjectKey) => {
+    if (next === subject) return;
+    setSubject(next);
+    handleTryAgain();
+  };
+
   return (
     <section
       className={cn('sheet', { celebrating: isFullMarks })}
@@ -82,10 +96,26 @@ export const SampleTestPaper = () => {
         {TEXT.titleEnd}
       </div>
       <div className={cn('meta')}>
-        {TEXT.meta(TOTAL).map(item => (
+        {TEXT.meta(SUBJECT_LABEL[subject], TOTAL).map(item => (
           <Text key={item} variant="label" tone="muted">
             {item}
           </Text>
+        ))}
+      </div>
+      <div
+        className={cn('subjects')}
+        role="group"
+        aria-label={TEXT.subjectsLabel}
+      >
+        {SUBJECTS.map(item => (
+          <ButtonBase
+            key={item}
+            className={cn('subject', { subjectActive: item === subject })}
+            aria-pressed={item === subject}
+            onClick={() => handleSubject(item)}
+          >
+            {SUBJECT_LABEL[item]}
+          </ButtonBase>
         ))}
       </div>
       <Text as="p" variant="small" tone="muted" className={cn('instruction')}>
@@ -93,7 +123,7 @@ export const SampleTestPaper = () => {
       </Text>
 
       <ol className={cn('questions')}>
-        {QUESTIONS.map((question, index) => {
+        {questions.map((question, index) => {
           const promptId = `${paperId}-${question.id}`;
           const chosen = answers[question.id];
           const correctOption = question.options.find(
@@ -110,7 +140,7 @@ export const SampleTestPaper = () => {
                   {question.prompt}
                 </Text>
                 <Text variant="label" tone="muted">
-                  {`${question.subject} · ${TEXT.marksLabel}`}
+                  {TEXT.marksLabel}
                 </Text>
               </div>
 

@@ -180,4 +180,44 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX sign_in_links_user_id_idx ON sign_in_links (user_id);
     `,
   },
+  {
+    // Students pre-register for topics without batches, and pay for an
+    // enrolment or a pre-registration through a payment provider. Card and
+    // UPI details never reach the API; only the provider's order and payment
+    // identifiers are stored.
+    id: '005_pre_registrations_and_payments',
+    sql: `
+      CREATE TABLE pre_registrations (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        topic_id TEXT NOT NULL REFERENCES topics (id) ON DELETE RESTRICT,
+        status TEXT NOT NULL
+          CHECK (status IN ('PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED')),
+        created_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (user_id, topic_id)
+      );
+
+      CREATE TABLE payments (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        enrolment_id TEXT REFERENCES enrolments (id) ON DELETE RESTRICT,
+        pre_registration_id TEXT REFERENCES pre_registrations (id) ON DELETE RESTRICT,
+        amount_paise INTEGER NOT NULL CHECK (amount_paise > 0),
+        currency TEXT NOT NULL,
+        provider TEXT NOT NULL CHECK (provider IN ('RAZORPAY', 'TEST')),
+        provider_order_id TEXT NOT NULL UNIQUE,
+        provider_payment_id TEXT,
+        status TEXT NOT NULL CHECK (status IN ('CREATED', 'PAID')),
+        billing_name TEXT NOT NULL,
+        billing_email TEXT NOT NULL,
+        billing_mobile TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL,
+        CHECK ((enrolment_id IS NULL) <> (pre_registration_id IS NULL))
+      );
+
+      CREATE INDEX payments_user_id_idx ON payments (user_id);
+    `,
+  },
 ];

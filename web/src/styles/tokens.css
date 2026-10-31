@@ -93,12 +93,15 @@
   --width-copy-wide: 500px;
   --width-copy-lead: 470px;
   --width-modal: 570px;
+  --width-drawer: 460px;
+  --width-test-sheet: 560px;
+  --width-policy: 720px;
   --width-auth-copy: 540px;
   --width-auth-topics: 600px;
   --width-feature-plate: 460px;
   --width-book: 820px;
   --width-cta-title: 1000px;
-  --width-header-search: 240px;
+  --width-header-search: 340px;
   --width-search-results: 440px;
   --height-search-results: 480px;
   --width-about-photo: 440px;
@@ -111,12 +114,14 @@
   --height-card-tile: 330px;
   --height-card-panel: 300px;
   --height-card-centered: 236px;
+  --height-topic-preview: 220px;
   --section-padding: 144px;
   --section-padding-sm: 88px;
 
   /* Typography */
   --font-sans: 'DM Sans', Arial, sans-serif;
   --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
   --text-3xs: 10px;
   --text-2xs: 11px;
@@ -165,6 +170,7 @@
   --padding-control-x-compact: 14px;
   --padding-control-y: 12px;
   --border-width-base: 1px;
+  --border-width-accent: 3px;
   --radius-none: 0;
   --radius-full: 9999px;
   --size-dot: 6px;
@@ -209,6 +215,7 @@
   --transition-reveal: 800ms var(--ease-editorial);
   --duration-page-turn: 1150ms;
   --duration-toast: 400ms;
+  --duration-drawer: 320ms;
   --duration-pulse: 2.8s;
   --duration-float: 6s;
   --distance-float: -8px;

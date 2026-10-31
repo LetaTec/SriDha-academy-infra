@@ -87,6 +87,30 @@
   align-items: flex-start;
 }
 
+/* Names the class a query asked for, above its topics */
+.classHeading {
+  padding: var(--space-1-5) var(--space-2) var(--space-1);
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
+}
+
+/* Every result beyond the first few, on the Topics page */
+.seeAll {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-1-5) var(--space-2);
+  border-top: var(--border-width-base) solid var(--color-border-strong);
+  color: var(--color-text-accent);
+  transition: background-color var(--transition-fast);
+}
+
+.seeAll:hover,
+.seeAll:focus-visible {
+  background: var(--color-bg-subtle);
+}
+
 .empty {
   padding: var(--space-1-5) var(--space-2);
 }
@@ -105,7 +129,8 @@
 
 @media (--reduced-motion) {
   .topic,
-  .batch {
+  .batch,
+  .seeAll {
     transition: none;
   }
 }

@@ -1,6 +1,8 @@
 .sheet {
   position: relative;
-  padding: var(--space-5);
+  max-width: var(--width-test-sheet);
+  margin-inline: auto;
+  padding: var(--space-4);
   background: var(--color-bg-page);
   color: var(--color-text-primary);
   box-shadow: var(--shadow-offset-accent-lg);
@@ -23,9 +25,9 @@
 }
 
 .sheetTitle {
-  margin: var(--space-4) 0 var(--space-3);
+  margin: var(--space-2) 0 var(--space-2);
   font-family: var(--font-serif);
-  font-size: var(--text-display-md);
+  font-size: var(--text-display-xs);
   line-height: var(--leading-display);
 }
 
@@ -34,13 +36,45 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-1) var(--space-2);
-  padding: var(--space-1-5) 0;
+  padding: var(--space-1) 0;
   border-top: var(--border-width-base) solid var(--color-border-strong);
   border-bottom: var(--border-width-base) solid var(--color-border-base);
 }
 
+/* One paper per subject, picked with text links */
+.subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-0-5) var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
+}
+
+.subject {
+  padding-block: var(--space-0-5);
+  border-bottom: var(--border-width-base) solid transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-nav);
+  text-transform: uppercase;
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.subject:hover,
+.subject:focus-visible {
+  color: var(--color-text-primary);
+}
+
+.subjectActive {
+  border-bottom-color: currentcolor;
+  color: var(--color-text-accent);
+}
+
 .instruction {
-  margin: var(--space-1-5) 0 var(--space-1);
+  margin: var(--space-1) 0 var(--space-0-5);
+  font-size: var(--text-xs);
   font-style: italic;
 }
 
@@ -49,7 +83,7 @@
 }
 
 .question {
-  padding: var(--space-1-5) 0;
+  padding: var(--space-1) 0;
   border-bottom: var(--border-width-base) solid var(--color-border-base);
 }
 
@@ -63,9 +97,9 @@
 .options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-0-5) var(--space-2);
-  margin-top: var(--space-1);
-  padding-left: var(--space-5);
+  gap: 0 var(--space-2);
+  margin-top: var(--space-0-5);
+  padding-left: var(--space-4);
 }
 
 .option {
@@ -134,8 +168,8 @@
 }
 
 .feedback {
-  margin-top: var(--space-1);
-  padding-left: var(--space-5);
+  margin-top: var(--space-0-5);
+  padding-left: var(--space-4);
 }
 
 .result {
@@ -209,7 +243,8 @@
   }
 
   .option,
-  .bubble {
+  .bubble,
+  .subject {
     transition: none;
   }
 }

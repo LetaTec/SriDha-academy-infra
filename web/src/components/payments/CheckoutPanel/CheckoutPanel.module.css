@@ -1,0 +1,77 @@
+.sections {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-1-5);
+}
+
+.note {
+  padding: var(--space-1-5) var(--space-2);
+  border-left: var(--border-width-accent) solid var(--color-accent);
+  background: var(--color-bg-subtle);
+}
+
+.batches {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+}
+
+.batch {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1-5) var(--space-2);
+  border: var(--border-width-base) solid var(--color-border-base);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.batch:hover,
+.batch:focus-within {
+  border-color: var(--color-border-strong);
+}
+
+.batchSelected {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-subtle);
+}
+
+.batchClosed {
+  cursor: default;
+  opacity: var(--opacity-disabled);
+}
+
+.batch input {
+  accent-color: var(--color-bg-inverse);
+}
+
+.payAction,
+.finishActions {
+  display: grid;
+  gap: var(--space-1-5);
+}
+
+.result {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1-5);
+}
+
+@media (--reduced-motion) {
+  .batch {
+    transition: none;
+  }
+}

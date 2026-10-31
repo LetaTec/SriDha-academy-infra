@@ -13,3 +13,7 @@ export const formatPrice = (price: Price): string => {
 
   return price.taxLabel ? `${amount} + ${price.taxLabel}` : amount;
 };
+
+// Amounts in paise, such as order totals, in rupees
+export const formatPaise = (amountPaise: number): string =>
+  formatPrice({ amountPaise, currency: 'INR', taxLabel: null });

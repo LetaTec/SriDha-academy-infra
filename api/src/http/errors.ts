@@ -17,8 +17,18 @@ export const ERROR_CODE = {
   batchUnavailable: 'BATCH_UNAVAILABLE',
   batchFull: 'BATCH_FULL',
   alreadyEnrolled: 'ALREADY_ENROLLED',
+  topicNotFound: 'TOPIC_NOT_FOUND',
+  alreadyPreRegistered: 'ALREADY_PRE_REGISTERED',
+  preRegistrationClosed: 'PRE_REGISTRATION_CLOSED',
+  priceUnavailable: 'PRICE_UNAVAILABLE',
+  paymentNotFound: 'PAYMENT_NOT_FOUND',
+  paymentVerificationFailed: 'PAYMENT_VERIFICATION_FAILED',
+  paymentProviderUnavailable: 'PAYMENT_PROVIDER_UNAVAILABLE',
+  webhookUnavailable: 'WEBHOOK_UNAVAILABLE',
+  webhookSignatureInvalid: 'WEBHOOK_SIGNATURE_INVALID',
   rateLimitExceeded: 'RATE_LIMIT_EXCEEDED',
   notFound: 'NOT_FOUND',
+  forbidden: 'FORBIDDEN',
   internalError: 'INTERNAL_ERROR',
 } as const;
 

@@ -1,0 +1,52 @@
+/* Tabs wrap onto more lines on narrow screens; the page never scrolls sideways */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--height-control-compact);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width-base) solid var(--color-border-base);
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.tab:hover:not(:disabled),
+.tab:focus-visible {
+  border-color: var(--color-border-strong);
+}
+
+.tab:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+
+.count {
+  color: var(--color-text-muted);
+}
+
+.tabSelected,
+.tabSelected:hover:not(:disabled) {
+  border-color: var(--color-bg-inverse);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+}
+
+.tabSelected .count {
+  color: var(--color-text-inverse-muted);
+}
+
+@media (--reduced-motion) {
+  .tab {
+    transition: none;
+  }
+}

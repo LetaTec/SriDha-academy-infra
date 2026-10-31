@@ -53,7 +53,6 @@ const HomePage = () => {
         onOpenTopic={openTopic}
         onSelectBatch={handleSelectBatch}
       />
-
       {/* 2. Real Subject Discovery */}
       <TopicsSection
         catalogue={catalogue}

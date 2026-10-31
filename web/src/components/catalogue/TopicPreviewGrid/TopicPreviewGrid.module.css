@@ -3,25 +3,34 @@
   gap: var(--space-4);
 }
 
+/* The whole box is one button: card on top, offer and action below */
 .topic {
-  position: relative;
-  display: block;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   width: 100%;
-  overflow: hidden;
+  height: 100%;
   color: inherit;
   text-align: inherit;
+  cursor: pointer;
 }
 
 .topic:focus-visible {
   outline-offset: calc(var(--focus-ring-offset) * -1);
 }
 
-/* Coming-soon topics stay fully readable; only the cursor changes */
-.topicSoon {
-  cursor: default;
+.preview {
+  position: relative;
+  display: block;
+  overflow: hidden;
 }
 
-/* Batch details fade in over the card; the layout never moves */
+/* The card keeps just enough height for the subtopics overlay */
+.preview .card {
+  min-height: var(--height-topic-preview);
+  padding-bottom: var(--space-2);
+}
+
+/* What the topic teaches fades in over the card; the layout never moves */
 .overlay {
   opacity: 0;
   transition: opacity var(--transition-fast);
@@ -32,22 +41,47 @@
   opacity: 1;
 }
 
-/* Touch screens have no hover: tapping an open card opens its batches */
+/* Touch screens have no hover; the payment panel lists the subtopics */
 @media (--no-hover) {
   .overlay {
     display: none;
   }
 }
 
-@media (--reduced-motion) {
-  .overlay {
-    transition: none;
-  }
-}
-
-/* Fee above the next start date on an open topic */
 .offer {
   display: grid;
   justify-items: center;
-  gap: var(--space-0-5);
+  gap: var(--space-1);
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.pending {
+  min-height: var(--space-6);
+}
+
+/* Reads as a link: accent text with an arrow that moves on hover */
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-0-5);
+  padding-bottom: var(--space-0-5);
+  border-bottom: var(--border-width-base) solid currentcolor;
+  color: var(--color-text-accent);
+  transition:
+    color var(--transition-fast),
+    gap var(--transition-fast);
+}
+
+.topic:hover .action,
+.topic:focus-visible .action {
+  gap: var(--space-1-5);
+  color: var(--color-text-primary);
+}
+
+@media (--reduced-motion) {
+  .overlay,
+  .action {
+    transition: none;
+  }
 }

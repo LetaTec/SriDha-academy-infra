@@ -24,6 +24,9 @@ export type OngoingTopicsProps = {
   catalogueTopics: readonly Topic[];
 };
 
+// The topics running now, beside the sign-in form. Enrolling or
+// pre-registering asks the visitor to register first, then opens that
+// topic's payment panel.
 export const OngoingTopics = ({ catalogueTopics }: OngoingTopicsProps) => {
   const navigate = useNavigate();
 
@@ -38,8 +41,8 @@ export const OngoingTopics = ({ catalogueTopics }: OngoingTopicsProps) => {
   } = useSubjectShuffle();
 
   const handleSelectTopic = (topicId: string) => {
-    const destination = `${APP_ROUTES.HOME}?${new URLSearchParams({
-      [CATALOGUE_QUERY_PARAM.topic]: topicId,
+    const destination = `${APP_ROUTES.TOPICS}?${new URLSearchParams({
+      [CATALOGUE_QUERY_PARAM.checkout]: topicId,
     })}`;
     navigate(
       `${APP_ROUTES.REGISTER}?${new URLSearchParams({
@@ -147,7 +150,6 @@ export const OngoingTopics = ({ catalogueTopics }: OngoingTopicsProps) => {
           to={toPageSection(APP_ROUTES.REGISTER, AUTH_SECTION_ID.access)}
           endIcon="arrowRight"
           fullWidth
-          wrapLabel
         >
           {LANDING_TEXT.ongoingAction}
         </ButtonRouteLink>

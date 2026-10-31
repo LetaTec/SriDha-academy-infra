@@ -5,6 +5,7 @@ import { ScrollProgress } from '@components/ui/ScrollProgress/ScrollProgress';
 import { HEADER_TEXT } from '@constants/home';
 import { useScrollToHash } from '@hooks/useScrollToHash';
 
+import { SiteCheckout } from './SiteCheckout';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
 import styles from './SiteShell.module.css';
@@ -27,6 +28,7 @@ export const SiteShell = () => {
         <Outlet />
       </main>
       <SiteFooter />
+      <SiteCheckout />
     </>
   );
 };

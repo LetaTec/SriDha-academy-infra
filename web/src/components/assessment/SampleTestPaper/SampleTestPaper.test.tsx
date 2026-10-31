@@ -2,17 +2,25 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
 import {
   SAMPLE_TEST_DURATION_SECONDS,
-  SAMPLE_TEST_QUESTIONS,
+  SAMPLE_TEST_PAPERS,
 } from '@constants/assessment';
 
 import { SampleTestPaper } from './SampleTestPaper';
+
+// The paper opens on the first subject, Accountancy
+const SAMPLE_TEST_QUESTIONS = SAMPLE_TEST_PAPERS.accountancy;
+
+const escapeRegExp = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const answerQuestion = (index: number, optionKey: string) => {
   const question = SAMPLE_TEST_QUESTIONS[index];
   const group = screen.getByRole('radiogroup', { name: question.prompt });
   const option = question.options.find(item => item.key === optionKey);
   fireEvent.click(
-    within(group).getByRole('radio', { name: new RegExp(option!.label) }),
+    within(group).getByRole('radio', {
+      name: new RegExp(escapeRegExp(option!.label)),
+    }),
   );
 };
 
@@ -24,6 +32,36 @@ const answerAll = (pick: (index: number) => string) =>
 describe('SampleTestPaper', () => {
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('switches to another subject paper with fresh answers', () => {
+    render(<SampleTestPaper />);
+    answerQuestion(0, SAMPLE_TEST_QUESTIONS[0].answer);
+    expect(screen.getByText('Answered 1 of 5')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Physics' }));
+
+    expect(screen.getByRole('button', { name: 'Physics' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(
+      screen.getByRole('radiogroup', {
+        name: SAMPLE_TEST_PAPERS.physics[0].prompt,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Answered 0 of 5')).toBeInTheDocument();
+  });
+
+  it('has a five-question paper for every subject', () => {
+    Object.values(SAMPLE_TEST_PAPERS).forEach(paper => {
+      expect(paper).toHaveLength(5);
+      paper.forEach(question =>
+        expect(
+          question.options.some(option => option.key === question.answer),
+        ).toBe(true),
+      );
+    });
   });
 
   it('marks a full-marks paper 5 / 5 and congratulates the student', () => {

@@ -1,0 +1,129 @@
+.drawer {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+}
+
+.drawer[open] {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Dims the rest of the page so attention stays on the panel */
+.drawer::backdrop {
+  background: var(--color-bg-overlay);
+  animation: fade-in var(--duration-drawer) var(--ease-editorial);
+}
+
+.panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(var(--width-drawer), 100%);
+  height: 100%;
+  border-left: var(--border-width-base) solid var(--color-border-strong);
+  background: var(--color-bg-page);
+  animation: slide-in var(--duration-drawer) var(--ease-editorial);
+  will-change: transform;
+}
+
+/* Leaving: the panel slides back out and the backdrop fades, then the
+   dialog closes */
+.closing .panel {
+  animation: slide-out var(--duration-drawer) var(--ease-editorial) forwards;
+}
+
+.closing::backdrop {
+  animation: fade-out var(--duration-drawer) var(--ease-editorial) forwards;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
+}
+
+.heading {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.body {
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+  overscroll-behavior: contain;
+}
+
+.footer {
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--border-width-base) solid var(--color-border-base);
+  background: var(--color-bg-page);
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (--viewport-sm) {
+  .header {
+    padding: var(--space-3) var(--space-2-5) var(--space-2);
+  }
+
+  .body,
+  .footer {
+    padding-inline: var(--space-2-5);
+  }
+}
+
+@media (--reduced-motion) {
+  .panel,
+  .closing .panel,
+  .drawer::backdrop,
+  .closing::backdrop {
+    animation: none;
+  }
+}

@@ -40,6 +40,13 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.string().min(1).optional(),
   // Comma-separated emails that are super admins (password-free sign-in)
   SUPER_ADMIN_EMAILS: z.string().optional(),
+  // Razorpay API keys. Without them checkout runs in test mode: orders are
+  // saved as payment pending and nothing is charged.
+  RAZORPAY_KEY_ID: z.string().min(1).optional(),
+  RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
+  // Set in Razorpay's dashboard (Settings → Webhooks). Lets Razorpay confirm
+  // payments even when the student closes the page before we can.
+  RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 export type AppConfig = {
@@ -61,6 +68,8 @@ export type AppConfig = {
   cookieSameSite: 'lax' | 'none' | 'strict';
   cookieDomain?: string;
   superAdminEmails: string[];
+  razorpay: { keyId: string; keySecret: string } | null;
+  razorpayWebhookSecret: string | null;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -104,6 +113,12 @@ export const loadConfig = (
   if (isProduction && env.MAIL_TRANSPORT === MAIL_TRANSPORT.console) {
     throw new Error(
       'Invalid API configuration — MAIL_TRANSPORT=console exposes reset links in logs and is not allowed in production',
+    );
+  }
+
+  if (Boolean(env.RAZORPAY_KEY_ID) !== Boolean(env.RAZORPAY_KEY_SECRET)) {
+    throw new Error(
+      'Invalid API configuration — set both RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET, or neither',
     );
   }
 
@@ -164,6 +179,11 @@ export const loadConfig = (
       .split(',')
       .map(email => email.trim().toLowerCase())
       .filter(Boolean),
+    razorpay:
+      env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
+        ? { keyId: env.RAZORPAY_KEY_ID, keySecret: env.RAZORPAY_KEY_SECRET }
+        : null,
+    razorpayWebhookSecret: env.RAZORPAY_WEBHOOK_SECRET ?? null,
   };
 };
 

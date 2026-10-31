@@ -20,7 +20,8 @@
     "typecheck": "npm run typecheck -w api && npm run typecheck -w web",
     "test": "npm run test -w api && npm run test -w web",
     "format": "prettier --write --ignore-unknown .",
-    "format:check": "prettier --check --ignore-unknown ."
+    "format:check": "prettier --check --ignore-unknown .",
+    "topics:export": "tsx --tsconfig web/tsconfig.json scripts/export-topic-library.ts && prettier --write api/src/db/topicLibrary.ts"
   },
   "devDependencies": {
     "prettier": "^3.8.1"

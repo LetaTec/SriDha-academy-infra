@@ -1,0 +1,43 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.open {
+  gap: var(--space-1);
+}
+
+/* How many filters are applied, in a small solid square */
+.count {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--space-2-5);
+  height: var(--space-2-5);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--height-control-compact);
+  padding: var(--space-1) var(--space-1-5) var(--space-1) var(--space-2);
+  border: var(--border-width-base) solid var(--color-border-strong);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+  transition: background-color var(--transition-fast);
+}
+
+.chip:hover,
+.chip:focus-visible {
+  background: var(--color-bg-hover);
+}
+
+@media (--reduced-motion) {
+  .chip {
+    transition: none;
+  }
+}

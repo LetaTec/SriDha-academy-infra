@@ -1,17 +1,26 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 
 import { AuthProvider } from '@context/AuthContext';
 import { ToastProvider } from '@context/ToastContext';
+import { resetCatalogueCache } from '@hooks/useCatalogue';
 import {
   confirmAdminSignIn,
   getCurrentSession,
   loginStudent,
 } from '@services/auth/api';
 import { getCatalogue } from '@services/catalogue/api';
-import { createEnrolment } from '@services/enrolments/api';
+import { listTeamOrders } from '@services/admin/api';
+import { createEnrolment, listEnrolments } from '@services/enrolments/api';
+import { createCheckout, listPreRegistrations } from '@services/payments/api';
 import { catalogueFixture, openBatch } from '@/test/catalogueFixture';
 
 import { routes } from './router';
@@ -27,6 +36,12 @@ vi.mock('@services/auth/api', () => ({
   requestAdminSignIn: vi.fn(),
   confirmAdminSignIn: vi.fn(),
 }));
+vi.mock('@services/payments/api', () => ({
+  createCheckout: vi.fn(),
+  verifyPayment: vi.fn(),
+  listPreRegistrations: vi.fn(),
+}));
+vi.mock('@services/admin/api', () => ({ listTeamOrders: vi.fn() }));
 vi.mock('@services/enrolments/api', () => ({
   createEnrolment: vi.fn(),
   listEnrolments: vi.fn(),
@@ -71,6 +86,8 @@ const unauthenticated = () =>
 const LAZY_PAGE_TIMEOUT_MS = 5000;
 // The full sign-in journey loads several lazy pages in one test.
 const JOURNEY_TEST_TIMEOUT_MS = 20_000;
+// The Topics page renders all 156 topic cards on first load
+const TOPICS_PAGE_TIMEOUT_MS = 15_000;
 const GST_TOPIC_ID = 'topic_accounts_gst_class_11';
 
 const renderApp = (initialEntry: string) => {
@@ -89,7 +106,10 @@ const renderApp = (initialEntry: string) => {
 
 describe('app routing', () => {
   beforeEach(() => {
+    // The catalogue request is shared across the page; start each test fresh
+    resetCatalogueCache();
     vi.mocked(getCatalogue).mockResolvedValue(catalogueFixture);
+    vi.mocked(listPreRegistrations).mockResolvedValue([]);
     vi.mocked(loginStudent).mockResolvedValue(student);
     vi.mocked(createEnrolment).mockResolvedValue({
       id: 'enrolment-1',
@@ -179,43 +199,80 @@ describe('app routing', () => {
     expect(router.state.location.pathname).toBe('/');
   });
 
-  it('opens a topic from the topic cards and keeps topics without batches disabled', async () => {
-    vi.mocked(getCurrentSession).mockResolvedValue(student);
-    const user = userEvent.setup();
-    const router = renderApp('/');
+  it(
+    'enrols from a topic card through the payment panel',
+    async () => {
+      vi.mocked(getCurrentSession).mockResolvedValue(student);
+      vi.mocked(createCheckout).mockResolvedValue({
+        paymentId: 'payment_1',
+        status: 'CREATED',
+        kind: 'ENROLMENT',
+        amount: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+        topic: {
+          id: GST_TOPIC_ID,
+          title: 'Learn GST for Class 11',
+          level: 'Class 11',
+        },
+        batch: {
+          id: openBatch.id,
+          name: openBatch.name,
+          scheduleLabel: openBatch.scheduleLabel,
+        },
+        provider: { name: 'TEST', orderId: 'order_test_1', keyId: null },
+      });
+      const user = userEvent.setup();
+      const router = renderApp('/');
 
-    const gst = await screen.findByRole(
-      'button',
-      { name: 'View batches for GST' },
-      { timeout: LAZY_PAGE_TIMEOUT_MS },
-    );
-    // Topics without batches stay focusable, so their subtopics can be read,
-    // but are marked unavailable.
-    const trialBalance = screen.getByRole('button', {
-      name: 'View batches for Trial balance',
-    });
-    expect(trialBalance).toHaveAttribute('aria-disabled', 'true');
-    expect(trialBalance).toHaveAccessibleDescription(
-      /Trial balance · Class 11.*What we will teach.*Meaning and objectives/,
-    );
-    // GST opens once the catalogue has loaded; its hover overlay's subtopics
-    // double as the card's description.
-    await waitFor(() =>
-      expect(gst).not.toHaveAttribute('aria-disabled', 'true'),
-    );
-    expect(gst).toHaveAccessibleDescription(
-      /What we will teach.*What is GST.*Input tax credit.*See lessons and batches/,
-    );
+      const enrol = await screen.findByRole(
+        'button',
+        { name: 'Enrol now: GST, Class 11' },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      );
+      await waitFor(() => expect(enrol).toBeEnabled());
+      // The hover overlay's subtopics double as the button's description
+      expect(enrol).toHaveAccessibleDescription(
+        /What we will teach.*What is GST.*Input tax credit/,
+      );
+      // Topics without batches are priced and open for pre-registration
+      expect(
+        screen.getByRole('button', {
+          name: 'Pre-register now: Ray optics, Class 12',
+        }),
+      ).toBeEnabled();
 
-    await user.click(gst);
-    const dialog = await screen.findByRole('dialog', {
-      name: /learn gst for class 11/i,
-    });
-    expect(router.state.location.search).toContain(`topic=${GST_TOPIC_ID}`);
-    expect(
-      within(dialog).getAllByRole('button', { name: 'Select batch' }),
-    ).toHaveLength(2);
-  });
+      await user.click(enrol);
+      const panel = await screen.findByRole('dialog', { name: /^GST/ });
+      expect(router.state.location.search).toContain(
+        `checkout=${GST_TOPIC_ID}`,
+      );
+      expect(
+        within(panel).getByRole('radio', { name: /November batch/ }),
+      ).toBeChecked();
+      expect(
+        within(panel).getByRole('radio', { name: /December batch/ }),
+      ).toBeDisabled();
+
+      await user.type(
+        within(panel).getByRole('textbox', { name: 'Mobile number' }),
+        '+91 98765 43210',
+      );
+      await user.click(screen.getByRole('button', { name: 'Pay ₹129' }));
+
+      expect(createCheckout).toHaveBeenCalledWith({
+        kind: 'ENROLMENT',
+        batchId: openBatch.id,
+        fullName: 'Asha Verma',
+        email: 'asha@example.com',
+        mobile: '+91 98765 43210',
+      });
+      // Without Razorpay keys the seat is held until payment is collected
+      expect(await within(panel).findByText('Seat saved')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Done' }));
+      expect(router.state.location.search).not.toContain('checkout=');
+    },
+    JOURNEY_TEST_TIMEOUT_MS,
+  );
 
   it('searches topics from the header and lists their batches', async () => {
     vi.mocked(getCurrentSession).mockResolvedValue(student);
@@ -227,12 +284,12 @@ describe('app routing', () => {
       { name: 'Find your topic' },
       { timeout: LAZY_PAGE_TIMEOUT_MS },
     );
-    await user.type(search, 'suspense');
+    await user.type(search, 'hybridisation');
     const results = screen.getByRole('region', {
       name: 'Matching topics and batches',
     });
     expect(
-      within(results).getByRole('button', { name: /Rectification of errors/ }),
+      within(results).getByRole('button', { name: /Chemical bonding/ }),
     ).toBeInTheDocument();
     expect(
       within(results).queryByRole('button', { name: /GST/ }),
@@ -283,6 +340,192 @@ describe('app routing', () => {
     expect(
       screen.getByRole('heading', { name: /meet your\s*tutors/i }),
     ).toBeInTheDocument();
+  });
+
+  it(
+    'opens the Topics page from the header and filters topics by class',
+    async () => {
+      vi.mocked(getCurrentSession).mockResolvedValue(student);
+      const user = userEvent.setup();
+      const router = renderApp('/');
+      const nav = await screen.findByRole(
+        'navigation',
+        { name: 'Primary' },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      );
+
+      await user.click(within(nav).getByRole('link', { name: 'Topics' }));
+
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: /every topic/i },
+        { timeout: TOPICS_PAGE_TIMEOUT_MS },
+      );
+      expect(router.state.location.pathname).toBe('/topics');
+      expect(within(nav).getByRole('link', { name: 'Topics' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+
+      // Pasted in one go: typing re-renders every card on each keystroke
+      await user.click(
+        screen.getByRole('searchbox', { name: 'Search topics' }),
+      );
+      await user.paste('class 12');
+      expect(
+        screen.getByRole('button', {
+          name: 'Pre-register now: Ray optics, Class 12',
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Enrol now: GST, Class 11' }),
+      ).not.toBeInTheDocument();
+
+      // Filters narrow the subject groups and are kept in the URL
+      await user.click(screen.getByRole('button', { name: /^Biology/ }));
+      expect(
+        screen.getByRole('heading', { level: 2, name: 'Biology' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 2, name: 'Physics' }),
+      ).not.toBeInTheDocument();
+      expect(router.state.location.search).toContain('subject=biology');
+
+      // Class, stream and availability live in a side panel
+      await user.click(screen.getByRole('button', { name: /^Filters/ }));
+      const panel = await screen.findByRole('dialog', {
+        name: 'Filter topics',
+      });
+      await user.click(within(panel).getByRole('radio', { name: 'Class 12' }));
+      expect(router.state.location.search).toContain('class=12');
+      await user.click(
+        within(panel).getByRole('button', { name: /^Show \d+ topics?$/ }),
+      );
+      expect(
+        screen.queryByRole('dialog', { name: 'Filter topics' }),
+      ).not.toBeInTheDocument();
+
+      // Each applied filter shows as a chip that removes it
+      await user.click(
+        screen.getByRole('button', { name: 'Remove filter: Class 12' }),
+      );
+      expect(router.state.location.search).not.toContain('class=');
+    },
+    JOURNEY_TEST_TIMEOUT_MS,
+  );
+
+  it('shows the policy pages to signed-out visitors', async () => {
+    vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
+    renderApp('/contact');
+
+    expect(
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: /contact\s*us/i },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('link', { name: 'sridhaacademy1@gmail.com' })[0],
+    ).toHaveAttribute('href', 'mailto:sridhaacademy1@gmail.com');
+    // Every policy page is linked from the footer
+    const help = screen.getByRole('navigation', { name: 'Help' });
+    expect(
+      within(help).getByRole('link', { name: 'Terms and conditions' }),
+    ).toHaveAttribute('href', '/terms');
+    expect(
+      within(help).getByRole('link', { name: 'Refund and cancellation' }),
+    ).toHaveAttribute('href', '/refund-policy');
+  });
+
+  it('lets students pay for a pending pre-registration from My learning', async () => {
+    vi.mocked(getCurrentSession).mockResolvedValue(student);
+    vi.mocked(listEnrolments).mockResolvedValue([]);
+    vi.mocked(listPreRegistrations).mockResolvedValue([
+      {
+        id: 'pre-1',
+        status: 'PENDING_PAYMENT',
+        createdAt: '2026-10-28T09:00:00Z',
+        topic: {
+          id: 'topic_physics_ray_optics_class_12',
+          title: 'Learn Ray optics for Class 12',
+          level: 'Class 12',
+          price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+        },
+      },
+    ]);
+    const user = userEvent.setup();
+    const router = renderApp('/my-learning');
+
+    expect(
+      await screen.findByRole(
+        'heading',
+        { level: 2, name: 'Pre-registered topics' },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Payment pending')).toBeInTheDocument();
+    // Students never see the team's orders link
+    expect(
+      screen.queryByRole('link', { name: /orders and payments/i }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Complete payment: Learn Ray optics for Class 12',
+      }),
+    );
+    expect(router.state.location.search).toContain(
+      'checkout=topic_physics_ray_optics_class_12',
+    );
+  });
+
+  it('keeps orders and payments for the team', async () => {
+    vi.mocked(getCurrentSession).mockResolvedValue(student);
+    renderApp('/team/orders');
+    expect(
+      await screen.findByText(
+        'This page is for the SriDha Academy team',
+        undefined,
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    expect(listTeamOrders).not.toHaveBeenCalled();
+    cleanup();
+
+    vi.mocked(getCurrentSession).mockResolvedValue(superAdmin);
+    vi.mocked(listTeamOrders).mockResolvedValue([
+      {
+        id: 'payment-1',
+        createdAt: '2026-10-28T08:00:00Z',
+        status: 'PAID',
+        provider: 'RAZORPAY',
+        amountPaise: 12900,
+        providerOrderId: 'order_1',
+        providerPaymentId: 'pay_1',
+        kind: 'ENROLMENT',
+        topic: 'Learn GST for Class 11',
+        batch: 'November batch',
+        seatStatus: 'CONFIRMED',
+        student: {
+          accountEmail: 'asha@example.com',
+          name: 'Asha Verma',
+          email: 'asha@example.com',
+          mobile: '+91 73035 48162',
+        },
+      },
+    ]);
+    renderApp('/team/orders');
+
+    const table = await screen.findByRole(
+      'table',
+      { name: 'Orders, newest first' },
+      { timeout: LAZY_PAGE_TIMEOUT_MS },
+    );
+    expect(within(table).getByText('Asha Verma')).toBeInTheDocument();
+    expect(within(table).getByText('pay_1')).toBeInTheDocument();
+    expect(within(table).getByText('Paid')).toBeInTheDocument();
+    expect(screen.getByText('Paid orders')).toBeInTheDocument();
   });
 
   it('shows AI test papers as in progress, with progress derived from the milestones', async () => {

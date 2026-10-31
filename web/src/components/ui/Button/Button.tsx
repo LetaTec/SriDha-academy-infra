@@ -18,8 +18,6 @@ type ButtonStyleProps = {
   variant?: ButtonVariant;
   tone?: ButtonTone;
   fullWidth?: boolean;
-  // Lets a long label wrap onto more lines instead of overflowing
-  wrapLabel?: boolean;
   endIcon?: IconName;
   children: React.ReactNode;
 };
@@ -52,7 +50,6 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variant = 'primary',
       tone = 'default',
       fullWidth = false,
-      wrapLabel = false,
       loading = false,
       endIcon,
       disabled,
@@ -68,7 +65,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         'btn',
         variant,
         tone,
-        { fullWidth, wrapLabel, disabled: disabled || loading },
+        { fullWidth, disabled: disabled || loading },
         className,
       )}
       disabled={disabled || loading}
@@ -93,16 +90,12 @@ export const ButtonLink = ({
   variant = 'primary',
   tone = 'default',
   fullWidth = false,
-  wrapLabel = false,
   endIcon,
   children,
   className,
   ...props
 }: ButtonLinkProps) => (
-  <a
-    className={cn('btn', variant, tone, { fullWidth, wrapLabel }, className)}
-    {...props}
-  >
+  <a className={cn('btn', variant, tone, { fullWidth }, className)} {...props}>
     <ButtonContent endIcon={endIcon}>{children}</ButtonContent>
   </a>
 );
@@ -111,14 +104,13 @@ export const ButtonRouteLink = ({
   variant = 'primary',
   tone = 'default',
   fullWidth = false,
-  wrapLabel = false,
   endIcon,
   children,
   className,
   ...props
 }: ButtonRouteLinkProps) => (
   <Link
-    className={cn('btn', variant, tone, { fullWidth, wrapLabel }, className)}
+    className={cn('btn', variant, tone, { fullWidth }, className)}
     {...props}
   >
     <ButtonContent endIcon={endIcon}>{children}</ButtonContent>

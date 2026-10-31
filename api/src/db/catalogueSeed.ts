@@ -1,4 +1,5 @@
 import { transaction, type Database } from './client.js';
+import { TOPIC_LIBRARY, type LibrarySubject } from './topicLibrary.js';
 
 // Catalogue content sourced from the SriDha Academy education-model document and the
 // approved website prototype. Only values present in those sources are set;
@@ -55,7 +56,53 @@ type SeedSubject = {
 // The source plan assumes up to 100 students per batch.
 const BATCH_CAPACITY = 100;
 
-export const CATALOGUE_SEED: readonly SeedSubject[] = [
+// The standard topic fee, the same as GST, until the team sets one per
+// topic. The launch topics open with one batch on 1 and 2 December 2026.
+const LAUNCH_TOPIC_PRICE_PAISE = 12900;
+
+type LaunchTopic = {
+  key: string;
+  title: string;
+  level: string;
+  summary: string;
+  lessons: readonly string[];
+};
+
+const launchTopic = ({
+  key,
+  title,
+  level,
+  summary,
+  lessons,
+}: LaunchTopic): SeedTopic => ({
+  id: `topic_${key}`,
+  title,
+  summary,
+  level,
+  pricePaise: LAUNCH_TOPIC_PRICE_PAISE,
+  priceTaxLabel: null,
+  lessons: lessons.map((lessonTitle, index) => ({
+    id: `lesson_${key}_${index + 1}`,
+    title: lessonTitle,
+    durationMinutes: null,
+  })),
+  batches: [
+    {
+      id: `batch_${key}_december`,
+      name: 'December batch',
+      scheduleLabel: '1st & 2nd December',
+      startDate: '2026-12-01',
+      startTime: '10:00',
+      sessionCount: 2,
+      sessionDurationMinutes: null,
+      instructorName: null,
+      capacity: BATCH_CAPACITY,
+      status: 'OPEN',
+    },
+  ],
+});
+
+const HANDWRITTEN_CATALOGUE: readonly SeedSubject[] = [
   {
     id: 'subject_accounts',
     slug: 'accounts',
@@ -139,7 +186,7 @@ export const CATALOGUE_SEED: readonly SeedSubject[] = [
             summary:
               'Find where a ledger went wrong and correct it with the right journal entry, before it reaches the final accounts.',
             level: 'Class 11',
-            pricePaise: null,
+            pricePaise: LAUNCH_TOPIC_PRICE_PAISE,
             priceTaxLabel: null,
             lessons: [
               {
@@ -171,7 +218,7 @@ export const CATALOGUE_SEED: readonly SeedSubject[] = [
             summary:
               'Prepare a trial balance from ledger balances and locate the errors when the totals do not agree.',
             level: 'Class 11',
-            pricePaise: null,
+            pricePaise: LAUNCH_TOPIC_PRICE_PAISE,
             priceTaxLabel: null,
             lessons: [
               {
@@ -203,7 +250,7 @@ export const CATALOGUE_SEED: readonly SeedSubject[] = [
             summary:
               'Reconcile the cash book with the bank passbook and explain every difference between the two balances.',
             level: 'Class 11',
-            pricePaise: null,
+            pricePaise: LAUNCH_TOPIC_PRICE_PAISE,
             priceTaxLabel: null,
             lessons: [
               {
@@ -231,6 +278,142 @@ export const CATALOGUE_SEED: readonly SeedSubject[] = [
           },
         ],
       },
+      {
+        id: 'chapter_accounts_partnership',
+        title: 'Partnership accounts',
+        topics: [
+          launchTopic({
+            key: 'accounts_partnership_class_12',
+            title: 'Learn Partnership accounts for Class 12',
+            level: 'Class 12',
+            summary:
+              'How partnership firms share profits, value goodwill and settle accounts when partners join, retire or pass away.',
+            lessons: [
+              'Fundamentals of partnership',
+              'Valuation of goodwill',
+              'Admission of a partner',
+              'Retirement and death of a partner',
+            ],
+          }),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'subject_chemistry',
+    slug: 'chemistry',
+    name: 'Chemistry',
+    description: 'Class 11 & 12 chemistry taught one topic at a time',
+    status: 'AVAILABLE',
+    listPricePaise: null,
+    listPriceTaxLabel: null,
+    chapters: [
+      {
+        id: 'chapter_chemistry_bonding',
+        title: 'Chemical bonding and molecular structure',
+        topics: [
+          launchTopic({
+            key: 'chemistry_bonding_class_11',
+            title: 'Learn Chemical bonding for Class 11',
+            level: 'Class 11',
+            summary:
+              'Why atoms bond, how molecules take their shapes and what hybridisation and molecular orbitals explain.',
+            lessons: [
+              'Ionic and covalent bonds',
+              'VSEPR theory and molecular shapes',
+              'Hybridisation',
+              'Molecular orbital theory',
+            ],
+          }),
+        ],
+      },
+      {
+        id: 'chapter_chemistry_basic_concepts',
+        title: 'Some basic concepts of chemistry',
+        topics: [
+          launchTopic({
+            key: 'chemistry_mole_concept_class_11',
+            title: 'Learn the Mole concept for Class 11',
+            level: 'Class 11',
+            summary:
+              'Counting particles with the mole, working out formulas and solving stoichiometry problems step by step.',
+            lessons: [
+              'Mole and molar mass',
+              'Empirical and molecular formula',
+              'Stoichiometry',
+              'Limiting reagent',
+            ],
+          }),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'subject_physics',
+    slug: 'physics',
+    name: 'Physics',
+    description: 'Class 11 & 12 physics taught one topic at a time',
+    status: 'AVAILABLE',
+    listPricePaise: null,
+    listPriceTaxLabel: null,
+    chapters: [
+      {
+        id: 'chapter_physics_ray_optics',
+        title: 'Ray optics and optical instruments',
+        topics: [
+          launchTopic({
+            key: 'physics_ray_optics_class_12',
+            title: 'Learn Ray optics for Class 12',
+            level: 'Class 12',
+            summary:
+              'How mirrors and lenses form images, when light is totally reflected and how microscopes and telescopes work.',
+            lessons: [
+              'Reflection by spherical mirrors',
+              'Refraction and lenses',
+              'Total internal reflection',
+              'Microscopes and telescopes',
+            ],
+          }),
+        ],
+      },
+      {
+        id: 'chapter_physics_current_electricity',
+        title: 'Current electricity',
+        topics: [
+          launchTopic({
+            key: 'physics_current_electricity_class_12',
+            title: 'Learn Current electricity for Class 12',
+            level: 'Class 12',
+            summary:
+              "Resistance, cells and circuits, solved with Ohm's and Kirchhoff's laws and the Wheatstone bridge.",
+            lessons: [
+              "Ohm's law and resistivity",
+              'Cells, EMF and internal resistance',
+              "Kirchhoff's laws",
+              'Wheatstone bridge',
+            ],
+          }),
+        ],
+      },
+      {
+        id: 'chapter_physics_laws_of_motion',
+        title: 'Laws of motion',
+        topics: [
+          launchTopic({
+            key: 'physics_laws_of_motion_class_11',
+            title: 'Learn Laws of motion for Class 11',
+            level: 'Class 11',
+            summary:
+              "Newton's laws applied to real problems, from momentum and friction to motion in a circle.",
+            lessons: [
+              "Newton's three laws",
+              'Conservation of momentum',
+              'Friction',
+              'Circular motion',
+            ],
+          }),
+        ],
+      },
     ],
   },
   {
@@ -253,7 +436,27 @@ export const CATALOGUE_SEED: readonly SeedSubject[] = [
     status: 'AVAILABLE',
     listPricePaise: 49900,
     listPriceTaxLabel: 'GST',
-    chapters: [],
+    chapters: [
+      {
+        id: 'chapter_mathematics_integrals',
+        title: 'Integrals',
+        topics: [
+          launchTopic({
+            key: 'maths_integrals_class_12',
+            title: 'Learn Integrals for Class 12',
+            level: 'Class 12',
+            summary:
+              'Integration from the basic rules to integration by parts, definite integrals and the area under a curve.',
+            lessons: [
+              'Indefinite integrals',
+              'Integration by parts',
+              'Definite integrals',
+              'Area under curves',
+            ],
+          }),
+        ],
+      },
+    ],
   },
   {
     id: 'subject_neet',
@@ -278,6 +481,26 @@ export const CATALOGUE_SEED: readonly SeedSubject[] = [
     chapters: [],
   },
   {
+    id: 'subject_business_studies',
+    slug: 'business-studies',
+    name: 'Business Studies',
+    description: 'Class 11 & 12 business studies taught one topic at a time',
+    status: 'AVAILABLE',
+    listPricePaise: null,
+    listPriceTaxLabel: null,
+    chapters: [],
+  },
+  {
+    id: 'subject_biology',
+    slug: 'biology',
+    name: 'Biology',
+    description: 'Class 11 & 12 biology taught one topic at a time',
+    status: 'AVAILABLE',
+    listPricePaise: null,
+    listPriceTaxLabel: null,
+    chapters: [],
+  },
+  {
     id: 'subject_ca_cs',
     slug: 'ca-cs',
     name: 'CA / CS',
@@ -289,6 +512,66 @@ export const CATALOGUE_SEED: readonly SeedSubject[] = [
     chapters: [],
   },
 ];
+
+const LIBRARY_SUBJECT_ID: Record<LibrarySubject, string> = {
+  accountancy: 'subject_accounts',
+  businessStudies: 'subject_business_studies',
+  economics: 'subject_economics',
+  physics: 'subject_physics',
+  chemistry: 'subject_chemistry',
+  mathematics: 'subject_mathematics',
+  biology: 'subject_biology',
+};
+
+// Every topic on the website that is not written out above: its own
+// chapter, the standard fee and no batches yet, so students pre-register.
+const withLibraryTopics = (subjects: readonly SeedSubject[]): SeedSubject[] => {
+  const seededTopicIds = new Set(
+    subjects.flatMap(subject =>
+      subject.chapters.flatMap(chapter =>
+        chapter.topics.map(topic => topic.id),
+      ),
+    ),
+  );
+
+  return subjects.map(subject => ({
+    ...subject,
+    chapters: [
+      ...subject.chapters,
+      ...TOPIC_LIBRARY.filter(
+        topic =>
+          LIBRARY_SUBJECT_ID[topic.subject] === subject.id &&
+          !seededTopicIds.has(topic.id),
+      ).map(topic => {
+        const key = topic.id.replace(/^topic_/, '');
+        return {
+          id: `chapter_${key}`,
+          title: topic.title,
+          topics: [
+            {
+              id: topic.id,
+              title: `Learn ${topic.title} for ${topic.level}`,
+              summary: `${topic.title} for ${topic.level}, taught one subtopic at a time with live classes and practice.`,
+              level: topic.level,
+              pricePaise: LAUNCH_TOPIC_PRICE_PAISE,
+              priceTaxLabel: null,
+              lessons: topic.lessons.map((title, index) => ({
+                id: `lesson_${key}_${index + 1}`,
+                title,
+                durationMinutes: null,
+              })),
+              batches: [],
+            },
+          ],
+        };
+      }),
+    ],
+  }));
+};
+
+export const CATALOGUE_SEED: readonly SeedSubject[] = withLibraryTopics(
+  HANDWRITTEN_CATALOGUE,
+);
 
 // Idempotent: re-running updates catalogue rows in place and never touches
 // users, sessions or enrolments.

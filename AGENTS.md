@@ -15,7 +15,7 @@ These rules follow the pro-web conventions, adapted to SriDha Academy. Differenc
 - Keep generic display formatting in `src/utils/*` (`currency`, `date`, `url`) or domain mappers. Components must not define local date, currency or entity formatters.
 - Use route-local `components/` folders (for example `pages/home/components`) for code used by one route. Promote to `src/components`, `src/hooks` or `src/services` only when reuse is real.
 - Selection and dialog state that must survive authentication (open topic, chosen batch, redirect target) lives in the URL. Use `useTopicSelection` and the `redirect_to` query parameter; do not duplicate it in component state or storage.
-- Students see topics only. Never present a subject or a "course" in UI copy.
+- Students choose topics, never subjects. Subjects appear only as a way to find topics on the Topics page (the subject filter and subject group headings); topic cards, dialogs and other copy never present a subject or a "course".
 
 ## Access control
 

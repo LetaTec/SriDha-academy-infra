@@ -23,12 +23,17 @@ const OTHER_STREAM = 'OTHER' satisfies (typeof STUDENT_STREAMS)[number];
 export const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 128;
 
-const emailSchema = z
+export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
   .max(254)
   .pipe(z.email('Enter a valid email address'));
+
+export const mobileSchema = z
+  .string()
+  .trim()
+  .regex(/^\+?[0-9][0-9\s-]{8,16}[0-9]$/, 'Enter a valid mobile number');
 
 const passwordSchema = z
   .string()
@@ -52,10 +57,7 @@ export const registerSchema = z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter a valid date of birth')
       .refine(isPastDate, 'Date of birth must be in the past'),
-    mobile: z
-      .string()
-      .trim()
-      .regex(/^\+?[0-9][0-9\s-]{8,16}[0-9]$/, 'Enter a valid mobile number'),
+    mobile: mobileSchema,
     standard: z.enum(STUDENT_STANDARDS, 'Select your standard or exam'),
     stream: z.enum(STUDENT_STREAMS).nullable().default(null),
     // Free-text stream, required only when the student picks "Other".

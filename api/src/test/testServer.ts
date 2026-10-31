@@ -6,6 +6,7 @@ import { seedCatalogue } from '../db/catalogueSeed.js';
 import { openDatabase, runMigrations } from '../db/client.js';
 import type { Mailer } from '../mail/mailer.js';
 import { syncSuperAdmins } from '../modules/auth/roles.js';
+import type { PaymentGateway } from '../modules/payments/gateway.js';
 
 export const TEST_WEB_ORIGIN = 'http://localhost:5173';
 
@@ -29,11 +30,15 @@ export const startTestServer = async ({
   enableRateLimiting = false,
   now = () => new Date('2026-10-10T09:00:00Z'),
   superAdminEmails = [TEST_SUPER_ADMIN_EMAIL],
+  paymentGateway,
+  razorpayWebhookSecret,
 }: {
   withMailer?: boolean;
   enableRateLimiting?: boolean;
   now?: () => Date;
   superAdminEmails?: string[];
+  paymentGateway?: PaymentGateway;
+  razorpayWebhookSecret?: string;
 } = {}) => {
   const db = await openDatabase(':memory:');
   await runMigrations(db);
@@ -41,6 +46,11 @@ export const startTestServer = async ({
 
   const sentEmails: SentResetEmail[] = [];
   const sentSignInLinks: SentSignInLink[] = [];
+  const sentPaymentConfirmations: Array<{
+    email: string;
+    topic: string;
+    batch: string | null;
+  }> = [];
   const mailer: Mailer | null = withMailer
     ? {
         sendPasswordReset: async (email, resetUrl) => {
@@ -48,6 +58,9 @@ export const startTestServer = async ({
         },
         sendAdminSignInLink: async (email, signInUrl) => {
           sentSignInLinks.push({ email, signInUrl });
+        },
+        sendPaymentConfirmation: async (email, confirmation) => {
+          sentPaymentConfirmations.push({ email, ...confirmation });
         },
       }
     : null;
@@ -58,9 +71,18 @@ export const startTestServer = async ({
     WEB_ORIGIN: TEST_WEB_ORIGIN,
     ENABLE_RATE_LIMIT: enableRateLimiting ? 'true' : 'false',
     SUPER_ADMIN_EMAILS: superAdminEmails.join(','),
+    ...(razorpayWebhookSecret
+      ? { RAZORPAY_WEBHOOK_SECRET: razorpayWebhookSecret }
+      : {}),
   });
   await syncSuperAdmins(db, config.superAdminEmails, clock.now());
-  const app = createApp({ db, config, mailer, now: () => clock.now() });
+  const app = createApp({
+    db,
+    config,
+    mailer,
+    now: () => clock.now(),
+    paymentGateway,
+  });
   const server = app.listen(0);
   await new Promise(resolve => server.once('listening', resolve));
   const { port } = server.address() as AddressInfo;
@@ -107,6 +129,7 @@ export const startTestServer = async ({
     clock,
     sentEmails,
     sentSignInLinks,
+    sentPaymentConfirmations,
     port,
     baseUrl,
     createClient,

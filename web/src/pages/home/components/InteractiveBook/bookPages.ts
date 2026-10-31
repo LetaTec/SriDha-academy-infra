@@ -10,6 +10,9 @@ import {
 // on the signed-in batches page linked from the spread.
 export const BATCHES_PER_PAGE = 2;
 const BATCH_PAGE_COUNT = 2;
+// The book opens one topic, then its batches on the next turn; every topic
+// is listed in the topics section and on the Topics page.
+const TOPIC_PAGE_COUNT = 1;
 
 export type BookChapterContent = {
   label: string;
@@ -62,11 +65,13 @@ const getCataloguePages = ({
   if (hasError) return [{ kind: 'status', key: 'error', status: 'error' }];
 
   const topics = listTopics(subjects);
-  const topicPages: BookPageContent[] = topics.map(context => ({
-    kind: 'topic',
-    key: `topic-${context.topic.id}`,
-    context,
-  }));
+  const topicPages: BookPageContent[] = topics
+    .slice(0, TOPIC_PAGE_COUNT)
+    .map(context => ({
+      kind: 'topic',
+      key: `topic-${context.topic.id}`,
+      context,
+    }));
   const batches = topics.flatMap(context =>
     context.topic.batches.map(batch => ({ ...context, batch })),
   );

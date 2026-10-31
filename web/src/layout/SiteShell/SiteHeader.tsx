@@ -10,7 +10,8 @@ import { IconButton } from '@components/ui/IconButton/IconButton';
 import { AUTH_TEXT } from '@constants/auth';
 import { CATALOGUE_QUERY_PARAM } from '@constants/catalogue';
 import { HEADER_TEXT, NAV_LINKS } from '@constants/home';
-import { APP_ROUTES, HOME_SECTION_ID, toPageSection } from '@constants/routes';
+import { APP_ROUTES } from '@constants/routes';
+import { TOPIC_FILTER_PARAM } from '@constants/topics';
 import { useAuth } from '@context/AuthContext';
 import { useToast } from '@context/ToastContext';
 import { useCatalogue } from '@hooks/useCatalogue';
@@ -177,11 +178,14 @@ export const SiteHeader = () => {
                   [CATALOGUE_QUERY_PARAM.batch]: batchId,
                 })
               }
-              onBrowseTopics={() => {
+              onBrowseTopics={searched => {
                 setIsMenuOpen(false);
-                navigate(
-                  toPageSection(APP_ROUTES.HOME, HOME_SECTION_ID.topics),
-                );
+                navigate({
+                  pathname: APP_ROUTES.TOPICS,
+                  search: `?${new URLSearchParams({
+                    [TOPIC_FILTER_PARAM.query]: searched,
+                  })}`,
+                });
               }}
             />
           </div>

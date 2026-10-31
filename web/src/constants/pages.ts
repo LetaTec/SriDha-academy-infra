@@ -9,6 +9,33 @@ export const PAGE_TEXT = {
   routeErrorTitleEmphasis: 'wrong.',
   routeErrorMessage:
     'Please refresh the page. If the problem continues, try again later.',
+  topicsEyebrow: 'Student / Topics',
+  topicsTitle: 'Every topic,',
+  topicsTitleEmphasis: 'one at a time.',
+  topicsNote:
+    'Search by topic or by your class, such as Class 11 or Class 12. Open a topic to see its lessons and batches',
+  topicsFilterTitle: 'Filter by',
+  topicsFiltersButton: 'Filters',
+  topicsFilterPanelTitle: 'Filter topics',
+  topicsFilterPanelClose: 'Close filters',
+  topicsShowResults: (count: number) =>
+    `Show ${count} ${count === 1 ? 'topic' : 'topics'}`,
+  topicsRemoveFilter: (label: string) => `Remove filter: ${label}`,
+  topicsFilterClass: 'Class',
+  topicsFilterClassAll: 'All classes',
+  topicsSubjectTabs: 'Subjects',
+  topicsAllSubjects: 'All subjects',
+  topicsFilterStream: 'Stream',
+  topicsFilterStreamAll: 'All streams',
+  topicsFilterAvailability: 'Availability',
+  topicsFilterAvailabilityAll: 'Any availability',
+  topicsClearFilters: 'Clear filters',
+  topicsCount: (shown: number, total: number) =>
+    shown === total ? `${total} topics` : `Showing ${shown} of ${total} topics`,
+  topicsGroupCount: (count: number) =>
+    `${count} ${count === 1 ? 'topic' : 'topics'}`,
+  topicsEmptyTitle: 'No topics match these filters',
+  topicsEmptyMessage: 'Try another class or subject, or clear the filters',
   batchesEyebrow: 'Student / Batches',
   batchesTitle: 'All',
   batchesTitleEmphasis: 'batches.',
@@ -26,5 +53,10 @@ export const PAGE_TEXT = {
   myLearningBrowse: 'Browse topics',
   myLearningLoadError: 'Your enrolments could not be loaded',
   myLearningPaymentNote:
-    'Online payment is not live yet. The SriDha Academy team will contact you to complete payment for reserved seats.',
+    'A seat waiting for payment is held for 30 minutes. Complete the payment to confirm it',
+  myLearningSeatsTitle: 'Your batches',
+  myLearningPreRegisteredTitle: 'Pre-registered topics',
+  myLearningPreRegisteredNote: 'First batch opening soon',
+  myLearningCompletePayment: 'Complete payment',
+  myLearningTeamOrders: 'Orders and payments',
 } as const;

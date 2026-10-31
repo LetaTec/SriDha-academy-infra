@@ -1,0 +1,49 @@
+.page {
+  min-height: 100vh;
+  padding-top: calc(var(--height-header) + var(--space-10));
+}
+
+.head {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.note {
+  max-width: var(--width-copy-wide);
+}
+
+.controls {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.groups {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.group {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.classGroup {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.classHead {
+  margin: 0;
+}
+
+/* Each subject opens with a ruled heading, separating it from the last */
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-1-5);
+  border-bottom: var(--border-width-base) solid var(--color-border-strong);
+}

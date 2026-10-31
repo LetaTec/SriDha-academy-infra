@@ -1,6 +1,5 @@
 import cx from 'classnames/bind';
 
-import { Icon } from '@components/ui/Icon/Icon';
 import { Text } from '@components/ui/Text/Text';
 import { LANDING_TEXT } from '@constants/landing';
 
@@ -13,21 +12,18 @@ export type TopicSubtopicsOverlayProps = {
   title: string;
   level: string;
   subtopics: readonly string[];
-  // Open topics also invite the student through to their batches.
-  isOpen: boolean;
   className?: string;
 };
 
 // What a topic teaches, revealed over its card on hover or keyboard focus.
 // The topic and level are named in the description for screen readers.
-// Rendered inside the card's button, so it uses phrasing elements only, and
-// it doubles as the button's accessible description.
+// It uses phrasing elements only and doubles as the accessible description
+// of the card's action button.
 export const TopicSubtopicsOverlay = ({
   id,
   title,
   level,
   subtopics,
-  isOpen,
   className,
 }: TopicSubtopicsOverlayProps) => (
   <span id={id} className={cn('overlay', className)}>
@@ -48,14 +44,5 @@ export const TopicSubtopicsOverlay = ({
         </span>
       ))}
     </span>
-
-    {isOpen ? (
-      <span className={cn('action')}>
-        <Text as="span" variant="label" tone="inverse">
-          {LANDING_TEXT.overlayAction}
-        </Text>
-        <Icon name="arrowRight" size="sm" />
-      </span>
-    ) : null}
   </span>
 );

@@ -1,66 +1,6 @@
-import type { IconName } from './icons';
+import { FOOTER_TOPIC_COUNT, TOPIC_PREVIEWS } from './topics';
 
 // Content for the sign-in landing page.
-
-export type TopicPreview = {
-  title: string;
-  level: string;
-  icon: IconName;
-  // What the topic's batches teach, shown on the card's hover overlay
-  subtopics: readonly string[];
-  // Catalogue topic this preview represents, when batches are published.
-  catalogueTopicId?: string;
-};
-
-// The topics SriDha Academy teaches today, all Class 11 Accountancy. A topic
-// shows as open once its catalogue topic has published batches.
-export const TOPIC_PREVIEWS: readonly TopicPreview[] = [
-  {
-    title: 'GST',
-    level: 'Class 11',
-    icon: 'topicGst',
-    subtopics: [
-      'What is GST',
-      'GST entries',
-      'Input tax credit',
-      'Journal entries of GST',
-    ],
-    catalogueTopicId: 'topic_accounts_gst_class_11',
-  },
-  {
-    title: 'Rectification of errors',
-    level: 'Class 11',
-    icon: 'topicRectification',
-    subtopics: [
-      'Types of errors',
-      'Errors that affect the trial balance',
-      'Suspense account',
-      'Rectifying errors before and after',
-    ],
-  },
-  {
-    title: 'Trial balance',
-    level: 'Class 11',
-    icon: 'topicTrialBalance',
-    subtopics: [
-      'Meaning and objectives',
-      'Preparing it from ledger balances',
-      'Totals and balances methods',
-      'Locating errors when it does not agree',
-    ],
-  },
-  {
-    title: 'Bank reconciliation statement',
-    level: 'Class 11',
-    icon: 'topicBank',
-    subtopics: [
-      'Why the cash book and passbook differ',
-      'Cheques not yet presented or cleared',
-      'Preparing a BRS',
-      'Overdraft balances',
-    ],
-  },
-];
 
 // The "Big Subjects. Broken Into Small Victories" section under the
 // sign-in form.
@@ -111,16 +51,15 @@ export const LANDING_TEXT = {
   topicsTitle: 'Pick a topic,',
   topicsTitleEmphasis: 'not a whole subject.',
   searchLabel: 'Search topics',
-  searchPlaceholder: 'Type the topic you want to learn, e.g. Trial balance',
+  searchPlaceholder: 'Type a topic or your class, e.g. Integrals or Class 12',
   topicOpen: 'Batches open',
   topicSoon: 'Batches opening soon',
   topicStarts: (date: string) => `Starts ${date}`,
   // Overlay shown when a topic card is hovered or focused
   overlayTitle: 'What we will teach',
-  overlayAction: 'See lessons and batches',
-  topicAction: (topic: string) => `Join SriDha Academy to learn ${topic}`,
   noTopicsTitle: 'No topics match your search',
-  noTopicsMessage: 'Try another topic name, such as GST or Trial balance',
+  noTopicsMessage:
+    'Try another topic name, such as GST, or your class, such as Class 12',
   featuresEyebrow: 'In three chapters',
   featureChapter: (index: number) =>
     `Chapter ${String(index).padStart(2, '0')}`,
@@ -164,8 +103,10 @@ export const AUTH_FOOTER_TEXT = {
   columns: [
     {
       title: 'Topics',
-      // The topics taught right now, from the same list as the topic cards.
-      links: TOPIC_PREVIEWS.map(topic => topic.title),
+      // The first few topics, from the same list as the topic cards
+      links: TOPIC_PREVIEWS.slice(0, FOOTER_TOPIC_COUNT).map(
+        topic => topic.title,
+      ),
     },
   ],
   accountTitle: 'Account',
