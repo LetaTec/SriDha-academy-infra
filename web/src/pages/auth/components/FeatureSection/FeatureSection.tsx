@@ -25,6 +25,9 @@ export const FeatureSection = () => (
         {LANDING_TEXT.featuresTitle}{' '}
         <em>{LANDING_TEXT.featuresTitleEmphasis}</em>
       </Heading>
+      <Text as="p" tone="muted" className={cn('lead')}>
+        {LANDING_TEXT.featuresDescription}
+      </Text>
     </Reveal>
 
     <ol className={cn('chapters')}>
@@ -44,8 +47,14 @@ export const FeatureSection = () => (
             <Heading level={3} variant="title">
               {feature.title}
             </Heading>
+            <Text as="p" className={cn('supportingHeading')}>
+              {feature.supportingHeading}
+            </Text>
             <Text as="p" tone="muted" className={cn('description')}>
               {feature.description}
+            </Text>
+            <Text as="p" className={cn('closingLine')}>
+              {feature.closingLine}
             </Text>
           </div>
 

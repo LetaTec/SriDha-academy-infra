@@ -1,0 +1,143 @@
+/* ==========================================================================
+   SriDha Academy — ModelPaperDiscoverySection
+   Authentic Past Year Board Questions vs Predictive AI Model Papers.
+   ========================================================================== */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  align-items: stretch;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-base);
+  padding: clamp(var(--space-4), 3.5vw, var(--space-6));
+  box-shadow: 8px 8px 0 rgba(32, 57, 47, 0.08);
+  box-sizing: border-box;
+}
+
+.cardFeatured {
+  border-color: var(--color-border-strong);
+  box-shadow: 8px 8px 0 var(--color-accent);
+}
+
+.cardContent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.badgeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.badge {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--color-text-accent);
+  font-weight: var(--weight-bold);
+  padding: 3px 8px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-base);
+}
+
+.badgeFeatured {
+  background: rgba(182, 154, 90, 0.14);
+  border-color: rgba(182, 154, 90, 0.4);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.cardTitle {
+  font-family: var(--font-serif);
+  font-size: clamp(24px, 2.2vw, 32px);
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.cardDescription {
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+  width: 100%;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.itemPip {
+  color: var(--color-accent);
+  font-size: 11px;
+}
+
+.footer {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-base);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.footnote {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+@media (--viewport-md) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+@media (--viewport-sm) {
+  .card {
+    padding: var(--space-3);
+    box-shadow: 4px 4px 0 rgba(32, 57, 47, 0.08);
+  }
+
+  .cardFeatured {
+    box-shadow: 4px 4px 0 var(--color-accent);
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

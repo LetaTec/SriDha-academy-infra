@@ -56,13 +56,13 @@ export const HEADER_TEXT = {
 } as const;
 
 export const HERO_TEXT = {
-  kicker: 'Learning / 01',
-  title: 'Big Subjects.',
-  titleEmphasis: 'Broken Into',
-  titleEnd: 'Small Victories',
-  lead: 'A focused learning environment for students preparing for school, competitive examinations and professional pathways — taught topic by topic',
-  primaryAction: 'Explore learning',
-  secondaryAction: 'My learning',
+  kicker: 'Topic-Wise Learning',
+  title: "A subject isn't learned in a day.",
+  titleEmphasis: "It's mastered",
+  titleEnd: 'one concept at a time.',
+  lead: "Learn topic by topic, practise what you've learned, and build confidence one concept at a time.",
+  primaryAction: 'Explore Subjects',
+  secondaryAction: 'Create Your Student Account',
   stats: [
     { value: '03', label: 'Learning paths' },
     { value: LIVE_TOPIC_COUNT, label: 'Topics ready' },
@@ -70,13 +70,70 @@ export const HERO_TEXT = {
   ],
 } as const;
 
-export const AI_TEST_TEXT = {
-  eyebrow: '02 / AI Test Paper',
-  title: 'Practice',
-  titleEmphasis: 'without repetition.',
+export const CONCEPT_MAP_TEXT = {
+  eyebrow: 'Interactive Concept Map',
+  badge: 'Curriculum Hierarchy',
+  instruction:
+    'Select any concept node to inspect its syllabus breakdown and batch status',
+  subjectLabel: 'Subject',
+  conceptsLabel: 'Key concepts in sequence',
+  lessonsLabel: 'Core subtopics covered',
+  openBatchAction: 'View Batches & Enroll',
+  exploreTopicAction: 'Explore in Syllabus',
+  switchSubjectLabel: 'Switch subject:',
+} as const;
+
+export const LEARNING_JOURNEY_TEXT = {
+  eyebrow: '03 / The SriDha Learning Model',
+  title: 'How true mastery happens.',
+  titleEmphasis: 'Step by step.',
   description:
-    'Test papers are generated from the subject material using our in-house tools, so each student receives a different paper for the topics they are studying, followed by marking and a percentile result',
-  action: 'Start a sample test',
+    'SriDha breaks difficult subjects into manageable single-topic batches. Here is the continuous learning cycle every student follows:',
+  cycleLabels: [
+    'Understand',
+    'Learn',
+    'Practise',
+    'Assess',
+    'Review',
+    'Improve',
+  ],
+} as const;
+
+export const MODEL_PAPER_DISCOVERY_TEXT = {
+  eyebrow: '05 / Examination Preparation',
+  title: 'Past board papers.',
+  titleEmphasis: 'And AI model papers.',
+  description:
+    'We draw a strict distinction between authentic past-year board questions and predictive, teacher-reviewed AI model papers',
+  pyqBadge: 'Authentic Archives',
+  pyqTitle: "Past 5 Years' Board Questions",
+  pyqDescription:
+    'Class 11 & 12 CBSE, ISC, and Foundation examination papers indexed topic-by-topic. Students practise actual historical questions after mastering each individual topic.',
+  pyqItems: [
+    'Indexed by topic and examination year',
+    'Official marking schemes and step marks',
+    'Included in topic practice materials',
+  ],
+  pyqAction: 'Explore Topics with PYQs',
+  modelPaperBadge: 'In Development · Waitlist Open',
+  modelPaperTitle: 'AI-Synthesised Model Papers',
+  modelPaperDescription:
+    'Prepared from five years of question pattern analysis and textbook weightage, vetted by subject teachers, and delivered seven days before exams.',
+  modelPaperItems: [
+    'Weighted to current exam blueprints',
+    'Vetted by senior subject faculty',
+    'Delivered 7 days before examinations',
+  ],
+  modelPaperAction: 'Join Model Paper Waitlist',
+} as const;
+
+export const AI_TEST_TEXT = {
+  eyebrow: '04 / Assessment Experience',
+  title: 'Test your understanding.',
+  titleEmphasis: 'Without repetition.',
+  description:
+    'Test papers are generated dynamically from subject material using in-house SriDha tools. Each student receives a unique paper for their topic, followed by instant marking, step-by-step explanations, and percentile feedback',
+  action: 'Start sample test',
 } as const;
 
 // Second section of the homepage: the topics on offer, as cards.
@@ -155,7 +212,7 @@ export const CTA_TEXT = {
   eyebrow: 'Start here / 01',
   title: 'Turn the next page',
   titleEmphasis: 'with us.',
-  action: 'Browse topics',
+  action: 'Create Your Student Account',
 } as const;
 
 export const FOOTER_COLUMNS = [

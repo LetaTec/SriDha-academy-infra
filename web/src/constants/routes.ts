@@ -22,10 +22,11 @@ export const APP_ROUTES = {
 // In-page anchors on the homepage, shared by the header, footer and CTAs.
 export const HOME_SECTION_ID = {
   home: 'home',
-  aiTest: 'ai-test',
   topics: 'topics',
-  programs: 'programs',
+  journey: 'learning-journey',
+  aiTest: 'ai-test',
   modelPaper: 'model-paper',
+  programs: 'programs',
   about: 'about',
   team: 'team',
 } as const;

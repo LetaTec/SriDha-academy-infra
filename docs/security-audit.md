@@ -3,7 +3,8 @@
 **Date of Audit**: October 22, 2026  
 **Repository**: LetaTec/LetEd  
 **Current Branch**: `feat/production-security-hardening`  
-**Target Environment**: 
+**Target Environment**:
+
 - Frontend: Cloudflare Pages (`https://sridhaacademy.com`, `https://www.sridhaacademy.com`)
 - Backend: Render Web Service (`https://sridha-academy-api.onrender.com`)
 - Database: Render PostgreSQL
@@ -23,22 +24,23 @@ However, the audit identified critical operational and configuration vulnerabili
 
 ## 2. Prioritized Vulnerability & Finding Matrix
 
-| ID | Priority | Category | Finding Summary | Status in Code | Production Action Required |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **SEC-001** | 🔴 **P0** | Database Durability | Render Free PostgreSQL expires after 30 days and lacks automated backups | Documented | Upgrade to Starter ($7/mo) or schedule daily off-site `pg_dump` |
-| **SEC-002** | 🔴 **P0** | Session Security | Missing session rotation on re-login (orphaned session accumulation) | **Remediated** | None (deploys with API build) |
-| **SEC-003** | 🔴 **P0** | Password Recovery | Production email delivery inactive (unconfigured `RESEND_API_KEY`) | Safely Handled (503) | Set `MAIL_TRANSPORT=resend` and `RESEND_API_KEY` |
-| **SEC-004** | 🟠 **P1** | Abuse Prevention | Missing granular rate limiting on enquiries and authentication endpoints | **Remediated** | None (deploys with API build) |
-| **SEC-005** | 🟠 **P1** | Transport & Headers | Missing strict security headers (CSP, HSTS, X-Frame-Options, Permissions-Policy) | **Remediated** | None (deploys with API build) |
-| **SEC-006** | 🟠 **P1** | Origin Validation | Potential whitespace or trailing slash discrepancy in `OriginGuard` | **Remediated** | None (deploys with API build) |
-| **SEC-007** | 🟡 **P2** | Scalability | In-memory rate limiting is process-local (resets on restart / multi-instance) | Documented | Add Redis store if horizontally scaling to >1 instance |
-| **SEC-008** | 🟡 **P2** | Cookie Topology | Third-party cookie dependency (`SameSite=None`) pending custom API domain | Resilient | Configure `api.sridhaacademy.com` CNAME when ready |
+| ID          | Priority  | Category            | Finding Summary                                                                  | Status in Code       | Production Action Required                                      |
+| :---------- | :-------- | :------------------ | :------------------------------------------------------------------------------- | :------------------- | :-------------------------------------------------------------- |
+| **SEC-001** | 🔴 **P0** | Database Durability | Render Free PostgreSQL expires after 30 days and lacks automated backups         | Documented           | Upgrade to Starter ($7/mo) or schedule daily off-site `pg_dump` |
+| **SEC-002** | 🔴 **P0** | Session Security    | Missing session rotation on re-login (orphaned session accumulation)             | **Remediated**       | None (deploys with API build)                                   |
+| **SEC-003** | 🔴 **P0** | Password Recovery   | Production email delivery inactive (unconfigured `RESEND_API_KEY`)               | Safely Handled (503) | Set `MAIL_TRANSPORT=resend` and `RESEND_API_KEY`                |
+| **SEC-004** | 🟠 **P1** | Abuse Prevention    | Missing granular rate limiting on enquiries and authentication endpoints         | **Remediated**       | None (deploys with API build)                                   |
+| **SEC-005** | 🟠 **P1** | Transport & Headers | Missing strict security headers (CSP, HSTS, X-Frame-Options, Permissions-Policy) | **Remediated**       | None (deploys with API build)                                   |
+| **SEC-006** | 🟠 **P1** | Origin Validation   | Potential whitespace or trailing slash discrepancy in `OriginGuard`              | **Remediated**       | None (deploys with API build)                                   |
+| **SEC-007** | 🟡 **P2** | Scalability         | In-memory rate limiting is process-local (resets on restart / multi-instance)    | Documented           | Add Redis store if horizontally scaling to >1 instance          |
+| **SEC-008** | 🟡 **P2** | Cookie Topology     | Third-party cookie dependency (`SameSite=None`) pending custom API domain        | Resilient            | Configure `api.sridhaacademy.com` CNAME when ready              |
 
 ---
 
 ## 3. Detailed Audit Findings & Code Evidence
 
 ### SEC-001: Render Free PostgreSQL Expiration & Backup Absence
+
 - **Severity**: 🔴 **P0 (Critical Operational Vulnerability)**
 - **Evidence**:
   - Render free-tier PostgreSQL instances are ephemeral and automatically marked for deletion after 30 days (documented expiration date: November 18, 2026).
@@ -53,6 +55,7 @@ However, the audit identified critical operational and configuration vulnerabili
 ---
 
 ### SEC-002: Session Rotation on Re-Authentication
+
 - **Severity**: 🔴 **P0 (High)**
 - **Evidence**:
   - In `api/src/modules/auth/auth.routes.ts`: When a student logged in via `POST /api/auth/login`, `createSession` generated a new session token, set a new cookie, and inserted a new session row.
@@ -66,6 +69,7 @@ However, the audit identified critical operational and configuration vulnerabili
 ---
 
 ### SEC-003: Password Recovery Email Delivery
+
 - **Severity**: 🔴 **P0 (High for Feature Availability, Low for Token Leakage)**
 - **Evidence**:
   - In `api/src/modules/auth/email.ts`, `createEmailService` checks `env.mailTransport`.
@@ -83,6 +87,7 @@ However, the audit identified critical operational and configuration vulnerabili
 ---
 
 ### SEC-004: Granular Rate Limiting & Abuse Prevention
+
 - **Severity**: 🟠 **P1 (High)**
 - **Evidence**:
   - Prior to this hardening phase, general rate limiting was applied to `/api/auth/login` (10 req / 15 min), `/api/auth/register` (5 req / 15 min), and `/api/auth/password-reset` (5 req / 15 min).
@@ -98,6 +103,7 @@ However, the audit identified critical operational and configuration vulnerabili
 ---
 
 ### SEC-005: HTTP Security Headers
+
 - **Severity**: 🟠 **P1 (Medium-High)**
 - **Evidence**:
   - The API relied on default Express headers. While the Cloudflare Pages frontend configured headers via `_headers`, direct API requests to `https://sridha-academy-api.onrender.com` lacked defensive headers.
@@ -114,6 +120,7 @@ However, the audit identified critical operational and configuration vulnerabili
 ---
 
 ### SEC-006: Origin Guard Normalization
+
 - **Severity**: 🟠 **P1 (Medium)**
 - **Evidence**:
   - `OriginGuard` (`api/src/http/originGuard.ts`) compared incoming `origin` and `referer` headers against `env.allowedOrigins`.
@@ -125,6 +132,7 @@ However, the audit identified critical operational and configuration vulnerabili
 ---
 
 ### SEC-007: In-Memory Rate Limiting Boundaries
+
 - **Severity**: 🟡 **P2 (Operational Limitation)**
 - **Evidence**:
   - `express-rate-limit` utilizes an in-memory `MemoryStore` by default.
@@ -135,6 +143,7 @@ However, the audit identified critical operational and configuration vulnerabili
 ---
 
 ### SEC-008: Cross-Site Cookie Policy & Domain Topology
+
 - **Severity**: 🟡 **P2 (Architectural Recommendation)**
 - **Evidence**:
   - Session cookies use `SameSite=None; Secure; Partitioned` to support cross-origin authentication between `sridhaacademy.com` (Cloudflare Pages) and `sridha-academy-api.onrender.com` (Render).
@@ -146,6 +155,7 @@ However, the audit identified critical operational and configuration vulnerabili
 ## 4. Verification & Automated Test Results
 
 The full test suite was executed locally in the repository:
+
 ```bash
 npm run typecheck
 npm run lint
@@ -154,6 +164,7 @@ npm run build
 ```
 
 ### Results Summary
+
 - **TypeScript Typecheck**: Passed cleanly with **0 errors** across both `api` and `web`.
 - **ESLint & Style Validation**: Passed cleanly with **0 errors and 0 warnings**.
 - **Automated Tests**: **67 passing tests (37 API tests, 30 Web tests)**:

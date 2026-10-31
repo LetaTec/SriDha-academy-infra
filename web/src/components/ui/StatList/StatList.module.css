@@ -11,12 +11,18 @@
   flex-direction: column-reverse;
 }
 
+.item + .item {
+  padding-left: var(--space-4);
+  border-left: var(--border-width-base) solid var(--color-border-base);
+}
+
 .value {
   margin: 0;
   font-family: var(--font-serif);
   font-size: var(--text-display-2xs);
   font-weight: var(--weight-medium);
   line-height: var(--leading-tight);
+  color: var(--color-text-primary);
 }
 
 @media (--viewport-sm) {

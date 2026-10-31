@@ -1,42 +1,70 @@
-/* Sized so the whole sign-in screen fits a typical laptop viewport */
+/* ==========================================================================
+   SriDha Academy — AuthPage Layout
+   Balanced two-column composition: Student Access & Subject Explorer
+   ========================================================================== */
+
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
-  align-items: center;
+  grid-template-columns: minmax(340px, 430px) minmax(0, 1.15fr);
+  align-items: start;
   gap: var(--space-8);
-  padding-block: var(--space-3);
+  /* AuthShell's header sits in normal flow, so the page needs no header offset */
+  padding-block: var(--space-6) var(--space-10);
+  box-sizing: border-box;
 }
 
 .copy {
+  display: flex;
+  flex-direction: column;
   max-width: var(--width-auth-copy);
+  width: 100%;
+}
+
+.kicker,
+.headline,
+.lead {
+  /* Solid white plate with a soft edge: the falling subject names fade out
+     behind the page copy instead of crossing it. Invisible on a white page. */
+  position: relative;
+  background: var(--color-bg-raised);
+  box-shadow: 0 0 16px 12px var(--color-bg-raised);
 }
 
 .kicker {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  margin-bottom: var(--space-2);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  margin-bottom: var(--space-1);
 }
 
-.kickerRule {
-  width: var(--space-6);
-  height: var(--border-width-base);
-  background: currentColor;
+.headline {
+  margin-bottom: var(--space-1-5);
+  font-size: clamp(30px, 2.9vw, 38px);
+  line-height: var(--leading-display-relaxed);
 }
 
 .lead {
-  margin: var(--space-2) 0 var(--space-3);
+  margin: 0 0 var(--space-3);
   font-size: var(--text-base);
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
 }
 
 .panel {
-  padding: var(--space-3);
+  padding: var(--space-5);
   border: var(--border-width-base) solid var(--color-border-base);
   background: var(--color-bg-sheet);
+  box-shadow:
+    0 1px 3px rgb(37 40 35 / 0.04),
+    0 8px 24px rgb(37 40 35 / 0.04);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .panelTitle {
-  margin-bottom: var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-display-xs);
+  margin-bottom: var(--space-3);
+  color: var(--color-text-primary);
 }
 
 .switch {
@@ -44,36 +72,54 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1-5);
-  margin-top: var(--space-2);
-  padding-top: var(--space-1-5);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
   border-top: var(--border-width-base) solid var(--color-border-base);
 }
 
 .visual {
   width: 100%;
-  max-width: var(--width-auth-topics);
-  justify-self: center;
+  max-width: 640px;
+  justify-self: end;
+  position: sticky;
+  top: var(--space-4);
 }
 
 @media (--viewport-md) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
-    padding-block: var(--space-4);
+    gap: var(--space-6);
+    padding-block: var(--space-4) var(--space-8);
   }
 
   .copy {
-    max-width: none;
+    max-width: 100%;
   }
 
-  /* The topics panel stacks under the form */
   .visual {
-    max-width: none;
+    max-width: 100%;
     justify-self: stretch;
+    position: static;
+  }
+}
+
+/* Single column: the copy is the only open band of page above the card, so
+   let the rain show behind the kicker and headline (the large dark headline
+   stays legible) and keep a tight plate only behind the muted lead. */
+@media (--viewport-md) {
+  .kicker,
+  .headline {
+    background: none;
+    box-shadow: none;
+  }
+
+  .lead {
+    box-shadow: 0 0 8px 6px var(--color-bg-raised);
   }
 }
 
 @media (--viewport-sm) {
   .panel {
-    padding: var(--space-3) var(--space-2);
+    padding: var(--space-4) var(--space-3);
   }
 }

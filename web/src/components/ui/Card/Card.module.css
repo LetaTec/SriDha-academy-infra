@@ -98,7 +98,10 @@
 }
 
 .centered .title {
-  font-size: var(--text-numeral);
+  font-family: var(--font-serif);
+  font-size: var(--text-display-2xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
 }
 
 .centered .description {

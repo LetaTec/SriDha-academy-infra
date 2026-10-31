@@ -1,0 +1,366 @@
+/* ==========================================================================
+   AuthHero — the shuffling subject deck beside the sign-in form.
+   A horizontal carousel of subject cards with a student illustration each.
+   ========================================================================== */
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2-5);
+  padding: clamp(var(--space-4), 2.4vw, var(--space-5));
+  background: var(--color-bg-sheet);
+  border: var(--border-width-base) solid var(--color-border-base);
+  isolation: isolate;
+}
+
+/* --------------------------------------------------------------------------
+   Header
+   -------------------------------------------------------------------------- */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.headerRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.eyebrow {
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  animation: fadeIn var(--duration-hero-row) var(--ease-editorial) both;
+}
+
+.rule {
+  display: block;
+  height: var(--border-width-base);
+  background: var(--color-accent);
+  transform-origin: left center;
+  animation: ruleDraw var(--duration-hero-rule) var(--ease-editorial) both;
+}
+
+/* Pause/resume, as quiet text rather than carousel dots. */
+.control {
+  flex: none;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 0.35em;
+  transition:
+    color var(--transition-fast),
+    text-decoration-color var(--transition-fast);
+}
+
+.control:hover,
+.control:focus-visible {
+  color: var(--color-text-primary);
+  text-decoration-color: var(--color-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Carousel: one card in the middle, its neighbours peeking in at the sides.
+   Cards sit at absolute slots on a track that only ever slides left.
+   -------------------------------------------------------------------------- */
+
+/* A fixed height keeps the panel from jumping as the cards change. */
+.viewport {
+  --slide-w: 74%;
+  --gap: var(--space-2);
+  --step: calc(var(--slide-w) + var(--gap));
+
+  position: relative;
+  height: 25.5rem;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.track {
+  position: absolute;
+  inset: 0;
+  transform: translateX(calc(var(--position) * var(--step) * -1));
+  transition: transform var(--slide-ms) var(--ease-editorial);
+  will-change: transform;
+}
+
+.card {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--slot) * var(--step) + (100% - var(--slide-w)) / 2);
+  width: var(--slide-w);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(8rem, 13vw, 11.5rem);
+  grid-template-rows: auto auto 1fr auto;
+  grid-template-areas:
+    'top top'
+    'title art'
+    'body art'
+    'foot foot';
+  column-gap: var(--space-2);
+  row-gap: var(--space-1-5);
+  padding: clamp(var(--space-3), 2vw, var(--space-4));
+  background: var(--color-bg-sheet);
+  border: var(--border-width-base) solid var(--color-border-base);
+  opacity: 0.55;
+  transition: opacity var(--slide-ms) var(--ease-editorial);
+}
+
+.card.active {
+  opacity: 1;
+}
+
+.art {
+  grid-area: art;
+  align-self: end;
+  justify-self: end;
+  width: 100%;
+}
+
+.status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.controls {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.cardTop {
+  grid-area: top;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.counter {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-label);
+  color: var(--color-text-muted);
+}
+
+.tag {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.tag.open {
+  color: var(--color-text-accent);
+}
+
+.cardTitle {
+  grid-area: title;
+  margin: 0;
+  font-size: clamp(28px, 2.9vw, 38px);
+  line-height: var(--leading-display-relaxed);
+  text-wrap: balance;
+}
+
+.cardBody {
+  grid-area: body;
+  display: -webkit-box;
+  overflow: hidden;
+  max-width: 46ch;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.cardFoot {
+  grid-area: foot;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--border-width-base) solid var(--color-border-base);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+.metaLabel {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.metaValue {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-numeral-sm);
+  line-height: var(--leading-tight);
+  color: var(--color-text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Loading, error and empty states
+   -------------------------------------------------------------------------- */
+
+.placeholderBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+}
+
+.placeholderTitle {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 38px);
+  line-height: var(--leading-tight);
+}
+
+.placeholderNote {
+  margin: 0;
+}
+
+.skeletonDeck {
+  position: relative;
+  display: grid;
+  min-height: 12rem;
+}
+
+.skeletonCard {
+  min-height: 12rem;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-subtle) 0%,
+    var(--color-bg-hover) 50%,
+    var(--color-bg-subtle) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonSweep var(--duration-pulse) linear infinite;
+}
+
+.skeletonCardBack {
+  position: absolute;
+  inset: 0;
+  transform: translate(10px, 10px);
+  opacity: 0.5;
+  z-index: -1;
+}
+
+/* --------------------------------------------------------------------------
+   Motion
+   -------------------------------------------------------------------------- */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ruleDraw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes skeletonSweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+
+@media (--viewport-md) {
+  .cardTitle {
+    font-size: clamp(26px, 4vw, 34px);
+  }
+}
+
+@media (--viewport-sm) {
+  .panel {
+    padding: var(--space-3);
+    box-shadow: none;
+  }
+
+  .viewport {
+    --slide-w: 88%;
+    --gap: var(--space-1-5);
+
+    height: 27rem;
+  }
+
+  .card {
+    grid-template-columns: minmax(0, 1fr) 5.75rem;
+    padding: var(--space-2-5);
+  }
+
+  .cardFoot {
+    align-items: flex-end;
+    gap: var(--space-1-5);
+  }
+
+  .controls {
+    gap: var(--space-1-5);
+  }
+}
+
+@media (--reduced-motion) {
+  .eyebrow,
+  .rule,
+  .skeletonCard {
+    animation: none;
+  }
+
+  .track,
+  .card {
+    transition: none;
+  }
+
+  .control {
+    transition: none;
+  }
+}

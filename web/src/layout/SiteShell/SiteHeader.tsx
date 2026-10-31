@@ -32,6 +32,26 @@ export const SiteHeader = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { previews } = useTopicPreviews();
 
+  const isHome = location.pathname === APP_ROUTES.HOME;
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!isHome) {
+      setIsScrolled(true);
+      return;
+    }
+
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 48);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isHome]);
+
+  const isCinema = isHome && !isScrolled;
+
   // Search results open the topic or batch on the homepage, from any page.
   const showOnHome = (params: Record<string, string>) => {
     setIsMenuOpen(false);
@@ -61,12 +81,7 @@ export const SiteHeader = () => {
 
     try {
       await logoutStudent();
-
-      // Go to the sign-in screen before clearing the session, so the route
-      // guard does not add a redirect back to this page. flushSync commits
-      // the navigation immediately instead of as a deferred transition.
       await navigate(APP_ROUTES.LOGIN, { flushSync: true });
-
       clearSession();
       showToast(AUTH_TEXT.loggedOutToast);
     } catch (error) {
@@ -82,27 +97,44 @@ export const SiteHeader = () => {
     <>
       <ButtonRouteLink
         variant="plain"
+        tone={isCinema ? 'inverse' : 'default'}
         to={APP_ROUTES.MY_LEARNING}
         onClick={() => setIsMenuOpen(false)}
       >
         {HEADER_TEXT.myLearning}
       </ButtonRouteLink>
-      <Button variant="primary" loading={isLoggingOut} onClick={handleLogout}>
+      <Button
+        variant="secondary"
+        tone={isCinema ? 'inverse' : 'default'}
+        loading={isLoggingOut}
+        onClick={handleLogout}
+      >
         {HEADER_TEXT.logout}
       </Button>
+      <ButtonRouteLink
+        variant="primary"
+        to={APP_ROUTES.REGISTER}
+        onClick={() => setIsMenuOpen(false)}
+        className={cn('registerCta')}
+      >
+        Join SriDha
+      </ButtonRouteLink>
     </>
   );
 
   return (
-    <header className={cn('header')}>
+    <header className={cn('header', { headerCinema: isCinema })}>
       <BatchTicker />
       <Container className={cn('nav')}>
         <Link
           to={APP_ROUTES.HOME}
-          className={cn('logoLink')}
+          className={cn('logoLink', { logoCinema: isCinema })}
           aria-label={HEADER_TEXT.homeLabel}
         >
-          <BrandLogo />
+          <BrandLogo
+            variant="horizontal"
+            tone={isCinema ? 'inverse' : 'default'}
+          />
         </Link>
 
         <nav
@@ -111,7 +143,6 @@ export const SiteHeader = () => {
           className={cn('links', { linksOpen: isMenuOpen })}
         >
           {NAV_LINKS.map(link =>
-            // Section jumps are never the current page; pages show as active.
             link.isSection ? (
               <Link
                 key={link.label}
@@ -169,7 +200,7 @@ export const SiteHeader = () => {
           label={isMenuOpen ? HEADER_TEXT.closeMenu : HEADER_TEXT.openMenu}
           aria-expanded={isMenuOpen}
           aria-controls={navId}
-          className={cn('menuButton')}
+          className={cn('menuButton', { menuButtonCinema: isCinema })}
           onClick={() => setIsMenuOpen(open => !open)}
         />
       </Container>
