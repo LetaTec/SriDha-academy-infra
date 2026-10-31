@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+import type {
+  AdminSignInConfirmRequest,
+  AdminSignInRequest,
+  LoginRequest,
+  PasswordResetConfirmRequest,
+  PasswordResetRequest,
+  RegisterRequest,
+  StudentStandard,
+  StudentStream,
+} from '../../contracts/auth.js';
+
 export const STUDENT_STANDARDS = [
   'CLASS_10',
   'CLASS_11',
@@ -9,14 +20,14 @@ export const STUDENT_STANDARDS = [
   'NEET',
   'JEE',
   'BANK_PO',
-] as const;
+] as const satisfies readonly StudentStandard[];
 
 export const STUDENT_STREAMS = [
   'COMMERCE',
   'SCIENCE',
   'ARTS',
   'OTHER',
-] as const;
+] as const satisfies readonly StudentStream[];
 
 const OTHER_STREAM = 'OTHER' satisfies (typeof STUDENT_STREAMS)[number];
 
@@ -88,30 +99,30 @@ export const registerSchema = z
   .transform(input => ({
     ...input,
     streamOther: input.stream === OTHER_STREAM ? input.streamOther : null,
-  }));
+  })) satisfies z.ZodType<RegisterRequest>;
 
 export const loginSchema = z.strictObject({
   email: emailSchema,
   password: z.string().min(1, 'Enter your password').max(PASSWORD_MAX_LENGTH),
   rememberMe: z.boolean().default(false),
-});
+}) satisfies z.ZodType<LoginRequest>;
 
 export const passwordResetRequestSchema = z.strictObject({
   email: emailSchema,
-});
+}) satisfies z.ZodType<PasswordResetRequest>;
 
 export const passwordResetConfirmSchema = z.strictObject({
   token: z.string().min(1).max(256),
   password: passwordSchema,
-});
+}) satisfies z.ZodType<PasswordResetConfirmRequest>;
 
 export const adminSignInRequestSchema = z.strictObject({
   email: emailSchema,
-});
+}) satisfies z.ZodType<AdminSignInRequest>;
 
 export const adminSignInConfirmSchema = z.strictObject({
   token: z.string().min(1).max(256),
-});
+}) satisfies z.ZodType<AdminSignInConfirmRequest>;
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

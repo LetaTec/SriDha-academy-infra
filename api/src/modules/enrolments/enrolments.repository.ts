@@ -12,6 +12,7 @@ export const listEnrolmentRows = (
   db.all<Row>(
     `SELECT e.id AS enrolment_id, e.status AS enrolment_status, e.created_at AS enrolment_created_at,
             b.*, t.id AS t_id, t.title AS t_title, t.summary AS t_summary, t.level AS t_level,
+            t.short_title AS t_short_title, t.icon AS t_icon, t.featured_rank AS t_featured_rank,
             t.price_paise AS t_price_paise, t.price_tax_label AS t_price_tax_label,
             s.id AS s_id, s.slug AS s_slug, s.name AS s_name
      FROM enrolments e

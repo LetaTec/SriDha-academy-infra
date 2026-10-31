@@ -1,16 +1,16 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 import type { AppConfig } from '../../config/env.js';
+import type { PaymentProvider } from '../../contracts/payments.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { logger } from '../../logging/logger.js';
 
 export const PAYMENT_PROVIDER = {
   razorpay: 'RAZORPAY',
   test: 'TEST',
-} as const;
+} as const satisfies Record<string, PaymentProvider>;
 
-export type PaymentProvider =
-  (typeof PAYMENT_PROVIDER)[keyof typeof PAYMENT_PROVIDER];
+export type { PaymentProvider };
 
 export type PaymentGateway = {
   provider: PaymentProvider;

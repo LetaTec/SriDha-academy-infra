@@ -1,6 +1,11 @@
 import { Router } from 'express';
 
 import type { AppContext } from '../../app/context.js';
+import type {
+  CheckoutResponse,
+  PaymentResultResponse,
+  PreRegistrationsResponse,
+} from '../../contracts/payments.js';
 import { validate } from '../../http/validate.js';
 import { getRequiredAuth, requireAuth } from '../auth/session.js';
 import { createPaymentGateway } from './gateway.js';
@@ -22,7 +27,7 @@ export const createPreRegistrationsRouter = (context: AppContext) => {
     const { userId } = getRequiredAuth(req.auth);
     res.json({
       preRegistrations: await listPreRegistrations(context, userId),
-    });
+    } satisfies PreRegistrationsResponse);
   });
 
   return router;
@@ -40,13 +45,15 @@ export const createPaymentsRouter = (context: AppContext) => {
     const input = validate(createCheckoutSchema, req.body);
     res.status(201).json({
       checkout: await createCheckout(context, gateway, userId, input),
-    });
+    } satisfies CheckoutResponse);
   });
 
   router.post('/verify', async (req, res) => {
     const { userId } = getRequiredAuth(req.auth);
     const input = validate(verifyPaymentSchema, req.body);
-    res.json({ payment: await verifyPayment(context, gateway, userId, input) });
+    res.json({
+      payment: await verifyPayment(context, gateway, userId, input),
+    } satisfies PaymentResultResponse);
   });
 
   return router;

@@ -3,6 +3,13 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 import type { AppContext } from '../../app/context.js';
+import type {
+  Checkout,
+  CheckoutKind,
+  CreateCheckoutRequest,
+  PaymentStatus,
+  VerifyPaymentRequest,
+} from '../../contracts/payments.js';
 import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { logger } from '../../logging/logger.js';
@@ -13,7 +20,6 @@ import {
   getBatchRow,
   resolveBatchAvailability,
   toDateOnly,
-  type Price,
   type Row,
 } from '../catalogue/catalogue.repository.js';
 import {
@@ -25,7 +31,7 @@ import {
   createEnrolment,
   ENROLMENT_STATUS,
 } from '../enrolments/enrolments.service.js';
-import type { PaymentGateway, PaymentProvider } from './gateway.js';
+import type { PaymentGateway } from './gateway.js';
 import {
   findBatchForPurchase,
   findPaymentConfirmationRow,
@@ -41,12 +47,12 @@ import {
 export const CHECKOUT_KIND = {
   enrolment: 'ENROLMENT',
   preRegistration: 'PRE_REGISTRATION',
-} as const;
+} as const satisfies Record<string, CheckoutKind>;
 
 export const PAYMENT_STATUS = {
   created: 'CREATED',
   paid: 'PAID',
-} as const;
+} as const satisfies Record<string, PaymentStatus>;
 
 export const PRE_REGISTRATION_STATUS = ENROLMENT_STATUS;
 
@@ -73,7 +79,7 @@ export const createCheckoutSchema = z.discriminatedUnion('kind', [
     topicId: z.string().trim().min(1, 'Select a topic').max(150),
     ...billingFields,
   }),
-]);
+]) satisfies z.ZodType<CreateCheckoutRequest>;
 
 export type CreateCheckoutInput = z.infer<typeof createCheckoutSchema>;
 
@@ -82,24 +88,11 @@ export const verifyPaymentSchema = z.strictObject({
   providerOrderId: z.string().trim().min(1).max(100),
   providerPaymentId: z.string().trim().min(1).max(100),
   signature: z.string().trim().min(1).max(200),
-});
+}) satisfies z.ZodType<VerifyPaymentRequest>;
 
 export type VerifyPaymentInput = z.infer<typeof verifyPaymentSchema>;
 
-export type Checkout = {
-  paymentId: string;
-  status: (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS];
-  kind: (typeof CHECKOUT_KIND)[keyof typeof CHECKOUT_KIND];
-  amount: Price;
-  topic: { id: string; title: string; level: string | null };
-  batch: { id: string; name: string; scheduleLabel: string } | null;
-  provider: {
-    name: PaymentProvider;
-    orderId: string;
-    // Present for Razorpay: the public key that opens its checkout
-    keyId: string | null;
-  };
-};
+export type { Checkout };
 
 type Purchase = {
   enrolmentId: string | null;

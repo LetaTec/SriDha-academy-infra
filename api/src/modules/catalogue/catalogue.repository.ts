@@ -1,5 +1,24 @@
 import type { AppContext } from '../../app/context.js';
+import type {
+  Batch,
+  BatchAvailability,
+  Chapter,
+  Lesson,
+  Price,
+  Subject,
+  Topic,
+} from '../../contracts/catalogue.js';
 import type { DatabaseClient, Row } from '../../db/client.js';
+
+export type {
+  Batch,
+  BatchAvailability,
+  Chapter,
+  Lesson,
+  Price,
+  Subject,
+  Topic,
+};
 
 export const BATCH_AVAILABILITY = {
   open: 'OPEN',
@@ -7,62 +26,7 @@ export const BATCH_AVAILABILITY = {
   closed: 'CLOSED',
   upcoming: 'UPCOMING',
   inactive: 'INACTIVE',
-} as const;
-
-export type BatchAvailability =
-  (typeof BATCH_AVAILABILITY)[keyof typeof BATCH_AVAILABILITY];
-
-export type Price = {
-  amountPaise: number;
-  currency: 'INR';
-  taxLabel: string | null;
-};
-
-export type Lesson = {
-  id: string;
-  title: string;
-  durationMinutes: number | null;
-};
-
-export type Batch = {
-  id: string;
-  name: string;
-  scheduleLabel: string;
-  startDate: string | null;
-  startTime: string | null;
-  sessionCount: number | null;
-  sessionDurationMinutes: number | null;
-  instructorName: string | null;
-  capacity: number | null;
-  seatsRemaining: number | null;
-  availability: BatchAvailability;
-};
-
-export type Topic = {
-  id: string;
-  title: string;
-  summary: string;
-  level: string | null;
-  price: Price | null;
-  lessons: Lesson[];
-  batches: Batch[];
-};
-
-export type Chapter = {
-  id: string;
-  title: string;
-  topics: Topic[];
-};
-
-export type Subject = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  status: 'AVAILABLE' | 'UPCOMING';
-  listPrice: Price | null;
-  chapters: Chapter[];
-};
+} as const satisfies Record<string, BatchAvailability>;
 
 const toNullableString = (value: unknown) =>
   value === null || value === undefined ? null : String(value);
@@ -151,8 +115,12 @@ export const toBatch = (
 export const toTopicSummary = (row: Row) => ({
   id: String(row.id),
   title: String(row.title),
+  // Topics added outside the seed have no card name; their title stands in
+  shortTitle: String(row.short_title ?? row.title),
   summary: String(row.summary),
   level: toNullableString(row.level),
+  icon: toNullableString(row.icon),
+  featuredRank: toNullableNumber(row.featured_rank),
   price: toPrice(row.price_paise, row.price_tax_label),
 });
 

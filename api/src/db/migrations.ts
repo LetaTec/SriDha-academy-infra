@@ -234,4 +234,16 @@ export const MIGRATIONS: readonly Migration[] = [
         ON payments (pre_registration_id);
     `,
   },
+  {
+    // What a topic card shows, so the website reads every topic from the
+    // catalogue instead of keeping its own copy: the short card name, an
+    // optional icon and the order of featured topics. The seed fills them.
+    id: '007_topic_card_fields',
+    sql: `
+      ALTER TABLE topics ADD COLUMN short_title TEXT;
+      ALTER TABLE topics ADD COLUMN icon TEXT;
+      ALTER TABLE topics
+        ADD COLUMN featured_rank INTEGER CHECK (featured_rank > 0);
+    `,
+  },
 ];

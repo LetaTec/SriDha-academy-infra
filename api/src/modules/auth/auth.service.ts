@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 import type { AppContext } from '../../app/context.js';
+import type {
+  AuthUser,
+  StudentStandard,
+  StudentStream,
+} from '../../contracts/auth.js';
 import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import {
@@ -24,7 +29,7 @@ import {
   verifyAgainstDummyHash,
   verifyPassword,
 } from './password.js';
-import { toUserRole, USER_ROLE, type UserRole } from './roles.js';
+import { toUserRole, USER_ROLE } from './roles.js';
 import { deleteUserSessions } from './session.js';
 import { generateToken, hashToken } from './tokens.js';
 
@@ -34,18 +39,7 @@ const SIGN_IN_LINK_TTL_MS = 15 * 60 * 1000;
 // The authenticated account (users.id) is the canonical identity. Every
 // student account owns exactly one student profile, created in the same
 // transaction; a super admin account may have none.
-export type AuthUser = {
-  id: string;
-  email: string;
-  role: UserRole;
-  student: {
-    id: string;
-    fullName: string;
-    standard: string;
-    stream: string | null;
-    streamOther: string | null;
-  } | null;
-};
+export type { AuthUser };
 
 // A new one-time token for the account; only the newest one works
 const issueToken = async (
@@ -113,8 +107,11 @@ export const getAuthUser = async (
         : {
             id: String(row.student_id),
             fullName: String(row.full_name),
-            standard: String(row.standard),
-            stream: row.stream === null ? null : String(row.stream),
+            standard: String(row.standard) as StudentStandard,
+            stream:
+              row.stream === null
+                ? null
+                : (String(row.stream) as StudentStream),
             streamOther:
               row.stream_other === null ? null : String(row.stream_other),
           },

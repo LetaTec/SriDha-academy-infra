@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 
+import type { ApiErrorBody, ErrorCode } from '../contracts/errors.js';
 import { logger } from '../logging/logger.js';
 
 // Every error response follows { message, code, details }.
@@ -32,9 +33,9 @@ export const ERROR_CODE = {
   notFound: 'NOT_FOUND',
   forbidden: 'FORBIDDEN',
   internalError: 'INTERNAL_ERROR',
-} as const;
+} as const satisfies Record<string, ErrorCode>;
 
-export type ErrorCode = (typeof ERROR_CODE)[keyof typeof ERROR_CODE];
+export type { ApiErrorBody, ErrorCode };
 
 export type ApiFieldIssue = {
   message: string;

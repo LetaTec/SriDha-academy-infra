@@ -1,6 +1,7 @@
 import { Router, type RequestHandler } from 'express';
 
 import type { AppContext } from '../../app/context.js';
+import type { TeamOrdersResponse } from '../../contracts/admin.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { findUserRole } from '../auth/auth.repository.js';
 import { USER_ROLE } from '../auth/roles.js';
@@ -31,7 +32,9 @@ export const createAdminRouter = (context: AppContext) => {
   router.use(requireSuperAdmin(context));
 
   router.get('/orders', async (_req, res) => {
-    res.json({ orders: await listTeamOrders(context) });
+    res.json({
+      orders: await listTeamOrders(context),
+    } satisfies TeamOrdersResponse);
   });
 
   return router;

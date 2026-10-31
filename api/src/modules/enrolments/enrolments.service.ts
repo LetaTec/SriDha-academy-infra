@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { AppContext } from '../../app/context.js';
+import type { Enrolment, SeatStatus } from '../../contracts/payments.js';
 import { transaction } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import {
@@ -13,9 +14,6 @@ import {
   toDateOnly,
   toLesson,
   toTopicSummary,
-  type Batch,
-  type Lesson,
-  type Price,
 } from '../catalogue/catalogue.repository.js';
 import {
   findEnrolmentForBatch,
@@ -28,23 +26,9 @@ export const ENROLMENT_STATUS = {
   pendingPayment: 'PENDING_PAYMENT',
   confirmed: 'CONFIRMED',
   cancelled: 'CANCELLED',
-} as const;
+} as const satisfies Record<string, SeatStatus>;
 
-export type Enrolment = {
-  id: string;
-  status: (typeof ENROLMENT_STATUS)[keyof typeof ENROLMENT_STATUS];
-  createdAt: string;
-  subject: { id: string; slug: string; name: string };
-  topic: {
-    id: string;
-    title: string;
-    summary: string;
-    level: string | null;
-    price: Price | null;
-    lessons: Lesson[];
-  };
-  batch: Batch;
-};
+export type { Enrolment };
 
 const loadEnrolments = async (
   { db, now }: AppContext,
@@ -74,8 +58,11 @@ const loadEnrolments = async (
           ...toTopicSummary({
             id: row.t_id,
             title: row.t_title,
+            short_title: row.t_short_title,
             summary: row.t_summary,
             level: row.t_level,
+            icon: row.t_icon,
+            featured_rank: row.t_featured_rank,
             price_paise: row.t_price_paise,
             price_tax_label: row.t_price_tax_label,
           }),

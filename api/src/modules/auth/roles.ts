@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import type { UserRole } from '../../contracts/auth.js';
 import { transaction, type Database } from '../../db/client.js';
 import {
   findUserIdByEmail,
@@ -11,9 +12,9 @@ import {
 export const USER_ROLE = {
   student: 'STUDENT',
   superAdmin: 'SUPER_ADMIN',
-} as const;
+} as const satisfies Record<string, UserRole>;
 
-export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
+export type { UserRole };
 
 export const toUserRole = (value: unknown): UserRole =>
   value === USER_ROLE.superAdmin ? USER_ROLE.superAdmin : USER_ROLE.student;

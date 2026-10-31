@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import type { AppContext } from '../../app/context.js';
+import type { EnrolmentsResponse } from '../../contracts/payments.js';
 import { getRequiredAuth, requireAuth } from '../auth/session.js';
 import { listEnrolments } from './enrolments.service.js';
 
@@ -13,7 +14,9 @@ export const createEnrolmentsRouter = (context: AppContext) => {
 
   router.get('/', async (req, res) => {
     const { userId } = getRequiredAuth(req.auth);
-    res.json({ enrolments: await listEnrolments(context, userId) });
+    res.json({
+      enrolments: await listEnrolments(context, userId),
+    } satisfies EnrolmentsResponse);
   });
 
   return router;

@@ -1,19 +1,10 @@
 import type { AppContext } from '../../app/context.js';
-import { toPrice, type Price } from '../catalogue/catalogue.repository.js';
+import type { PreRegistration } from '../../contracts/payments.js';
+import { toPrice } from '../catalogue/catalogue.repository.js';
 import { listPreRegistrationRows } from './payments.repository.js';
 import { PRE_REGISTRATION_STATUS } from './payments.service.js';
 
-export type PreRegistration = {
-  id: string;
-  status: (typeof PRE_REGISTRATION_STATUS)[keyof typeof PRE_REGISTRATION_STATUS];
-  createdAt: string;
-  topic: {
-    id: string;
-    title: string;
-    level: string | null;
-    price: Price | null;
-  };
-};
+export type { PreRegistration };
 
 // The signed-in student's pre-registrations, newest first
 export const listPreRegistrations = async (

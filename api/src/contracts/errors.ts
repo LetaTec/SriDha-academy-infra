@@ -1,0 +1,38 @@
+// Every error response. See catalogue.ts for what this folder is.
+
+export type ErrorCode =
+  | 'REQUEST_VALIDATION_FAILED'
+  | 'MALFORMED_REQUEST'
+  | 'UNAUTHENTICATED'
+  | 'SESSION_EXPIRED'
+  | 'INVALID_CREDENTIALS'
+  | 'EMAIL_ALREADY_REGISTERED'
+  | 'INVALID_RESET_TOKEN'
+  | 'PASSWORD_RECOVERY_UNAVAILABLE'
+  | 'INVALID_SIGN_IN_LINK'
+  | 'SIGN_IN_LINK_UNAVAILABLE'
+  | 'ORIGIN_NOT_ALLOWED'
+  | 'BATCH_NOT_FOUND'
+  | 'BATCH_UNAVAILABLE'
+  | 'BATCH_FULL'
+  | 'ALREADY_ENROLLED'
+  | 'TOPIC_NOT_FOUND'
+  | 'ALREADY_PRE_REGISTERED'
+  | 'PRE_REGISTRATION_CLOSED'
+  | 'PRICE_UNAVAILABLE'
+  | 'PAYMENT_NOT_FOUND'
+  | 'PAYMENT_VERIFICATION_FAILED'
+  | 'PAYMENT_PROVIDER_UNAVAILABLE'
+  | 'WEBHOOK_UNAVAILABLE'
+  | 'WEBHOOK_SIGNATURE_INVALID'
+  | 'RATE_LIMIT_EXCEEDED'
+  | 'NOT_FOUND'
+  | 'FORBIDDEN'
+  | 'INTERNAL_ERROR';
+
+// Validation errors list field issues under details.body
+export type ApiErrorBody = {
+  message: string;
+  code: ErrorCode;
+  details: unknown | null;
+};

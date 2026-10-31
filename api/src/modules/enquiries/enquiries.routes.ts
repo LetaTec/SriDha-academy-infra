@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import type { AppContext } from '../../app/context.js';
+import type { EnquiryResponse } from '../../contracts/enquiries.js';
 import { validate } from '../../http/validate.js';
 import { createEnquiry, enquirySchema } from './enquiries.service.js';
 
@@ -17,7 +18,7 @@ export const createEnquiriesRouter = (context: AppContext) => {
       req.auth?.userId ?? null,
     );
 
-    res.status(201).json({ enquiry });
+    res.status(201).json({ enquiry } satisfies EnquiryResponse);
   });
 
   return router;
