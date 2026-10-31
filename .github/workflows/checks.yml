@@ -1,0 +1,59 @@
+# The same checks AGENTS.md asks for before merging, on every pull request
+# and every push to main. Mark both jobs as required in the repository's
+# branch protection so a red check blocks the merge.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer push to the same branch replaces the run in progress
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, typecheck, unit tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+
+  e2e:
+    name: Browser tests (desktop and mobile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The suite drives Google Chrome (channel "chrome"), which the
+      # Ubuntu runner image already has; this adds the system libraries
+      - run: npx playwright install-deps chromium
+        working-directory: web
+      # Starts the API on an in-memory database and the dev server itself
+      - run: npm run test:e2e -w web
+      - name: Keep traces of failed tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: web/test-results
+          retention-days: 7

@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 const WEB_URL = 'http://localhost:5173';
 const API_URL = 'http://localhost:4100';
 
-// Runs the real API (against a throwaway SQLite file) and the Vite dev server,
+// Runs the real API (on a throwaway in-memory database) and the Vite dev server,
 // then drives the site in the locally installed Chrome.
 export default defineConfig({
   testDir: './e2e',
