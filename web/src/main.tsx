@@ -9,6 +9,7 @@ import '@styles/tokens.css';
 import '@styles/reset.css';
 import '@styles/typography.css';
 
+import { redirectToCanonicalHost } from './app/canonicalHost';
 import { router } from './app/router';
 
 // The site's Content-Security-Policy forbids eval. Without this, zod probes
@@ -21,12 +22,14 @@ if (!rootElement) {
   throw new Error('Root element not found');
 }
 
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <ToastProvider>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </ToastProvider>
-  </React.StrictMode>,
-);
+if (!redirectToCanonicalHost()) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <ToastProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </ToastProvider>
+    </React.StrictMode>,
+  );
+}
