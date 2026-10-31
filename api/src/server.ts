@@ -7,6 +7,7 @@ import {
   runMigrations,
 } from './db/client.js';
 import { startCleanupJobs } from './jobs/cleanup.js';
+import { initErrorReporting } from './logging/errorReporting.js';
 import { configureLogger, logger } from './logging/logger.js';
 import { createMailer } from './mail/mailer.js';
 import { syncSuperAdmins } from './modules/auth/roles.js';
@@ -15,6 +16,15 @@ const config = loadConfigFromEnvironment();
 configureLogger({
   level: config.logLevel,
   pretty: config.env !== 'production',
+});
+const flushErrorReports = await initErrorReporting({
+  dsn: config.sentryDsn,
+  environment: config.env,
+});
+
+// Anything that escapes a request is still logged (and reported)
+process.on('unhandledRejection', reason => {
+  logger.error('process.unhandled_rejection', { error: reason });
 });
 
 const db = await openDatabase(config.databaseUrl, config.pgMaxConnections);
@@ -60,6 +70,7 @@ const shutdown = () => {
   stopCleanupJobs();
   server.close(async () => {
     await db.close();
+    await flushErrorReports?.();
     process.exit(0);
   });
 };

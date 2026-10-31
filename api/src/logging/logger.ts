@@ -28,6 +28,15 @@ const requestScope = new AsyncLocalStorage<{ requestId: string }>();
 let minimumSeverity = SEVERITY.info;
 let isPretty = false;
 
+type ErrorSink = (event: string, fields: LogFields) => void;
+let errorSink: ErrorSink | null = null;
+
+// Receives every error-level event, whatever the log level (see
+// errorReporting.ts)
+export const setErrorSink = (sink: ErrorSink | null) => {
+  errorSink = sink;
+};
+
 export const configureLogger = (options: {
   level: LogLevel;
   pretty: boolean;
@@ -59,6 +68,11 @@ const formatPretty = (entry: LogFields) => {
 // any log drain can filter by event, level or requestId; readable lines in
 // development.
 const write = (level: LogLevel, event: string, fields: LogFields = {}) => {
+  if (level === LOG_LEVEL.error && errorSink) {
+    const requestId = currentRequestId();
+    errorSink(event, requestId ? { requestId, ...fields } : fields);
+  }
+
   if (SEVERITY[level] < minimumSeverity) return;
 
   const entry: LogFields = {

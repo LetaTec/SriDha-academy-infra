@@ -11,6 +11,7 @@ import '@styles/reset.css';
 import '@styles/typography.css';
 
 import { redirectToCanonicalHost } from './app/canonicalHost';
+import { initErrorReporting } from './app/errorReporting';
 import { preloadPriceFonts } from './app/preloadPriceFonts';
 import {
   CATALOGUE_CACHE_MAX_AGE_MS,
@@ -32,6 +33,7 @@ if (!rootElement) {
 }
 
 if (!redirectToCanonicalHost()) {
+  initErrorReporting();
   preloadPriceFonts();
 
   ReactDOM.createRoot(rootElement).render(
