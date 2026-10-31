@@ -105,7 +105,11 @@
   --width-search-results: 440px;
   --height-search-results: 480px;
   --width-about-photo: 440px;
-  --height-header: 76px;
+  /* The site header is the "Now enrolling" ticker above the menu bar; pages
+     offset their content by the whole header */
+  --height-header-bar: 76px;
+  --height-ticker: 36px;
+  --height-header: calc(var(--height-header-bar) + var(--height-ticker));
   --height-logo-horizontal-md: 40px;
   --height-logo-horizontal-lg: 48px;
   --height-logo-horizontal-sm: 32px;
@@ -115,6 +119,9 @@
   --height-card-panel: 300px;
   --height-card-centered: 236px;
   --height-topic-preview: 220px;
+  /* Placeholder height of a class row of topics the browser has not drawn
+     yet; once drawn, its real height is remembered */
+  --height-topic-group-estimate: 640px;
   --section-padding: 144px;
   --section-padding-sm: 88px;
 
@@ -194,6 +201,7 @@
   --blur-header: 12px;
   --blur-book-shadow: 22px;
   --opacity-pulse-min: 0.4;
+  --scale-pulse-min: 0.5;
   --size-grain-dot: 0.55px;
   --size-grain-cell: 7px;
   --focus-ring-width: 2px;
@@ -215,6 +223,8 @@
   --duration-page-turn: 1150ms;
   --duration-toast: 400ms;
   --duration-drawer: 320ms;
+  /* Seconds the ticker takes per batch; longer lists scroll for longer */
+  --duration-ticker-item: 9s;
   --duration-pulse: 2.8s;
   --duration-float: 6s;
   --distance-float: -8px;

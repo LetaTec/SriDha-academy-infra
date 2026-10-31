@@ -18,6 +18,7 @@ import { useCatalogue } from '@hooks/useCatalogue';
 import { logoutStudent } from '@services/auth';
 import { listTopics } from '@services/catalogue';
 
+import { BatchTicker } from './BatchTicker';
 import styles from './SiteHeader.module.css';
 
 const cn = cx.bind(styles);
@@ -96,6 +97,7 @@ export const SiteHeader = () => {
 
   return (
     <header className={cn('header')}>
+      <BatchTicker />
       <Container className={cn('nav')}>
         <Link
           to={APP_ROUTES.HOME}
