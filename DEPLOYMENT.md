@@ -9,13 +9,13 @@ This guide documents the production deployment of the **letaEd** frontend to **C
 The letaEd platform consists of:
 
 - **`web/`**: Vite + React 19 + TypeScript Single Page Application (SPA).
-- **`api/`**: Express 5 + Node.js API with SQLite database (`node:sqlite`).
+- **`api/`**: Express 5 + Node.js API on PostgreSQL, hosted on Render.
 
 ### Frontend-First Deployment
 
 We are deploying the **frontend first** to Cloudflare Pages as a high-performance static SPA served from Cloudflare's global edge network.
 
-The Express backend and SQLite database are **not** hosted on Cloudflare Pages (Pages hosts static assets and Workers, whereas SQLite requires persistent local disk storage or a dedicated VPS/container).
+The Express backend and its PostgreSQL database are **not** hosted on Cloudflare Pages (Pages hosts static assets and Workers); the API runs on Render. It applies new migrations itself on start-up.
 
 ### Feature Availability Matrix
 

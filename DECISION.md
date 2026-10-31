@@ -843,3 +843,84 @@ The redesign strictly avoids generic SaaS tropes (no purple-blue gradients, no d
 - `npm run build -w web`: Production Vite build succeeded in 1.28s with 0 warnings.
 - `npm run format:check`: Passed (All matched files use Prettier code style).
 - `git diff --check`: Passed cleanly with zero whitespace or conflict markers.
+
+---
+
+## DEC-020: Single-Source Topics, Shared API Contracts and Production Internals
+
+- **Decision ID**: `DEC-020`
+- **Date & Time**: `2026-10-31T14:30:00+05:30` (IST)
+- **Decision Title**: Serve topics only from the API, share request/response types, and add data layers, startup checks, structured logs, clean-up, CI and error alerts
+- **Status**: Implemented & Locally Verified (Production Verification Pending Deployment)
+
+### 1. Problem or Requirement
+
+A structural review found gaps that cause real bugs as the platform and team grow:
+
+1. **Two topic lists.** The 156 topics were typed out in `web/src/constants/topics.ts` and copied into `api/src/db/topicLibrary.ts` by a script. Editing one and forgetting the export made them disagree, against the rule that the API is the only source of truth for the catalogue.
+2. **Types defined twice.** `Topic`, `Batch`, `Checkout` and the rest were declared separately in the API and the website, so an API change could break the website without failing any build.
+3. **Uneven layering.** Only the catalogue had a repository; other services ran SQL directly and enquiries was a routes file.
+4. **Home-made server-data handling** (`useCatalogue`'s module cache, `useEffect` fetching in My learning and team orders).
+5. **Operations.** Missing Razorpay settings silently fell back to a test gateway in production; logs were unstructured `console` lines with no way to follow one request; expired sessions and tokens were never deleted; nothing ran the tests on GitHub; nobody was alerted to errors.
+
+### 2. Decisions Taken
+
+1. `api/src/db/topicLibrary.ts` is the only hand-edited topic list. Migration `007_topic_card_fields` adds `short_title`, `icon` and `featured_rank` to `topics` (filling existing rows), the seed writes them, and `GET /api/catalogue` returns them. The website builds topic cards from the catalogue (`toTopicPreviews`, `useTopicPreviews`); the export script is removed.
+2. `api/src/contracts/*` holds every request and response type. The API checks responses with `satisfies <Response>` and schemas with `satisfies z.ZodType<Request>`; the website imports the same files through the `@contracts/*` alias, type-only.
+3. Every SQL statement lives in a module repository (`auth`, `enrolments`, `payments`, `admin`, `enquiries`, `catalogue`).
+4. The website reads server data through TanStack Query; the catalogue is persisted in `localStorage` for a day so returning visitors see topics while the API wakes up.
+5. Production refuses to start without `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET`; `ALLOWED_ORIGINS` and `SUPER_ADMIN_EMAILS` entries are validated.
+6. A JSON logger (`api/src/logging/logger.ts`) with request ids (`X-Request-Id`), an hourly clean-up job, a GitHub Actions workflow, and Sentry error reporting that is off until a DSN is set.
+
+### 3. Why the Decision Was Taken
+
+- One list and one set of types turn silent drift into compile errors.
+- Repositories keep services readable and SQL reviewable in one place per module.
+- TanStack Query is the standard for retries, focus refetch and invalidation, replacing per-page hand-written loading code.
+- Failing fast at startup is safer than taking payments that can never be confirmed.
+- Request-scoped logs and alerts are the minimum needed to support real payments.
+
+### 4. How It Is Implemented
+
+- API: `contracts/`, `modules/*/*.repository.ts`, `logging/logger.ts`, `logging/errorReporting.ts`, `http/requestContext.ts`, `jobs/cleanup.ts`, migrations `006_cleanup_and_payment_indexes` and `007_topic_card_fields`.
+- Website: `services/catalogue/topicPreviews.ts`, `hooks/useTopicPreviews.ts`, `hooks/useMyLearning.ts`, `hooks/useTeamOrders.ts`, `hooks/useRefreshAfterPayment.ts`, `app/queryClient.ts`, `app/errorReporting.ts`.
+- CI: `.github/workflows/checks.yml`.
+- Removed: `scripts/export-topic-library.ts`, `api/src/db/migrateSqliteToPostgres.ts` (and its test), `DATABASE_PATH`.
+
+### 5. Alternatives Considered
+
+- **OpenAPI with generated clients** for the contracts: more tooling and a generation step for a two-package repository; shared TypeScript types give the same compile-time guarantee today.
+- **A separate `packages/contracts` workspace:** the API's `rootDir` build would need project references; keeping the folder inside the API (which owns the shapes) avoids that.
+- **Keeping a static topic snapshot in the website** for instant first paint: reintroduces the second list. The persisted query cache covers returning visitors instead.
+
+### 6. Trade-offs & Disadvantages
+
+- A first-time visitor sees a loading state for topics until the API answers; on Render's free tier a cold start can take 30–50 seconds.
+- The website type-checks files from `api/src/contracts`, so those files must stay free of runtime and Node-only imports.
+
+### 7. Security Implications
+
+- Error reports exclude user details, cookies, headers, request bodies and query strings. `/api/health` no longer returns database error messages.
+- The CSP allows Sentry's ingest hosts.
+- `body-parser` and `follow-redirects` were updated for high-severity advisories.
+
+### 8. Operational Implications
+
+- Migrations 006 and 007 run automatically on the next API start; no manual seed is required for the card fields.
+- To enable alerts: set `SENTRY_DSN` on Render and `VITE_SENTRY_DSN` in Cloudflare Pages (then redeploy).
+- Mark both GitHub Actions jobs as required checks on `main`.
+
+### 9. Cost Implications
+
+- None required. Sentry's free tier covers current volume.
+
+### 10. Tests & Evidence
+
+- `npm run lint`, `npm run typecheck`, `npm run build`: passed.
+- `npm run test`: API 81 passed, website 76 passed (including new config, clean-up, catalogue, migration-backfill, error-reporting and topic-card tests).
+- `npm run test:e2e -w web`: 16 passed (desktop and mobile).
+
+### 11. Follow-up Actions
+
+- Upgrade the Render PostgreSQL instance before its free-tier expiry (November 18, 2026, see DEC-014) and set up backups.
+- Teacher accounts, once class delivery is decided.

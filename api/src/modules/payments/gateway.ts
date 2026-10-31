@@ -1,15 +1,16 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 import type { AppConfig } from '../../config/env.js';
+import type { PaymentProvider } from '../../contracts/payments.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
+import { logger } from '../../logging/logger.js';
 
 export const PAYMENT_PROVIDER = {
   razorpay: 'RAZORPAY',
   test: 'TEST',
-} as const;
+} as const satisfies Record<string, PaymentProvider>;
 
-export type PaymentProvider =
-  (typeof PAYMENT_PROVIDER)[keyof typeof PAYMENT_PROVIDER];
+export type { PaymentProvider };
 
 export type PaymentGateway = {
   provider: PaymentProvider;
@@ -47,10 +48,10 @@ export const createRazorpayGateway = (
     }).catch(() => null);
 
     if (!response?.ok) {
-      console.error(
-        '[payments] Razorpay order failed with status %s',
-        response?.status ?? 'network error',
-      );
+      logger.error('payments.provider_order_failed', {
+        provider: PAYMENT_PROVIDER.razorpay,
+        status: response?.status ?? 'network error',
+      });
       throw new ApiError(
         502,
         ERROR_CODE.paymentProviderUnavailable,

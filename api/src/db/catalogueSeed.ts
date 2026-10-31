@@ -1,6 +1,8 @@
 import { transaction, type Database } from './client.js';
 import { TOPIC_LIBRARY, type LibrarySubject } from './topicLibrary.js';
 
+const LIBRARY_BY_ID = new Map(TOPIC_LIBRARY.map(topic => [topic.id, topic]));
+
 // Catalogue content sourced from the SriDha Academy education-model document and the
 // approved website prototype. Only values present in those sources are set;
 // anything not yet decided (faculty, lesson durations) stays null so the
@@ -592,12 +594,15 @@ export const seedCatalogue = async (db: Database): Promise<void> => {
   `;
 
   const upsertTopicSql = `
-    INSERT INTO topics (id, chapter_id, title, summary, level, price_paise, price_tax_label, position)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    INSERT INTO topics (id, chapter_id, title, summary, level, price_paise, price_tax_label, position,
+      short_title, icon, featured_rank)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     ON CONFLICT (id) DO UPDATE SET
       chapter_id = EXCLUDED.chapter_id, title = EXCLUDED.title, summary = EXCLUDED.summary,
       level = EXCLUDED.level, price_paise = EXCLUDED.price_paise,
-      price_tax_label = EXCLUDED.price_tax_label, position = EXCLUDED.position
+      price_tax_label = EXCLUDED.price_tax_label, position = EXCLUDED.position,
+      short_title = EXCLUDED.short_title, icon = EXCLUDED.icon,
+      featured_rank = EXCLUDED.featured_rank
   `;
 
   const upsertLessonSql = `
@@ -657,6 +662,8 @@ export const seedCatalogue = async (db: Database): Promise<void> => {
           topicIndex++
         ) {
           const topic = chapter.topics[topicIndex];
+          // The card details come from the topic library
+          const card = LIBRARY_BY_ID.get(topic.id);
           await tx.query(upsertTopicSql, [
             topic.id,
             chapter.id,
@@ -666,6 +673,9 @@ export const seedCatalogue = async (db: Database): Promise<void> => {
             topic.pricePaise,
             topic.priceTaxLabel,
             topicIndex,
+            card?.title ?? topic.title,
+            card?.icon ?? null,
+            card?.featuredRank ?? null,
           ]);
 
           for (

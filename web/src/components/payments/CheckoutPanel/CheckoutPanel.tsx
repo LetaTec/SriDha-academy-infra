@@ -19,10 +19,14 @@ import {
   PAYMENT_PROVIDER,
 } from '@constants/payments';
 import { APP_ROUTES } from '@constants/routes';
-import type { TopicPreview } from '@constants/topics';
 import { useAuth } from '@context/AuthContext';
 import { useApiForm } from '@hooks/useApiForm';
-import { isBatchOpen, type Batch, type Topic } from '@services/catalogue';
+import { useRefreshAfterPayment } from '@hooks/useRefreshAfterPayment';
+import {
+  isBatchOpen,
+  type Batch,
+  type TopicPreview,
+} from '@services/catalogue';
 import {
   createCheckout,
   payWithRazorpay,
@@ -68,9 +72,9 @@ const batchLabel = (batch: Batch) =>
 
 export type CheckoutPanelProps = {
   open: boolean;
-  preview: TopicPreview;
-  // Null while the catalogue is still loading (or failed to load)
-  topic: Topic | null;
+  // The topic's card with its catalogue topic; null while the catalogue is
+  // still loading (or failed to load)
+  preview: TopicPreview | null;
   // A batch the student already chose, preselected when still open
   preferredBatchId?: string | null;
   isLoading: boolean;
@@ -85,7 +89,6 @@ export type CheckoutPanelProps = {
 export const CheckoutPanel = ({
   open,
   preview,
-  topic,
   preferredBatchId = null,
   isLoading,
   onRetry,
@@ -93,6 +96,7 @@ export const CheckoutPanel = ({
 }: CheckoutPanelProps) => {
   const { user } = useAuth();
   const batchFieldName = useId();
+  const topic = preview?.topic ?? null;
   const batches = topic?.batches ?? [];
   const isEnrolment = batches.length > 0;
   const openBatches = batches.filter(isBatchOpen);
@@ -105,6 +109,7 @@ export const CheckoutPanel = ({
   const batchId =
     chosenBatchId ?? preferredOpenBatch?.id ?? openBatches[0]?.id ?? null;
   const [stage, setStage] = useState<Stage>({ name: 'details' });
+  const refreshAfterPayment = useRefreshAfterPayment();
   // Problems with Razorpay's window, which are not API errors
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const selectedBatch = batches.find(batch => batch.id === batchId);
@@ -146,6 +151,7 @@ export const CheckoutPanel = ({
       );
 
       if (checkout.provider.name !== PAYMENT_PROVIDER.razorpay) {
+        refreshAfterPayment();
         setStage({ name: 'pending', checkout });
         return;
       }
@@ -168,6 +174,7 @@ export const CheckoutPanel = ({
       await verifyPayment(result.verification).catch(() => {
         throw new Error(CHECKOUT_TEXT.verifyFailed);
       });
+      refreshAfterPayment();
       setStage({ name: 'paid', checkout });
     } catch (error) {
       setStage({ name: 'details' });
@@ -189,8 +196,10 @@ export const CheckoutPanel = ({
     <Drawer
       open={open && stage.name !== 'paying'}
       onClose={onClose}
-      eyebrow={CHECKOUT_TEXT.eyebrow(action, preview.level)}
-      title={preview.title}
+      eyebrow={
+        preview ? CHECKOUT_TEXT.eyebrow(action, preview.level) : undefined
+      }
+      title={preview?.title ?? CHECKOUT_TEXT.topicPending}
       closeLabel={CHECKOUT_TEXT.close}
       footer={
         !topic ? undefined : isFinished ? (
@@ -227,7 +236,7 @@ export const CheckoutPanel = ({
         )
       }
     >
-      {!topic ? (
+      {!topic || !preview ? (
         <div className={cn('result')} role={isLoading ? 'status' : undefined}>
           {isLoading ? <Spinner tone="muted" /> : null}
           <Text as="p" variant="small" tone="muted">

@@ -1,44 +1,34 @@
 import { randomUUID } from 'node:crypto';
 
 import type { AppContext } from '../../app/context.js';
+import type { Enrolment, SeatStatus } from '../../contracts/payments.js';
 import { transaction } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import {
   BATCH_AVAILABILITY,
   countActiveEnrolmentsForBatch,
   getBatchRow,
+  listTopicLessons,
   resolveBatchAvailability,
   toBatch,
   toDateOnly,
   toLesson,
   toTopicSummary,
-  type Batch,
-  type Lesson,
-  type Price,
-  type Row,
 } from '../catalogue/catalogue.repository.js';
+import {
+  findEnrolmentForBatch,
+  insertEnrolment,
+  listEnrolmentRows,
+  setEnrolmentStatus,
+} from './enrolments.repository.js';
 
 export const ENROLMENT_STATUS = {
   pendingPayment: 'PENDING_PAYMENT',
   confirmed: 'CONFIRMED',
   cancelled: 'CANCELLED',
-} as const;
+} as const satisfies Record<string, SeatStatus>;
 
-export type Enrolment = {
-  id: string;
-  status: (typeof ENROLMENT_STATUS)[keyof typeof ENROLMENT_STATUS];
-  createdAt: string;
-  subject: { id: string; slug: string; name: string };
-  topic: {
-    id: string;
-    title: string;
-    summary: string;
-    level: string | null;
-    price: Price | null;
-    lessons: Lesson[];
-  };
-  batch: Batch;
-};
+export type { Enrolment };
 
 const loadEnrolments = async (
   { db, now }: AppContext,
@@ -46,27 +36,12 @@ const loadEnrolments = async (
   enrolmentId?: string,
 ): Promise<Enrolment[]> => {
   const today = toDateOnly(now());
-  const rows = await db.all<Row>(
-    `SELECT e.id AS enrolment_id, e.status AS enrolment_status, e.created_at AS enrolment_created_at,
-            b.*, t.id AS t_id, t.title AS t_title, t.summary AS t_summary, t.level AS t_level,
-            t.price_paise AS t_price_paise, t.price_tax_label AS t_price_tax_label,
-            s.id AS s_id, s.slug AS s_slug, s.name AS s_name
-     FROM enrolments e
-     JOIN batches b ON b.id = e.batch_id
-     JOIN topics t ON t.id = b.topic_id
-     JOIN chapters c ON c.id = t.chapter_id
-     JOIN subjects s ON s.id = c.subject_id
-     WHERE e.user_id = $1 AND e.status <> 'CANCELLED' AND ($2::text IS NULL OR e.id = $2::text)
-     ORDER BY e.created_at DESC`,
-    [userId, enrolmentId ?? null],
-  );
+  const rows = await listEnrolmentRows(db, userId, enrolmentId ?? null);
 
   return Promise.all(
     rows.map(async row => {
       const [lessons, taken] = await Promise.all([
-        db.all('SELECT * FROM lessons WHERE topic_id = $1 ORDER BY position', [
-          row.t_id,
-        ]),
+        listTopicLessons(db, String(row.t_id)),
         countActiveEnrolmentsForBatch(db, String(row.id), now()),
       ]);
 
@@ -83,8 +58,11 @@ const loadEnrolments = async (
           ...toTopicSummary({
             id: row.t_id,
             title: row.t_title,
+            short_title: row.t_short_title,
             summary: row.t_summary,
             level: row.t_level,
+            icon: row.t_icon,
+            featured_rank: row.t_featured_rank,
             price_paise: row.t_price_paise,
             price_tax_label: row.t_price_tax_label,
           }),
@@ -121,10 +99,7 @@ export const createEnrolment = async (
       );
     }
 
-    const existing = await tx.get<{ id: string; status: string }>(
-      'SELECT id, status FROM enrolments WHERE user_id = $1 AND batch_id = $2',
-      [userId, batchId],
-    );
+    const existing = await findEnrolmentForBatch(tx, userId, batchId);
 
     if (existing && existing.status !== ENROLMENT_STATUS.cancelled) {
       throw new ApiError(
@@ -162,26 +137,23 @@ export const createEnrolment = async (
     }
 
     if (existing) {
-      await tx.query(
-        'UPDATE enrolments SET status = $1, updated_at = $2 WHERE id = $3',
-        [ENROLMENT_STATUS.pendingPayment, timestamp, String(existing.id)],
+      await setEnrolmentStatus(
+        tx,
+        String(existing.id),
+        ENROLMENT_STATUS.pendingPayment,
+        timestamp,
       );
       return String(existing.id);
     }
 
     const id = randomUUID();
-    await tx.query(
-      `INSERT INTO enrolments (id, user_id, batch_id, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        id,
-        userId,
-        batchId,
-        ENROLMENT_STATUS.pendingPayment,
-        timestamp,
-        timestamp,
-      ],
-    );
+    await insertEnrolment(tx, {
+      id,
+      userId,
+      batchId,
+      status: ENROLMENT_STATUS.pendingPayment,
+      timestamp,
+    });
     return id;
   });
 

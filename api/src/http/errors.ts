@@ -1,5 +1,8 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 
+import type { ApiErrorBody, ErrorCode } from '../contracts/errors.js';
+import { logger } from '../logging/logger.js';
+
 // Every error response follows { message, code, details }.
 export const ERROR_CODE = {
   requestValidationFailed: 'REQUEST_VALIDATION_FAILED',
@@ -30,9 +33,9 @@ export const ERROR_CODE = {
   notFound: 'NOT_FOUND',
   forbidden: 'FORBIDDEN',
   internalError: 'INTERNAL_ERROR',
-} as const;
+} as const satisfies Record<string, ErrorCode>;
 
-export type ErrorCode = (typeof ERROR_CODE)[keyof typeof ERROR_CODE];
+export type { ApiErrorBody, ErrorCode };
 
 export type ApiFieldIssue = {
   message: string;
@@ -97,7 +100,11 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
   }
 
   // Keep the diagnostic detail in the server log only.
-  console.error('[api] unhandled error - %s %s', req.method, req.path, error);
+  logger.error('http.unhandled_error', {
+    method: req.method,
+    path: req.originalUrl.split('?')[0],
+    error,
+  });
 
   res.status(500).json({
     message: 'Something went wrong. Please try again.',

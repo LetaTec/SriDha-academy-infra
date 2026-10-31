@@ -1,3 +1,5 @@
+import type { StudentStandard, StudentStream } from '@contracts/auth';
+
 // Values mirror the API enums in api/src/modules/auth/auth.schema.ts.
 export const STUDENT_STANDARD = {
   CLASS_10: 'CLASS_10',
@@ -8,10 +10,9 @@ export const STUDENT_STANDARD = {
   NEET: 'NEET',
   JEE: 'JEE',
   BANK_PO: 'BANK_PO',
-} as const;
+} as const satisfies Record<string, StudentStandard>;
 
-export type StudentStandard =
-  (typeof STUDENT_STANDARD)[keyof typeof STUDENT_STANDARD];
+export type { StudentStandard };
 
 export const STUDENT_STANDARD_LABEL: Record<StudentStandard, string> = {
   CLASS_10: '10th',
@@ -33,10 +34,9 @@ export const STUDENT_STREAM = {
   SCIENCE: 'SCIENCE',
   ARTS: 'ARTS',
   OTHER: 'OTHER',
-} as const;
+} as const satisfies Record<string, StudentStream>;
 
-export type StudentStream =
-  (typeof STUDENT_STREAM)[keyof typeof STUDENT_STREAM];
+export type { StudentStream };
 
 export const STUDENT_STREAM_LABEL: Record<StudentStream, string> = {
   COMMERCE: 'Commerce',

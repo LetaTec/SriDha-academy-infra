@@ -6,7 +6,8 @@ import { z } from 'zod';
 import type { AppContext } from '../../app/context.js';
 import { transaction } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
-import type { Row } from '../catalogue/catalogue.repository.js';
+import { logger } from '../../logging/logger.js';
+import { findPaymentByOrderId } from './payments.repository.js';
 import {
   markPaymentPaid,
   PAYMENT_STATUS,
@@ -57,20 +58,17 @@ const confirmCapturedPayment = async (
   amountPaise: number,
 ) =>
   transaction(context.db, async tx => {
-    const payment = await tx.get<Row>(
-      'SELECT * FROM payments WHERE provider_order_id = $1',
-      [orderId],
-    );
+    const payment = await findPaymentByOrderId(tx, orderId);
 
     if (!payment || payment.status === PAYMENT_STATUS.paid) return null;
 
     if (Number(payment.amount_paise) !== amountPaise) {
-      console.error(
-        '[payments] webhook amount %d does not match order %s (%d); not confirmed',
-        amountPaise,
+      logger.error('payments.webhook_amount_mismatch', {
         orderId,
-        Number(payment.amount_paise),
-      );
+        paymentId: String(payment.id),
+        webhookAmountPaise: amountPaise,
+        orderAmountPaise: Number(payment.amount_paise),
+      });
       return null;
     }
 

@@ -8,6 +8,8 @@ import { ADMIN_SIGN_IN_TEXT } from '@constants/auth';
 import { AUTH_FOOTER_TEXT } from '@constants/landing';
 import { POLICY_LINKS, POLICY_LINKS_TITLE } from '@constants/policies';
 import { APP_ROUTES } from '@constants/routes';
+import { FOOTER_TOPIC_COUNT } from '@constants/topics';
+import { useTopicPreviews } from '@hooks/useTopicPreviews';
 
 import styles from './AuthFooter.module.css';
 
@@ -17,6 +19,7 @@ const cn = cx.bind(styles);
 // registration, since the catalogue itself needs an account.
 export const AuthFooter = () => {
   const { search } = useLocation();
+  const { previews } = useTopicPreviews();
 
   return (
     <footer className={cn('footer')}>
@@ -29,26 +32,23 @@ export const AuthFooter = () => {
             </Text>
           </div>
 
-          {AUTH_FOOTER_TEXT.columns.map(column => (
-            <nav
-              key={column.title}
-              aria-label={column.title}
-              className={cn('column')}
-            >
-              <Text as="div" variant="strong">
-                {column.title}
-              </Text>
-              {column.links.map(link => (
-                <Link
-                  key={link}
-                  to={APP_ROUTES.REGISTER}
-                  className={cn('link')}
-                >
-                  {link}
-                </Link>
-              ))}
-            </nav>
-          ))}
+          <nav
+            aria-label={AUTH_FOOTER_TEXT.topicsTitle}
+            className={cn('column')}
+          >
+            <Text as="div" variant="strong">
+              {AUTH_FOOTER_TEXT.topicsTitle}
+            </Text>
+            {previews.slice(0, FOOTER_TOPIC_COUNT).map(topic => (
+              <Link
+                key={topic.catalogueTopicId}
+                to={APP_ROUTES.REGISTER}
+                className={cn('link')}
+              >
+                {topic.title}
+              </Link>
+            ))}
+          </nav>
 
           <nav
             aria-label={AUTH_FOOTER_TEXT.accountTitle}

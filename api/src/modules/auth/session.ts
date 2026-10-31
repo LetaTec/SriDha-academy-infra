@@ -3,6 +3,13 @@ import type { CookieOptions, RequestHandler, Response } from 'express';
 import type { AppContext } from '../../app/context.js';
 import type { DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
+import { logger } from '../../logging/logger.js';
+import {
+  deleteSessionById,
+  deleteSessionsForUser,
+  findSession,
+  insertSession,
+} from './auth.repository.js';
 import { generateToken, hashToken } from './tokens.js';
 
 export const SESSION_COOKIE = 'leta_session';
@@ -44,10 +51,12 @@ export const createSession = async (
     : context.config.sessionTtlMs;
   const expiresAt = new Date(now.getTime() + ttl);
 
-  await context.db.query(
-    'INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4)',
-    [hashToken(token), userId, now.toISOString(), expiresAt.toISOString()],
-  );
+  await insertSession(context.db, {
+    id: hashToken(token),
+    userId,
+    createdAt: now.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+  });
 
   return { token, expiresAt };
 };
@@ -73,8 +82,7 @@ export const deleteSession = async (
   sessionId: string,
   client?: DatabaseClient,
 ) => {
-  const db = client ?? context.db;
-  await db.query('DELETE FROM sessions WHERE id = $1', [sessionId]);
+  await deleteSessionById(client ?? context.db, sessionId);
 };
 
 export const deleteUserSessions = async (
@@ -82,8 +90,7 @@ export const deleteUserSessions = async (
   userId: string,
   client?: DatabaseClient,
 ) => {
-  const db = client ?? context.db;
-  await db.query('DELETE FROM sessions WHERE user_id = $1', [userId]);
+  await deleteSessionsForUser(client ?? context.db, userId);
 };
 
 // Resolves the session cookie on every request. An unknown or expired token is
@@ -99,25 +106,12 @@ export const createSessionMiddleware =
       req.sessionState = 'none';
 
       if (!hasCookie) {
-        if (
-          req.path.startsWith('/auth/session') ||
-          req.path.startsWith('/enrolments')
-        ) {
-          console.info('[auth] session check: no cookie present', {
-            path: req.path,
-            method: req.method,
-            origin: req.get('origin') ?? 'unknown',
-          });
-        }
         next();
         return;
       }
 
       const sessionId = hashToken(token as string);
-      const row = await context.db.get<{
-        user_id: string;
-        expires_at: string | Date;
-      }>('SELECT user_id, expires_at FROM sessions WHERE id = $1', [sessionId]);
+      const row = await findSession(context.db, sessionId);
 
       const expiresAt =
         row?.expires_at instanceof Date
@@ -133,8 +127,7 @@ export const createSessionMiddleware =
 
         clearSessionCookie(context, res);
         req.sessionState = 'expired';
-        console.info('[auth] session check: expired or invalid token', {
-          path: req.path,
+        logger.debug('auth.session_expired', {
           hasSessionRecord: Boolean(row),
         });
         next();
@@ -143,15 +136,8 @@ export const createSessionMiddleware =
 
       req.auth = { userId: String(row.user_id), sessionId };
       req.sessionState = 'active';
-      console.info('[auth] session check: active session resolved', {
-        path: req.path,
-      });
       next();
     } catch (error) {
-      console.error('[auth] session check error', {
-        path: req.path,
-        error: error instanceof Error ? error.message : 'unknown',
-      });
       next(error);
     }
   };

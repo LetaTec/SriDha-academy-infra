@@ -28,6 +28,9 @@ const subject = (
             {
               id: `${id}-gst`,
               title: 'Learn GST for Class 11',
+              shortTitle: 'GST',
+              icon: null,
+              featuredRank: null,
               summary: 'Input tax credit and invoice rules',
               level: 'Class 11',
               price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
@@ -53,6 +56,9 @@ const subject = (
             {
               id: `${id}-rectification`,
               title: 'Rectification of errors',
+              shortTitle: 'Rectification of errors',
+              icon: null,
+              featuredRank: null,
               summary: 'Correcting ledger mistakes',
               level: 'Class 11',
               price: { amountPaise: 12900, currency: 'INR', taxLabel: null },

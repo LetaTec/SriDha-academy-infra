@@ -1,5 +1,3 @@
-import { FOOTER_TOPIC_COUNT, TOPIC_PREVIEWS } from './topics';
-
 // Content for the sign-in landing page.
 
 // The "Big Subjects. Broken Into Small Victories" section under the
@@ -100,15 +98,8 @@ export const LANDING_TEXT = {
 
 export const AUTH_FOOTER_TEXT = {
   lead: 'SriDha Academy teaches one topic at a time, so students learn a single concept well and build confidence along the way',
-  columns: [
-    {
-      title: 'Topics',
-      // The first few topics, from the same list as the topic cards
-      links: TOPIC_PREVIEWS.slice(0, FOOTER_TOPIC_COUNT).map(
-        topic => topic.title,
-      ),
-    },
-  ],
+  // The first few topics (FOOTER_TOPIC_COUNT), from the catalogue
+  topicsTitle: 'Topics',
   accountTitle: 'Account',
   login: 'Log in',
   register: 'Join for free',

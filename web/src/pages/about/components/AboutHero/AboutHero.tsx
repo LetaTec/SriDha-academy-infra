@@ -1,9 +1,9 @@
 import cx from 'classnames/bind';
 
+import { TopicStatList } from '@components/catalogue/TopicStatList/TopicStatList';
 import { Heading } from '@components/ui/Heading/Heading';
 import { Photo } from '@components/ui/Photo/Photo';
 import { Section } from '@components/ui/Section/Section';
-import { StatList } from '@components/ui/StatList/StatList';
 import { Text } from '@components/ui/Text/Text';
 import { ABOUT_PAGE_TEXT } from '@constants/about';
 import { STUDENT_PHOTOS } from '@constants/photos';
@@ -31,7 +31,7 @@ export const AboutHero = () => (
         <Text as="p" variant="lead" tone="muted" className={cn('lead')}>
           {hero.lead}
         </Text>
-        <StatList items={stats} className={cn('stats')} />
+        <TopicStatList items={stats} className={cn('stats')} />
       </div>
 
       <Photo

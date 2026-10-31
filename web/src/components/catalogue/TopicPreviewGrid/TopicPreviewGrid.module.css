@@ -55,10 +55,6 @@
   padding: 0 var(--space-3) var(--space-3);
 }
 
-.pending {
-  min-height: var(--space-6);
-}
-
 /* Reads as a link: accent text with an arrow that moves on hover */
 .action {
   display: inline-flex;

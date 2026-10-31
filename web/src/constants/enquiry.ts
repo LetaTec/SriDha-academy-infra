@@ -1,7 +1,9 @@
-// Values mirror the API enums in api/src/modules/enquiries/enquiries.routes.ts.
+import type { EnquiryType, ModelPaperExam } from '@contracts/enquiries';
+
+// Values are checked against the API contract (@contracts/enquiries)
 export const ENQUIRY_TYPE = {
   MODEL_PAPER_WAITLIST: 'MODEL_PAPER_WAITLIST',
-} as const;
+} as const satisfies Record<string, EnquiryType>;
 
 export const MODEL_PAPER_EXAM = {
   JEE: 'JEE',
@@ -9,10 +11,9 @@ export const MODEL_PAPER_EXAM = {
   UPSC: 'UPSC',
   CA: 'CA',
   COMMERCE_11_12: 'COMMERCE_11_12',
-} as const;
+} as const satisfies Record<string, ModelPaperExam>;
 
-export type ModelPaperExam =
-  (typeof MODEL_PAPER_EXAM)[keyof typeof MODEL_PAPER_EXAM];
+export type { ModelPaperExam };
 
 export const MODEL_PAPER_EXAM_LABEL: Record<ModelPaperExam, string> = {
   JEE: 'JEE',

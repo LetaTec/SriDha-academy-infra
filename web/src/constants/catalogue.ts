@@ -1,3 +1,6 @@
+import type { BatchAvailability, SubjectStatus } from '@contracts/catalogue';
+import type { SeatStatus as EnrolmentStatus } from '@contracts/payments';
+
 import type { StatusColor } from './status';
 
 // URL search params for the topic panel: the open topic and the batch the
@@ -14,10 +17,9 @@ export const CATALOGUE_QUERY_PARAM = {
 export const SUBJECT_STATUS = {
   AVAILABLE: 'AVAILABLE',
   UPCOMING: 'UPCOMING',
-} as const;
+} as const satisfies Record<string, SubjectStatus>;
 
-export type SubjectStatus =
-  (typeof SUBJECT_STATUS)[keyof typeof SUBJECT_STATUS];
+export type { SubjectStatus };
 
 export const BATCH_AVAILABILITY = {
   OPEN: 'OPEN',
@@ -25,10 +27,9 @@ export const BATCH_AVAILABILITY = {
   CLOSED: 'CLOSED',
   UPCOMING: 'UPCOMING',
   INACTIVE: 'INACTIVE',
-} as const;
+} as const satisfies Record<string, BatchAvailability>;
 
-export type BatchAvailability =
-  (typeof BATCH_AVAILABILITY)[keyof typeof BATCH_AVAILABILITY];
+export type { BatchAvailability };
 
 export const BATCH_AVAILABILITY_LABEL: Record<BatchAvailability, string> = {
   OPEN: 'Open for enrolment',
@@ -51,10 +52,9 @@ export const ENROLMENT_STATUS = {
   PENDING_PAYMENT: 'PENDING_PAYMENT',
   CONFIRMED: 'CONFIRMED',
   CANCELLED: 'CANCELLED',
-} as const;
+} as const satisfies Record<string, EnrolmentStatus>;
 
-export type EnrolmentStatus =
-  (typeof ENROLMENT_STATUS)[keyof typeof ENROLMENT_STATUS];
+export type { EnrolmentStatus };
 
 export const ENROLMENT_STATUS_LABEL: Record<EnrolmentStatus, string> = {
   PENDING_PAYMENT: 'Payment pending',
@@ -114,6 +114,7 @@ export const CATALOGUE_TEXT = {
   batchNotFound: 'This batch is no longer available. Please choose another.',
   noBatchesMessage: 'Batches for this topic will be announced soon',
   loadError: 'Topic information is unavailable right now',
+  topicsLoading: 'Loading topics',
   retry: 'Try again',
   seatsRemaining: (seats: number) =>
     seats === 1 ? '1 seat left' : `${seats} seats left`,

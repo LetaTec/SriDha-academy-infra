@@ -1,4 +1,6 @@
-import { SUBJECT, type TopicPreview } from '@constants/topics';
+import { SUBJECT } from '@constants/topics';
+import type { TopicPreview } from '@services/catalogue';
+import { buildTopic } from '@/test/topicCatalogueFixture';
 
 import { parseClassQuery } from './classLevel';
 import { listTopicClasses, searchTopicPreviews } from './topicSearch';
@@ -14,6 +16,7 @@ const preview = (
   subtopics,
   subject: SUBJECT.accountancy,
   catalogueTopicId: `topic_${title}`,
+  topic: buildTopic(`topic_${title}`, title, level),
 });
 
 const PREVIEWS = [

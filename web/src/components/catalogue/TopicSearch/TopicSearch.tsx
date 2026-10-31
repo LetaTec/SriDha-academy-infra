@@ -12,12 +12,17 @@ import {
   CATALOGUE_TEXT,
 } from '@constants/catalogue';
 import { HEADER_TEXT } from '@constants/home';
-import { TOPIC_PREVIEWS, type TopicPreview } from '@constants/topics';
-import { isBatchOpen, type Batch, type Topic } from '@services/catalogue';
+import { TAUGHT_CLASS_NUMBERS } from '@constants/topics';
+import {
+  hasBatches,
+  isBatchOpen,
+  type Batch,
+  type TopicPreview,
+} from '@services/catalogue';
 import { formatClassLevel } from '@utils/classLevel';
 import { formatPrice } from '@utils/currency';
 import { formatWallClockTime } from '@utils/date';
-import { listTopicClasses, searchTopicPreviews } from '@utils/topicSearch';
+import { searchTopicPreviews } from '@utils/topicSearch';
 
 import styles from './TopicSearch.module.css';
 
@@ -28,7 +33,8 @@ const MAX_BATCHES = 3;
 const MAX_RESULTS = 5;
 
 export type TopicSearchProps = {
-  catalogueTopics: readonly Topic[];
+  // Every topic card, from the catalogue
+  previews: readonly TopicPreview[];
   onOpenTopic: (topicId: string) => void;
   onSelectBatch: (topicId: string, batchId: string) => void;
   // Opens the Topics page searched for the query: for topics without
@@ -36,9 +42,7 @@ export type TopicSearchProps = {
   onBrowseTopics: (query: string) => void;
 };
 
-const TAUGHT_CLASSES = listTopicClasses(TOPIC_PREVIEWS)
-  .map(formatClassLevel)
-  .join(', ');
+const TAUGHT_CLASSES = TAUGHT_CLASS_NUMBERS.map(formatClassLevel).join(', ');
 
 const batchTiming = (batch: Batch) =>
   [
@@ -58,7 +62,7 @@ const batchStatus = (batch: Batch) =>
 // each open topic's fee and batches: choosing a topic opens its lessons and
 // batches, choosing a batch goes straight to reserving it.
 export const TopicSearch = ({
-  catalogueTopics,
+  previews,
   onOpenTopic,
   onSelectBatch,
   onBrowseTopics,
@@ -70,18 +74,14 @@ export const TopicSearch = ({
 
   const normalisedQuery = query.trim().toLowerCase();
   const { classNumber, results } = normalisedQuery
-    ? searchTopicPreviews(TOPIC_PREVIEWS, normalisedQuery)
+    ? searchTopicPreviews(previews, normalisedQuery)
     : { classNumber: null, results: [] };
   const classLabel =
     classNumber === null ? null : formatClassLevel(classNumber);
   const showResults = isOpen && normalisedQuery.length > 0;
 
-  const findOpenTopic = (preview: TopicPreview) => {
-    const topic = catalogueTopics.find(
-      item => item.id === preview.catalogueTopicId,
-    );
-    return topic && topic.batches.length > 0 ? topic : null;
-  };
+  const findOpenTopic = (preview: TopicPreview) =>
+    hasBatches(preview) ? preview.topic : null;
 
   const finish = () => {
     setIsOpen(false);

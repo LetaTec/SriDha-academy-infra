@@ -3,11 +3,10 @@ import {
   STREAM,
   STREAM_LABEL,
   TOPIC_AVAILABILITY,
+  TAUGHT_CLASS_NUMBERS,
   TOPIC_AVAILABILITY_LABEL,
-  TOPIC_PREVIEWS,
 } from '@constants/topics';
 import { formatClassLevel } from '@utils/classLevel';
-import { listTopicClasses } from '@utils/topicSearch';
 
 import type { TopicFilters } from './topicFilters';
 
@@ -29,7 +28,7 @@ export const TOPIC_FILTER_GROUPS: readonly TopicFilterGroup[] = [
     key: 'classNumber',
     legend: PAGE_TEXT.topicsFilterClass,
     anyLabel: PAGE_TEXT.topicsFilterClassAll,
-    options: listTopicClasses(TOPIC_PREVIEWS).map(classNumber => ({
+    options: TAUGHT_CLASS_NUMBERS.map(classNumber => ({
       value: String(classNumber),
       label: formatClassLevel(classNumber),
     })),

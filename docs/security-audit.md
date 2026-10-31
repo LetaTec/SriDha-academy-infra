@@ -46,7 +46,7 @@ However, the audit identified critical operational and configuration vulnerabili
   - Render free-tier PostgreSQL instances are ephemeral and automatically marked for deletion after 30 days (documented expiration date: November 18, 2026).
   - The Render free tier does not provide automated daily physical snapshots or Point-In-Time-Recovery (PITR).
 - **Impact**: Complete data loss of student user accounts, hashed credentials, and course enrolment records if the 30-day boundary is reached without migration or upgrade.
-- **Existing Protection**: Logical migration scripts (`api/src/db/migrateSqliteToPostgres.ts`) exist, but cannot restore data if the live database vanishes.
+- **Existing Protection**: None. Migrations recreate the schema and the seed recreates the catalogue, but student accounts, enrolments and payments cannot be restored if the live database vanishes.
 - **Recommended Correction**:
   1. Upgrade the Render PostgreSQL instance to a persistent tier (e.g. Starter tier at $7/month), which automatically guarantees automated daily physical snapshots, continuous retention, and prevents the 30-day instance termination.
   2. Implement an immediate off-site backup procedure using `pg_dump` with custom format (`--format=custom`), encrypted and stored in secure cloud storage.

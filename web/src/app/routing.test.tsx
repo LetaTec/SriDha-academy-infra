@@ -8,10 +8,10 @@ import {
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider } from '@context/AuthContext';
 import { ToastProvider } from '@context/ToastContext';
-import { resetCatalogueCache } from '@hooks/useCatalogue';
 import {
   confirmAdminSignIn,
   getCurrentSession,
@@ -92,12 +92,20 @@ const GST_TOPIC_ID = 'topic_accounts_gst_class_11';
 const renderApp = (initialEntry: string) => {
   const router = createMemoryRouter(routes, { initialEntries: [initialEntry] });
 
+  // A fresh cache per test, so each one fetches the catalogue itself;
+  // failures are not retried, so error states show at once
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
   render(
-    <ToastProvider>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </ToastProvider>,
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </ToastProvider>
+    </QueryClientProvider>,
   );
 
   return router;
@@ -105,8 +113,6 @@ const renderApp = (initialEntry: string) => {
 
 describe('app routing', () => {
   beforeEach(() => {
-    // The catalogue request is shared across the page; start each test fresh
-    resetCatalogueCache();
     vi.mocked(getCatalogue).mockResolvedValue(catalogueFixture);
     vi.mocked(listPreRegistrations).mockResolvedValue([]);
     vi.mocked(loginStudent).mockResolvedValue(student);
@@ -229,7 +235,7 @@ describe('app routing', () => {
       await waitFor(() => expect(enrol).toBeEnabled());
       // The hover overlay's subtopics double as the button's description
       expect(enrol).toHaveAccessibleDescription(
-        /What we will teach.*What is GST.*Input tax credit/,
+        /What we will teach.*What is GST.*GST entries/,
       );
       // Topics without batches are priced and open for pre-registration
       expect(

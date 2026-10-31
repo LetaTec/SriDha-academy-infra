@@ -1,4 +1,5 @@
 import { MAIL_TRANSPORT, type AppConfig } from '../config/env.js';
+import { logger } from '../logging/logger.js';
 
 // What a paid student is told: the topic, their batch (none for a
 // pre-registration), the amount and where to see it
@@ -27,18 +28,17 @@ const describePayment = ({ topic, batch, amount }: PaymentConfirmation) =>
 
 const consoleMailer: Mailer = {
   sendPasswordReset: async (email, resetUrl) => {
-    console.info('[mail] password reset for %s - %s', email, resetUrl);
+    logger.info('mail.console_password_reset', { email, resetUrl });
   },
   sendAdminSignInLink: async (email, signInUrl) => {
-    console.info('[mail] admin sign-in link for %s - %s', email, signInUrl);
+    logger.info('mail.console_admin_sign_in', { email, signInUrl });
   },
   sendPaymentConfirmation: async (email, confirmation) => {
-    console.info(
-      '[mail] payment confirmation for %s - %s (%s)',
+    logger.info('mail.console_payment_confirmation', {
       email,
-      describePayment(confirmation),
-      confirmation.paymentReference,
-    );
+      payment: describePayment(confirmation),
+      reference: confirmation.paymentReference,
+    });
   },
 };
 
@@ -82,11 +82,11 @@ const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(
-        '[mail] Resend delivery failed status %d: %s',
-        response.status,
-        errorText,
-      );
+      logger.error('mail.delivery_failed', {
+        provider: 'resend',
+        status: response.status,
+        response: errorText,
+      });
       throw new Error(
         `Failed to send "${content.subject}" via Resend (status ${response.status})`,
       );

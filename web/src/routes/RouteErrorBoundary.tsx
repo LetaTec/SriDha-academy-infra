@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { useRouteError } from 'react-router-dom';
 import cx from 'classnames/bind';
 
+import { reportError } from '@/app/errorReporting';
 import { ButtonLink } from '@components/ui/Button/Button';
 import { Heading } from '@components/ui/Heading/Heading';
 import { Section } from '@components/ui/Section/Section';
@@ -14,7 +16,11 @@ const cn = cx.bind(styles);
 
 export const RouteErrorBoundary = () => {
   const error = useRouteError();
-  console.error('[app] route error', error);
+
+  useEffect(() => {
+    console.error('[app] route error', error);
+    reportError(error);
+  }, [error]);
 
   return (
     <Section className={cn('page')}>

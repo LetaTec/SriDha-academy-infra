@@ -13,8 +13,12 @@ import { Text } from '@components/ui/Text/Text';
 import { CATALOGUE_TEXT } from '@constants/catalogue';
 import { LANDING_TEXT } from '@constants/landing';
 import { CHECKOUT_TEXT } from '@constants/payments';
-import { TOPIC_PREVIEWS, type TopicPreview } from '@constants/topics';
-import { findNextBatch, type Topic } from '@services/catalogue';
+import {
+  findNextBatch,
+  hasBatches,
+  type Topic,
+  type TopicPreview,
+} from '@services/catalogue';
 import { formatPrice } from '@utils/currency';
 import { formatDateOnly } from '@utils/date';
 import { searchTopicPreviews } from '@utils/topicSearch';
@@ -23,17 +27,8 @@ import styles from './TopicPreviewGrid.module.css';
 
 const cn = cx.bind(styles);
 
-// The fee and when the next batch starts, or that batches open soon. Until
-// the catalogue arrives, a quiet placeholder keeps the card's height.
-const TopicOffer = ({ topic }: { topic: Topic | null }) => {
-  if (!topic) {
-    return (
-      <Text as="span" variant="small" tone="muted" className={cn('pending')}>
-        {CHECKOUT_TEXT.loadingPrice}
-      </Text>
-    );
-  }
-
+// The fee and when the next batch starts, or that batches open soon
+const TopicOffer = ({ topic }: { topic: Topic }) => {
   const hasBatches = topic.batches.length > 0;
   const nextBatch = findNextBatch(topic);
 
@@ -57,10 +52,8 @@ const TopicOffer = ({ topic }: { topic: Topic | null }) => {
 };
 
 export type TopicPreviewGridProps = {
-  // The topics to show; defaults to every topic
-  previews?: readonly TopicPreview[];
-  // Topics from the live catalogue, which hold each topic's fee and batches
-  catalogueTopics: readonly Topic[];
+  // The topic cards to show, from the catalogue (useTopicPreviews)
+  previews: readonly TopicPreview[];
   // Opens the payment panel for the topic's catalogue id
   onChooseTopic: (topicId: string) => void;
   // The full grid has a search box and four columns; the compact panel
@@ -75,20 +68,15 @@ export type TopicPreviewGridProps = {
 // panel: "Enrol now" when batches are published, "Pre-register now" when
 // they are not. Hovering the card reveals what the topic teaches.
 const TopicPreviewGridView = ({
-  catalogueTopics,
   onChooseTopic,
   showSearch = true,
   columns = 4,
   limit,
-  previews = TOPIC_PREVIEWS,
+  previews,
 }: TopicPreviewGridProps) => {
   const overlayId = useId();
   const [query, setQuery] = useState('');
   const topics = searchTopicPreviews(previews, query).results.slice(0, limit);
-
-  const findCatalogueTopic = (preview: TopicPreview) =>
-    catalogueTopics.find(topic => topic.id === preview.catalogueTopicId) ??
-    null;
 
   return (
     <div className={cn('grid')}>
@@ -107,11 +95,9 @@ const TopicPreviewGridView = ({
         <CardGrid variant="boxed" columns={columns}>
           {topics.map((preview, index) => {
             const descriptionId = `${overlayId}-${index}`;
-            const topic = findCatalogueTopic(preview);
-            const action =
-              topic && topic.batches.length === 0
-                ? CHECKOUT_TEXT.preRegisterAction
-                : CHECKOUT_TEXT.enrolAction;
+            const action = hasBatches(preview)
+              ? CHECKOUT_TEXT.enrolAction
+              : CHECKOUT_TEXT.preRegisterAction;
 
             return (
               <ButtonBase
@@ -144,7 +130,7 @@ const TopicPreviewGridView = ({
                   />
                 </span>
                 <span className={cn('offer')}>
-                  <TopicOffer topic={topic} />
+                  <TopicOffer topic={preview.topic} />
                   <span className={cn('action')}>
                     <Text as="span" variant="strong">
                       {action}

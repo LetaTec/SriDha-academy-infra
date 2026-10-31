@@ -14,9 +14,8 @@ import { APP_ROUTES } from '@constants/routes';
 import { TOPIC_FILTER_PARAM } from '@constants/topics';
 import { useAuth } from '@context/AuthContext';
 import { useToast } from '@context/ToastContext';
-import { useCatalogue } from '@hooks/useCatalogue';
+import { useTopicPreviews } from '@hooks/useTopicPreviews';
 import { logoutStudent } from '@services/auth';
-import { listTopics } from '@services/catalogue';
 
 import { BatchTicker } from './BatchTicker';
 import styles from './SiteHeader.module.css';
@@ -31,8 +30,7 @@ export const SiteHeader = () => {
   const navId = useId();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { subjects } = useCatalogue();
-  const catalogueTopics = listTopics(subjects).map(context => context.topic);
+  const { previews } = useTopicPreviews();
 
   const isHome = location.pathname === APP_ROUTES.HOME;
   const [isScrolled, setIsScrolled] = useState(false);
@@ -170,7 +168,7 @@ export const SiteHeader = () => {
           )}
           <div className={cn('searchSlot')}>
             <TopicSearch
-              catalogueTopics={catalogueTopics}
+              previews={previews}
               onOpenTopic={topicId =>
                 showOnHome({ [CATALOGUE_QUERY_PARAM.topic]: topicId })
               }

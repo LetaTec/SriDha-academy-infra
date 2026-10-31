@@ -1,13 +1,20 @@
 import { randomUUID } from 'node:crypto';
 
+import type { UserRole } from '../../contracts/auth.js';
 import { transaction, type Database } from '../../db/client.js';
+import {
+  findUserIdByEmail,
+  insertPasswordlessUser,
+  listUsersWithRole,
+  setUserRole,
+} from './auth.repository.js';
 
 export const USER_ROLE = {
   student: 'STUDENT',
   superAdmin: 'SUPER_ADMIN',
-} as const;
+} as const satisfies Record<string, UserRole>;
 
-export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
+export type { UserRole };
 
 export const toUserRole = (value: unknown): UserRole =>
   value === USER_ROLE.superAdmin ? USER_ROLE.superAdmin : USER_ROLE.student;
@@ -24,37 +31,26 @@ export const syncSuperAdmins = async (
   const timestamp = now.toISOString();
 
   await transaction(db, async tx => {
-    const current = await tx.all<{ id: string; email: string }>(
-      'SELECT id, email FROM users WHERE role = $1',
-      [USER_ROLE.superAdmin],
-    );
+    const current = await listUsersWithRole(tx, USER_ROLE.superAdmin);
 
     for (const user of current) {
       if (!listed.has(String(user.email).toLowerCase())) {
-        await tx.query(
-          'UPDATE users SET role = $1, updated_at = $2 WHERE id = $3',
-          [USER_ROLE.student, timestamp, user.id],
-        );
+        await setUserRole(tx, String(user.id), USER_ROLE.student, timestamp);
       }
     }
 
     for (const email of listed) {
-      const existing = await tx.get<{ id: string }>(
-        'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
-        [email],
-      );
+      const existingId = await findUserIdByEmail(tx, email);
 
-      if (existing) {
-        await tx.query(
-          'UPDATE users SET role = $1, updated_at = $2 WHERE id = $3',
-          [USER_ROLE.superAdmin, timestamp, existing.id],
-        );
+      if (existingId) {
+        await setUserRole(tx, existingId, USER_ROLE.superAdmin, timestamp);
       } else {
-        await tx.query(
-          `INSERT INTO users (id, email, password_hash, role, created_at, updated_at)
-           VALUES ($1, $2, NULL, $3, $4, $4)`,
-          [randomUUID(), email, USER_ROLE.superAdmin, timestamp],
-        );
+        await insertPasswordlessUser(tx, {
+          id: randomUUID(),
+          email,
+          role: USER_ROLE.superAdmin,
+          timestamp,
+        });
       }
     }
   });

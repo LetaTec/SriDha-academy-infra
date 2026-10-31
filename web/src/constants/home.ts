@@ -1,6 +1,6 @@
 import { ABOUT_SECTION_ID, APP_ROUTES, toPageSection } from './routes';
 import { POLICY_LINKS, POLICY_LINKS_TITLE } from './policies';
-import { READY_TOPIC_COUNT } from './topics';
+import { LIVE_TOPIC_COUNT } from './topics';
 
 export const BRAND = {
   name: 'SriDha Academy',
@@ -65,7 +65,7 @@ export const HERO_TEXT = {
   secondaryAction: 'Create Your Student Account',
   stats: [
     { value: '03', label: 'Learning paths' },
-    { value: READY_TOPIC_COUNT, label: 'Topics ready' },
+    { value: LIVE_TOPIC_COUNT, label: 'Topics ready' },
     { value: '100', label: 'Students / batch' },
   ],
 } as const;

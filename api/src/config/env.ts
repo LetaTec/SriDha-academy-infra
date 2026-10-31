@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import { z } from 'zod';
 
+import { LOG_LEVEL, type LogLevel } from '../logging/logger.js';
+
 export const MAIL_TRANSPORT = {
   console: 'console',
   resend: 'resend',
@@ -13,8 +15,10 @@ const envSchema = z.object({
     .enum(['development', 'test', 'production'])
     .default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
+  // debug | info | warn | error | silent. Defaults to info, and to silent
+  // under tests
+  LOG_LEVEL: z.enum(Object.values(LOG_LEVEL)).optional(),
   DATABASE_URL: z.string().min(1).optional(),
-  DATABASE_PATH: z.string().min(1).default('./data/leta-ed.sqlite'),
   WEB_ORIGIN: z.string().url().optional(),
   ALLOWED_ORIGINS: z.string().optional(),
   SESSION_TTL_DAYS: z.coerce.number().positive().default(1),
@@ -44,6 +48,9 @@ const envSchema = z.object({
   // saved as payment pending and nothing is charged.
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
+  // Sentry project DSN. When set, every error the API logs is reported
+  // there; without it nothing is sent.
+  SENTRY_DSN: z.string().url().optional(),
   // Set in Razorpay's dashboard (Settings → Webhooks). Lets Razorpay confirm
   // payments even when the student closes the page before we can.
   RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -52,8 +59,8 @@ const envSchema = z.object({
 export type AppConfig = {
   env: 'development' | 'test' | 'production';
   port: number;
+  logLevel: LogLevel;
   databaseUrl: string | null;
-  databasePath: string;
   webOrigin: string;
   allowedOrigins: string[];
   sessionTtlMs: number;
@@ -70,10 +77,24 @@ export type AppConfig = {
   superAdminEmails: string[];
   razorpay: { keyId: string; keySecret: string } | null;
   razorpayWebhookSecret: string | null;
+  sentryDsn: string | null;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEVELOPMENT_WEB_ORIGIN = 'http://localhost:5173';
+
+// An origin is a scheme and host (and port) with nothing after them
+const isHttpOrigin = (value: string) => {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'https:' || url.protocol === 'http:') &&
+      url.origin === value
+    );
+  } catch {
+    return false;
+  }
+};
 
 const loadEnvFile = () => {
   const envPath = path.resolve(process.cwd(), '.env');
@@ -128,6 +149,21 @@ export const loadConfig = (
     );
   }
 
+  // Without keys checkout falls back to test mode, which can never confirm
+  // a payment; without the webhook secret, a payment whose tab closed early
+  // is never confirmed. Production refuses to start with either missing.
+  if (isProduction && !env.RAZORPAY_KEY_ID) {
+    throw new Error(
+      'Invalid API configuration — RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are required in production',
+    );
+  }
+
+  if (isProduction && !env.RAZORPAY_WEBHOOK_SECRET) {
+    throw new Error(
+      'Invalid API configuration — RAZORPAY_WEBHOOK_SECRET is required in production',
+    );
+  }
+
   const normalizeOrigin = (origin: string): string =>
     origin.trim().replace(/\/+$/, '');
 
@@ -137,6 +173,28 @@ export const loadConfig = (
   const additionalOrigins = env.ALLOWED_ORIGINS
     ? env.ALLOWED_ORIGINS.split(',').map(normalizeOrigin).filter(Boolean)
     : [];
+
+  const invalidOrigins = additionalOrigins.filter(
+    origin => !isHttpOrigin(origin),
+  );
+  if (invalidOrigins.length > 0) {
+    throw new Error(
+      `Invalid API configuration — ALLOWED_ORIGINS has entries that are not http(s) origins: ${invalidOrigins.join(', ')}`,
+    );
+  }
+
+  const superAdminEmails = (env.SUPER_ADMIN_EMAILS ?? '')
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+  const invalidEmails = superAdminEmails.filter(
+    email => !z.email().safeParse(email).success,
+  );
+  if (invalidEmails.length > 0) {
+    throw new Error(
+      `Invalid API configuration — SUPER_ADMIN_EMAILS has entries that are not email addresses: ${invalidEmails.join(', ')}`,
+    );
+  }
 
   const originList = [primaryOrigin, ...additionalOrigins];
   for (const origin of [...originList]) {
@@ -160,8 +218,10 @@ export const loadConfig = (
   return {
     env: env.NODE_ENV,
     port: env.PORT,
+    logLevel:
+      env.LOG_LEVEL ??
+      (env.NODE_ENV === 'test' ? LOG_LEVEL.silent : LOG_LEVEL.info),
     databaseUrl: env.DATABASE_URL ?? null,
-    databasePath: env.DATABASE_PATH,
     webOrigin: primaryOrigin,
     allowedOrigins,
     sessionTtlMs: env.SESSION_TTL_DAYS * DAY_MS,
@@ -175,15 +235,13 @@ export const loadConfig = (
     secureCookies: isProduction,
     cookieSameSite,
     cookieDomain: env.COOKIE_DOMAIN,
-    superAdminEmails: (env.SUPER_ADMIN_EMAILS ?? '')
-      .split(',')
-      .map(email => email.trim().toLowerCase())
-      .filter(Boolean),
+    superAdminEmails,
     razorpay:
       env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
         ? { keyId: env.RAZORPAY_KEY_ID, keySecret: env.RAZORPAY_KEY_SECRET }
         : null,
     razorpayWebhookSecret: env.RAZORPAY_WEBHOOK_SECRET ?? null,
+    sentryDsn: env.SENTRY_DSN ?? null,
   };
 };
 
