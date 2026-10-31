@@ -238,12 +238,33 @@ export const MIGRATIONS: readonly Migration[] = [
     // What a topic card shows, so the website reads every topic from the
     // catalogue instead of keeping its own copy: the short card name, an
     // optional icon and the order of featured topics. The seed fills them.
+    // Existing rows are filled here too, so a database that is migrated
+    // but not re-seeded still shows proper cards: the eight featured topics
+    // by id, the rest from their "Learn <name> for Class N" titles.
     id: '007_topic_card_fields',
     sql: `
       ALTER TABLE topics ADD COLUMN short_title TEXT;
       ALTER TABLE topics ADD COLUMN icon TEXT;
       ALTER TABLE topics
         ADD COLUMN featured_rank INTEGER CHECK (featured_rank > 0);
+
+      UPDATE topics
+      SET short_title = regexp_replace(title, '^Learn (.+) for Class [0-9]+$', '\\1')
+      WHERE title ~ '^Learn (.+) for Class [0-9]+$';
+
+      UPDATE topics SET short_title = featured.short_title,
+        icon = featured.icon, featured_rank = featured.featured_rank
+      FROM (VALUES
+        ('topic_accounts_gst_class_11', 'GST', 'topicGst', 1),
+        ('topic_chemistry_bonding_class_11', 'Chemical bonding', 'topicBonding', 2),
+        ('topic_physics_ray_optics_class_12', 'Ray optics', 'topicOptics', 3),
+        ('topic_maths_integrals_class_12', 'Integrals', 'topicIntegrals', 4),
+        ('topic_chemistry_mole_concept_class_11', 'Mole concept', 'topicMole', 5),
+        ('topic_physics_current_electricity_class_12', 'Current electricity', 'topicCurrent', 6),
+        ('topic_physics_laws_of_motion_class_11', 'Laws of motion', 'topicMotion', 7),
+        ('topic_accounts_partnership_class_12', 'Partnership accounts', 'topicPartnership', 8)
+      ) AS featured (id, short_title, icon, featured_rank)
+      WHERE topics.id = featured.id;
     `,
   },
 ];
