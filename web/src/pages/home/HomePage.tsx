@@ -55,25 +55,25 @@ const HomePage = () => {
         onOpenTopic={openTopic}
         onSelectBatch={handleSelectBatch}
       />
-      {/* 2. Real Subject Discovery */}
+      {/* 2. Practice Tests: continues the hero's forest green */}
+      <AiTestSection />
+
+      {/* 3. Interactive Learning Journey: the first ivory section */}
+      <LearningJourneySection />
+
+      {/* 4. Real Topic Discovery */}
       <TopicsSection
         catalogue={catalogue}
         onOpenTopic={openTopic}
         onSelectBatch={handleSelectBatch}
       />
 
-      {/* 3. Interactive Learning Journey */}
-      <LearningJourneySection />
-
-      {/* 4. AI Assessment Experience */}
-      <AiTestSection />
-
-      {/* 5. Previous-Year and Model-Paper Discovery */}
+      {/* 5. Past Papers and Sample Papers */}
       <ModelPaperDiscoverySection
         onJoinWaitlist={() => setActiveDialog('modelPaper')}
       />
 
-      {/* 6. Actual Programs and Available Courses */}
+      {/* 6. The three ways to learn */}
       <ProgramsSection
         onSeeTestFlow={() => setActiveDialog('aiTest')}
         onJoinWaitlist={() => setActiveDialog('modelPaper')}

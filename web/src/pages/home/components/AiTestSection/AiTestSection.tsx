@@ -31,7 +31,12 @@ export const AiTestSection = () => {
   };
 
   return (
-    <Section id={HOME_SECTION_ID.aiTest} tone="inverse" labelledBy={TITLE_ID}>
+    <Section
+      id={HOME_SECTION_ID.aiTest}
+      tone="inverse"
+      className={cn('section')}
+      labelledBy={TITLE_ID}
+    >
       <div className={cn('grid')}>
         <Reveal className={cn('copy')}>
           <Text as="div" variant="eyebrow" tone="accentInverse">
@@ -53,15 +58,11 @@ export const AiTestSection = () => {
           </Text>
 
           <ul className={cn('featuresList')}>
-            <li className={cn('featureItem')}>
-              <span>Algorithmic paper generation from syllabus blueprints</span>
-            </li>
-            <li className={cn('featureItem')}>
-              <span>Instant step-marking with detailed reasoning</span>
-            </li>
-            <li className={cn('featureItem')}>
-              <span>Client-side demonstration · No login required</span>
-            </li>
+            {AI_TEST_TEXT.features.map(feature => (
+              <li key={feature} className={cn('featureItem')}>
+                <span>{feature}</span>
+              </li>
+            ))}
           </ul>
 
           <Button

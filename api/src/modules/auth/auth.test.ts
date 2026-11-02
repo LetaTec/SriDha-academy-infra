@@ -191,6 +191,44 @@ describe('auth', () => {
     assert.equal(afterLogout.body.code, 'UNAUTHENTICATED');
   });
 
+  it('keeps every registered account able to sign in, whatever case or spacing its email was typed in', async () => {
+    const second = server.createClient();
+    const registered = await second.request(
+      'POST',
+      '/api/auth/register',
+      validRegistration({
+        email: '  Second.Student@Example.COM ',
+        password: 'another-horse-2',
+      }),
+    );
+    assert.equal(registered.status, 201);
+    assert.equal(registered.body.user.email, 'second.student@example.com');
+
+    for (const email of [
+      'second.student@example.com',
+      'SECOND.STUDENT@EXAMPLE.COM',
+      ' Second.Student@Example.com ',
+    ]) {
+      const client = server.createClient();
+      const login = await client.request('POST', '/api/auth/login', {
+        email,
+        password: 'another-horse-2',
+      });
+      assert.equal(login.status, 200, `login as ${JSON.stringify(email)}`);
+      assert.equal(login.body.user.id, registered.body.user.id);
+    }
+
+    // Accounts are independent: one student's password never opens another's
+    const crossed = await server
+      .createClient()
+      .request('POST', '/api/auth/login', {
+        email: 'second.student@example.com',
+        password: 'correct-horse-1',
+      });
+    assert.equal(crossed.status, 401);
+    assert.equal(crossed.body.code, 'INVALID_CREDENTIALS');
+  });
+
   it('reports an expired session distinctly', async () => {
     const client = server.createClient();
     await client.request('POST', '/api/auth/login', {

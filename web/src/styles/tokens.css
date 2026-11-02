@@ -13,12 +13,12 @@
   --color-bg-zebra: rgb(255 255 255 / 0.35);
 
   --color-text-primary: #252823;
-  --color-text-muted: #77776f;
-  --color-text-sheet-muted: #77776f;
+  --color-text-muted: #65655e;
+  --color-text-sheet-muted: #65655e;
   --color-text-inverse: #f7f5ef;
   --color-text-inverse-muted: rgb(247 245 239 / 0.72);
-  --color-text-inverse-subtle: rgb(247 245 239 / 0.45);
-  --color-text-accent: #b69a5a;
+  --color-text-inverse-subtle: rgb(247 245 239 / 0.62);
+  --color-text-accent: #80672a;
   --color-text-accent-inverse: #cbb59d;
   --color-text-accent-inverse-strong: #d8c28c;
   --color-text-danger: #9b3b2f;

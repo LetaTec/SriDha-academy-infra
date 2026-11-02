@@ -37,7 +37,12 @@ export const TopicsSection = ({
   const { previews, isLoading, hasError, reload } = useTopicPreviews();
 
   return (
-    <Section id={HOME_SECTION_ID.topics} labelledBy={TITLE_ID}>
+    <Section
+      id={HOME_SECTION_ID.topics}
+      tone="subtle"
+      divider
+      labelledBy={TITLE_ID}
+    >
       <SectionHead
         titleId={TITLE_ID}
         title={

@@ -1,0 +1,28 @@
+# Local development database only. It is separate from production: the
+# credentials below are throwaway, the port is bound to localhost, and the
+# data lives in the named volume so it survives API restarts and reboots.
+#
+#   npm run db:up      start it (first run creates the sridha_dev database)
+#   npm run db:down    stop it, keeping the data
+#   npm run db:reset   stop it and delete the data
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sridha-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sridha_dev
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - sridha_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d sridha_dev']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  sridha_pgdata:

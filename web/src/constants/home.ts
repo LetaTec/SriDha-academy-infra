@@ -133,6 +133,11 @@ export const AI_TEST_TEXT = {
   titleEmphasis: 'Without repetition.',
   description:
     'Practise with questions designed around your syllabus. Each student gets a different paper for their topic, followed by instant marking, step-by-step explanations and a view of which topics need more practice',
+  features: [
+    'Questions built around your syllabus',
+    'Instant marking with step-by-step reasoning',
+    'Try a sample here, no extra sign-in needed',
+  ],
   action: 'Start sample test',
 } as const;
 

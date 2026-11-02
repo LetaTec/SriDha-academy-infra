@@ -21,12 +21,7 @@ export type ModelPaperDiscoverySectionProps = {
 export const ModelPaperDiscoverySection = ({
   onJoinWaitlist,
 }: ModelPaperDiscoverySectionProps) => (
-  <Section
-    id={HOME_SECTION_ID.modelPaper}
-    tone="subtle"
-    divider
-    labelledBy={TITLE_ID}
-  >
+  <Section id={HOME_SECTION_ID.modelPaper} divider labelledBy={TITLE_ID}>
     <SectionHead
       titleId={TITLE_ID}
       title={

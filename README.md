@@ -90,23 +90,28 @@ Student photographs are used under [CC BY 2.0](https://creativecommons.org/licen
 
 ```bash
 npm install
-cp api/.env.example api/.env   # placeholders only, adjust if needed
-npm run dev:api                # http://localhost:4000 (in-memory PostgreSQL, seeded on start)
+cp api/.env.example api/.env   # local-only values; DATABASE_URL points at the dev database
+npm run db:up                  # local PostgreSQL in Docker; its data survives restarts
+npm run db:seed                # loads the catalogue (safe to re-run)
+npm run dev:api                # http://localhost:4000
 npm run dev:web                # http://localhost:5173 (proxies /api to the API)
 ```
 
-With no `DATABASE_URL` the API runs PGlite, an in-memory PostgreSQL that starts empty and seeds itself. To use a real PostgreSQL database, set `DATABASE_URL` and run `npm run db:seed` once (it is safe to re-run).
+Use this local database for everyday work: student accounts stay registered across API restarts. It is separate from production, so never point `DATABASE_URL` at a production database. `npm run db:down` stops it and keeps the data; `npm run db:reset` deletes it.
+
+With no `DATABASE_URL` the API falls back to PGlite, an in-memory PostgreSQL that starts empty and seeds itself. **Every account is lost when the API restarts**, including each file save under `npm run dev:api`, so use it only for throwaway runs and tests.
 
 ## Scripts (from the repository root)
 
-| Command                   | Does                                                          |
-| ------------------------- | ------------------------------------------------------------- |
-| `npm run lint`            | ESLint for api and web                                        |
-| `npm run typecheck`       | TypeScript for api and web                                    |
-| `npm run test`            | API integration tests (node:test) and web tests (Vitest)      |
-| `npm run build`           | Builds `api/dist` and `web/dist`                              |
-| `npm run test:e2e -w web` | Playwright browser tests in local Chrome (desktop and mobile) |
-| `npm run format`          | Prettier                                                      |
+| Command                                  | Does                                                          |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| `npm run db:up` / `db:down` / `db:reset` | Start, stop, or wipe the local development PostgreSQL         |
+| `npm run lint`                           | ESLint for api and web                                        |
+| `npm run typecheck`                      | TypeScript for api and web                                    |
+| `npm run test`                           | API integration tests (node:test) and web tests (Vitest)      |
+| `npm run build`                          | Builds `api/dist` and `web/dist`                              |
+| `npm run test:e2e -w web`                | Playwright browser tests in local Chrome (desktop and mobile) |
+| `npm run format`                         | Prettier                                                      |
 
 GitHub Actions runs lint, typecheck, unit tests, the build and the browser tests on every pull request (`.github/workflows/checks.yml`).
 

@@ -14,6 +14,40 @@ const VIEWPORTS = [
 ];
 
 test.describe('Homepage Redesign Responsiveness and Quality', () => {
+  test('shows the hero, practice tests and learning journey before the other sections', async ({
+    page,
+  }) => {
+    const res = await page.request.post('/api/auth/register', {
+      data: {
+        fullName: 'Asha Verma',
+        email: uniqueEmail('section-order'),
+        password: PASSWORD,
+        dateOfBirth: '2008-04-12',
+        mobile: '9876543210',
+        standard: 'CLASS_11',
+        stream: 'COMMERCE',
+        address: null,
+      },
+    });
+    expect(res.status()).toBe(201);
+
+    await page.goto('/');
+    await expect(page.locator('main section#home')).toBeVisible();
+
+    const ids = await page
+      .locator('main section[id]')
+      .evaluateAll(sections => sections.map(section => section.id));
+
+    expect(ids.slice(0, 6)).toEqual([
+      'home',
+      'ai-test',
+      'learning-journey',
+      'topics',
+      'model-paper',
+      'programs',
+    ]);
+  });
+
   for (const vp of VIEWPORTS) {
     test(`renders perfectly with 0 overflow at ${vp.name} (${vp.width}x${vp.height})`, async ({
       page,
