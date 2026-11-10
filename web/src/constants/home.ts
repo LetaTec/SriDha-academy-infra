@@ -1,4 +1,5 @@
 import { ABOUT_SECTION_ID, APP_ROUTES, toPageSection } from './routes';
+import type { StudentPhotoKey } from './photos';
 import { POLICY_LINKS, POLICY_LINKS_TITLE } from './policies';
 
 export const BRAND = {
@@ -61,7 +62,21 @@ export const HERO_TEXT = {
   lead: 'Type a topic or your class to see its fee, lessons and next batches. No account needed to look around',
   popularLabel: 'Popular',
   searchLabel: 'Search your topic',
+  highlights: [
+    'Live topic batches',
+    'Verifiable concept milestones',
+    'AI assessment papers',
+  ],
 } as const;
+
+// Student photos either side of the search (one per side on phones)
+export const HERO_PHOTOS: {
+  start: readonly StudentPhotoKey[];
+  end: readonly StudentPhotoKey[];
+} = {
+  start: ['writing', 'slate'],
+  end: ['classroom', 'smiling'],
+};
 
 export const CONCEPT_MAP_TEXT = {
   eyebrow: 'Interactive Concept Map',

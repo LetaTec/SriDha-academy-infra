@@ -29,3 +29,11 @@
   font-size: var(--text-3xs);
   letter-spacing: var(--tracking-sheet);
 }
+
+.offset .frame {
+  box-shadow: var(--shadow-offset-accent-sm);
+}
+
+.inverse .credit {
+  color: var(--color-text-inverse-subtle);
+}
