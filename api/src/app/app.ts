@@ -12,6 +12,7 @@ import {
   notFoundHandler,
 } from '../http/errors.js';
 import { createOriginGuard } from '../http/originGuard.js';
+import { isOriginAllowed } from '../http/origins.js';
 import { REQUEST_ID_HEADER, requestContext } from '../http/requestContext.js';
 import { logger } from '../logging/logger.js';
 import { createAuthRouter } from '../modules/auth/auth.routes.js';
@@ -63,11 +64,9 @@ const noStore: RequestHandler = (_req, res, next) => {
 const createCorsMiddleware = (
   allowedOrigins: readonly string[],
 ): RequestHandler => {
-  const originSet = new Set(allowedOrigins);
-
   return (req, res, next) => {
     const origin = req.get('origin');
-    if (origin && originSet.has(origin)) {
+    if (origin && isOriginAllowed(allowedOrigins, origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader(

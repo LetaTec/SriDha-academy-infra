@@ -116,7 +116,7 @@ Vary: Origin
 
 ### OriginGuard & CORS Policy
 
-- CORS is strictly locked down to permitted origins specified in `WEB_ORIGIN` and `ALLOWED_ORIGINS`.
+- CORS is strictly locked down to permitted origins specified in `WEB_ORIGIN` and `ALLOWED_ORIGINS`. A `https://*.<host>` entry admits only one subdomain level of that host over https (Cloudflare previews, built only from this repository); look-alike hosts such as `evil-<host>` do not match.
 - Allowed origins are normalized (whitespace stripped, trailing slashes removed).
 - Wildcard origins (`*`) are strictly forbidden when credentials (`withCredentials: true`) are enabled.
 - Sibling domain pairing automatically permits `https://sridhaacademy.com` and `https://www.sridhaacademy.com`.

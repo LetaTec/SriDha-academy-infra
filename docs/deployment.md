@@ -54,17 +54,17 @@ https://sridhaacademy.com ──► https://api.sridhaacademy.com ──► Priv
 
 Under the **Environment** tab of your new Web Service, add:
 
-| Key                  | Value                                                            | Notes                                          |
-| :------------------- | :--------------------------------------------------------------- | :--------------------------------------------- |
-| `NODE_ENV`           | `production`                                                     | Enforces secure cookies and validation         |
-| `PORT`               | `4000`                                                           | Render assigns port or sets PORT automatically |
-| `DATABASE_URL`       | `<Internal Database URL from Step 2>`                            | From Render PostgreSQL service                 |
-| `WEB_ORIGIN`         | `https://sridhaacademy.com`                                      | Primary production domain                      |
-| `ALLOWED_ORIGINS`    | `https://www.sridhaacademy.com,https://sridha-academy.pages.dev` | Allowed subdomains                             |
-| `MAIL_TRANSPORT`     | `resend`                                                         | Enables transactional email                    |
-| `RESEND_API_KEY`     | `re_...`                                                         | From Resend dashboard                          |
-| `EMAIL_FROM`         | `SriDha Academy <noreply@sridhaacademy.com>`                     | Verified sender address                        |
-| `PG_MAX_CONNECTIONS` | `10`                                                             | Pool sizing                                    |
+| Key                  | Value                                                                                                                                       | Notes                                                                                                      |
+| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`           | `production`                                                                                                                                | Enforces secure cookies and validation                                                                     |
+| `PORT`               | `4000`                                                                                                                                      | Render assigns port or sets PORT automatically                                                             |
+| `DATABASE_URL`       | `<Internal Database URL from Step 2>`                                                                                                       | From Render PostgreSQL service                                                                             |
+| `WEB_ORIGIN`         | `https://sridhaacademy.com`                                                                                                                 | Primary production domain                                                                                  |
+| `ALLOWED_ORIGINS`    | `https://www.sridhaacademy.com,https://sridha-academy.pages.dev,https://*.sridha-academy.pages.dev,https://*.sridha-academy-site.pages.dev` | Allowed sites. `https://*.<host>` allows that host's preview deployments (one subdomain level, https only) |
+| `MAIL_TRANSPORT`     | `resend`                                                                                                                                    | Enables transactional email                                                                                |
+| `RESEND_API_KEY`     | `re_...`                                                                                                                                    | From Resend dashboard                                                                                      |
+| `EMAIL_FROM`         | `SriDha Academy <noreply@sridhaacademy.com>`                                                                                                | Verified sender address                                                                                    |
+| `PG_MAX_CONNECTIONS` | `10`                                                                                                                                        | Pool sizing                                                                                                |
 
 ### Step 3: Health Check Endpoint
 

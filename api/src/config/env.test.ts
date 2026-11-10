@@ -63,6 +63,27 @@ describe('config', () => {
     );
   });
 
+  it('accepts a preview wildcard and rejects malformed ones', () => {
+    const config = loadConfig({
+      ...PRODUCTION,
+      ALLOWED_ORIGINS:
+        'https://www.sridhaacademy.com, https://*.sridha-academy.pages.dev',
+    });
+    assert.ok(
+      config.allowedOrigins.includes('https://*.sridha-academy.pages.dev'),
+    );
+    assert.throws(
+      () =>
+        loadConfig({ ...PRODUCTION, ALLOWED_ORIGINS: 'https://*.pages.dev/x' }),
+      /not http\(s\) origins/,
+    );
+    assert.throws(
+      () =>
+        loadConfig({ ...PRODUCTION, ALLOWED_ORIGINS: 'http://*.example.com' }),
+      /not http\(s\) origins/,
+    );
+  });
+
   it('rejects super admin entries that are not email addresses', () => {
     assert.throws(
       () =>
