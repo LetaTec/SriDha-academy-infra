@@ -7,6 +7,10 @@
   min-height: var(--height-control-compact);
   padding-block: var(--space-1);
   font-size: var(--text-sm);
+  /* Light on any background, so the query reads on the dark homepage
+     header and hero as well as on the light pages */
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
 }
 
 /* The homepage's main search: full width and taller, results under it */
@@ -18,9 +22,6 @@
 .searchLarge .input {
   min-height: var(--height-control-large);
   padding-left: var(--space-3);
-  /* Light on any background, so the query reads on the dark hero */
-  background: var(--color-bg-page);
-  color: var(--color-text-primary);
   font-size: var(--text-md);
 }
 
