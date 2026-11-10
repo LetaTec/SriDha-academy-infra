@@ -9,7 +9,8 @@
   min-height: var(--height-hero-search);
   padding-top: calc(var(--height-header) + var(--space-8));
   padding-bottom: var(--space-10);
-  background: var(--color-bg-inverse-deep);
+  background: var(--color-bg-raised);
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
 }
 
 /* Illustrations, search, illustrations */
@@ -38,7 +39,7 @@
 
 .title em {
   font-style: italic;
-  color: var(--color-text-accent-inverse-strong);
+  color: var(--color-text-accent);
 }
 
 .lead {

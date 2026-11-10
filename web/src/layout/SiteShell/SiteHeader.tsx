@@ -32,26 +32,6 @@ export const SiteHeader = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { previews } = useTopicPreviews();
 
-  const isHome = location.pathname === APP_ROUTES.HOME;
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    if (!isHome) {
-      setIsScrolled(true);
-      return;
-    }
-
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 48);
-    };
-
-    handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isHome]);
-
-  const isCinema = isHome && !isScrolled;
-
   // Search results open the topic or batch on the homepage, from any page.
   const showOnHome = (params: Record<string, string>) => {
     setIsMenuOpen(false);
@@ -100,7 +80,6 @@ export const SiteHeader = () => {
       <>
         <ButtonRouteLink
           variant="plain"
-          tone={isCinema ? 'inverse' : 'default'}
           to={APP_ROUTES.MY_LEARNING}
           onClick={() => setIsMenuOpen(false)}
         >
@@ -108,7 +87,6 @@ export const SiteHeader = () => {
         </ButtonRouteLink>
         <Button
           variant="secondary"
-          tone={isCinema ? 'inverse' : 'default'}
           loading={isLoggingOut}
           onClick={handleLogout}
         >
@@ -118,18 +96,15 @@ export const SiteHeader = () => {
     ) : null;
 
   return (
-    <header className={cn('header', { headerCinema: isCinema })}>
+    <header className={cn('header')}>
       <BatchTicker />
       <Container className={cn('nav')}>
         <Link
           to={APP_ROUTES.HOME}
-          className={cn('logoLink', { logoCinema: isCinema })}
+          className={cn('logoLink')}
           aria-label={HEADER_TEXT.homeLabel}
         >
-          <BrandLogo
-            variant="horizontal"
-            tone={isCinema ? 'inverse' : 'default'}
-          />
+          <BrandLogo variant="horizontal" />
         </Link>
 
         <nav
@@ -197,7 +172,7 @@ export const SiteHeader = () => {
           label={isMenuOpen ? HEADER_TEXT.closeMenu : HEADER_TEXT.openMenu}
           aria-expanded={isMenuOpen}
           aria-controls={navId}
-          className={cn('menuButton', { menuButtonCinema: isCinema })}
+          className={cn('menuButton')}
           onClick={() => setIsMenuOpen(open => !open)}
         />
       </Container>

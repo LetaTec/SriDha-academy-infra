@@ -49,14 +49,6 @@
   fill: var(--color-bg-inverse);
 }
 
-.inverse .tint {
-  opacity: 1;
-}
-
-.inverse .deskFront {
-  fill: var(--color-accent-soft);
-}
-
 .paper {
   fill: var(--color-bg-raised);
   stroke: var(--color-text-primary);

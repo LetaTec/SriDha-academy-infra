@@ -16,9 +16,6 @@ export type StudentIllustrationProps = {
   // Decorative by default. Pass a label when the picture carries meaning the
   // surrounding text does not.
   label?: string;
-  // inverse for the dark green sections: a solid backdrop and a light desk
-  // front, so the scene does not sink into the background
-  tone?: 'default' | 'inverse';
   className?: string;
 };
 
@@ -265,13 +262,12 @@ const Prop = ({ scene }: { scene: StudentScene }) => {
 export const StudentIllustration = ({
   scene,
   palette = 'forest',
-  tone = 'default',
   label,
   className,
 }: StudentIllustrationProps) => (
   <svg
     viewBox="0 0 200 184"
-    className={cn('illustration', { inverse: tone === 'inverse' }, className)}
+    className={cn('illustration', className)}
     style={PALETTE[palette] as CSSProperties}
     role={label ? 'img' : undefined}
     aria-label={label}

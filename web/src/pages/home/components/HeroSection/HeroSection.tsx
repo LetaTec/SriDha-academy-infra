@@ -30,11 +30,7 @@ const IllustrationColumn = ({
   <div className={cn('photos', side)} aria-hidden="true">
     {HERO_ILLUSTRATIONS[side].map((item, index) => (
       <div key={item.scene} className={cn('photo', { photoExtra: index > 0 })}>
-        <StudentIllustration
-          scene={item.scene}
-          palette={item.palette}
-          tone="inverse"
-        />
+        <StudentIllustration scene={item.scene} palette={item.palette} />
       </div>
     ))}
   </div>
@@ -71,26 +67,20 @@ export const HeroSection = ({
       <Container className={cn('layout')}>
         <IllustrationColumn side="start" />
         <div className={cn('center')}>
-          <Text as="div" variant="eyebrow" tone="accentInverse">
+          <Text as="div" variant="eyebrow" tone="accent">
             {HERO_TEXT.kicker}
           </Text>
 
           <Heading
             level={1}
             variant="hero"
-            tone="inverse"
             id={TITLE_ID}
             className={cn('title')}
           >
             {HERO_TEXT.title} <em>{HERO_TEXT.titleEmphasis}</em>
           </Heading>
 
-          <Text
-            as="p"
-            variant="lead"
-            tone="inverseMuted"
-            className={cn('lead')}
-          >
+          <Text as="p" variant="lead" tone="muted" className={cn('lead')}>
             {HERO_TEXT.lead}
           </Text>
 
@@ -107,14 +97,13 @@ export const HeroSection = ({
 
           {popular.length > 0 ? (
             <div className={cn('popular')}>
-              <Text as="span" variant="small" tone="inverseMuted">
+              <Text as="span" variant="small" tone="muted">
                 {HERO_TEXT.popularLabel}
               </Text>
               {popular.map(preview => (
                 <Button
                   key={preview.catalogueTopicId}
                   variant="secondary"
-                  tone="inverse"
                   className={cn('popularTopic')}
                   onClick={() => choosePopular(preview)}
                 >
@@ -128,7 +117,7 @@ export const HeroSection = ({
             {HERO_TEXT.highlights.map(item => (
               <li key={item} className={cn('highlight')}>
                 <span className={cn('highlightDot')} aria-hidden="true" />
-                <Text as="span" variant="small" tone="inverseMuted">
+                <Text as="span" variant="small" tone="muted">
                   {item}
                 </Text>
               </li>
