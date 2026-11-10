@@ -41,20 +41,6 @@
   color: var(--color-text-inverse) !important;
 }
 
-.registerCta {
-  background: var(--color-accent) !important;
-  border-color: var(--color-accent) !important;
-  color: var(--color-bg-inverse-deep) !important;
-  font-weight: var(--weight-bold) !important;
-  white-space: nowrap;
-}
-
-.registerCta:hover:not(.disabled) {
-  background: #d4b975 !important;
-  border-color: #d4b975 !important;
-  color: var(--color-bg-inverse-deep) !important;
-}
-
 .nav {
   display: grid;
   grid-template-columns: 1fr auto 1fr;

@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const SCREENSHOT_DIR = 'test-results/screenshots';
-const NOVEMBER_BATCH = 'batch_gst_class_11_november';
+// The next GST batch still open; the November one started on 1 November
+const OPEN_BATCH = 'batch_gst_class_11_december';
 const GST_TOPIC = 'topic_accounts_gst_class_11';
 const PASSWORD = 'correct-horse-1';
 
@@ -46,71 +47,83 @@ const signedIn = async (page: Page, label: string) => {
   await registerViaApi(page, uniqueEmail(label));
 };
 
-test.describe('sign-in gate', () => {
-  test('visitors only see the sign-in page until they register', async ({
+test.describe('open site', () => {
+  test('visitors land on the topic search without an account', async ({
     page,
   }, testInfo) => {
     await page.goto('/');
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/$/);
     await expect(
-      page.getByRole('heading', { name: 'Welcome back' }),
+      page.getByRole('heading', { level: 1, name: /search your\s*topic/i }),
     ).toBeVisible();
-    await expect(book(page)).toHaveCount(0);
-    await expect(page.getByText('Topics to begin with')).toHaveCount(0);
+    // No account links in the header until there is an account
+    await expect(
+      page.getByRole('banner').getByRole('link', { name: 'My learning' }),
+    ).toHaveCount(0);
 
-    // Beside the form: the shuffling subject cards. Below it: our model.
-    const hero = page.getByRole('region', { name: 'What we teach' });
-    await expect(hero.getByRole('article')).toBeVisible();
+    const search = page.getByRole('searchbox', { name: 'Search your topic' });
+    await search.fill('gst');
+    const results = page
+      .locator('#home')
+      .getByRole('region', { name: 'Matching topics and batches' });
     await expect(
-      hero.getByRole('heading', {
-        level: 2,
-        name: /Class 11 Accounts|Class 11 Economics|Class 11 Science|DLT registration|Class 11 Mathematics/,
-      }),
+      results.getByRole('button', { name: /^GST.*₹129/ }),
     ).toBeVisible();
-    await expect(
-      hero.getByRole('button', { name: 'Pause subject shuffle' }),
-    ).toBeVisible();
+    await page.screenshot({
+      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-search.png`,
+    });
 
-    await expect(
-      page.getByRole('heading', {
-        level: 2,
-        name: 'Big Subjects. Broken Into Small Victories.',
-      }),
-    ).toBeVisible();
-    await expect(page.getByText('Breaking down the model')).toBeVisible();
+    await search.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`topic=${GST_TOPIC}`));
+    await expect(page.getByRole('dialog', { name: /GST/ })).toBeVisible();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     );
     expect(overflow).toBeLessThanOrEqual(0);
-    await page.screenshot({
-      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-login.png`,
-      fullPage: true,
-    });
-
-    await page.getByRole('link', { name: 'Join for free' }).first().click();
-    await expect(page).toHaveURL(/\/register$/);
-    await page.getByLabel('Student name').fill('Asha Verma');
-    await page.getByLabel('Date of birth').fill('2009-04-12');
-    await page.getByLabel('Mobile number').fill('+91 98765 43210');
-    await page.getByLabel('Email ID').fill(uniqueEmail(testInfo.project.name));
-    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
-    await page.getByLabel('Standard / Exam').selectOption('CLASS_10');
-    await page.screenshot({
-      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-register.png`,
-      fullPage: true,
-    });
-    await page.getByRole('button', { name: /create account/i }).click();
-
-    await expect(page).toHaveURL(/\/$/);
-    await expect(book(page)).toBeVisible();
   });
 
-  test('a chosen batch survives the sign-in redirect', async ({
+  test('paying asks for an account in the payment panel', async ({
+    page,
+  }, testInfo) => {
+    await page.goto(`/?topic=${GST_TOPIC}&batch=${OPEN_BATCH}`);
+    const review = page.getByRole('dialog', {
+      name: /review your\s*selection/i,
+    });
+    await review.getByRole('button', { name: 'Continue to payment' }).click();
+
+    const panel = page.getByRole('dialog', { name: /^GST/ });
+    await expect(
+      panel.getByRole('heading', { name: 'Sign in to continue' }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Pay / })).toHaveCount(0);
+
+    // A new student registers without leaving the panel
+    await panel.getByRole('button', { name: 'Create an account' }).click();
+    await panel.getByLabel('Student name').fill('Asha Verma');
+    await panel.getByLabel('Date of birth').fill('2009-04-12');
+    await panel.getByLabel('Mobile number').fill('+91 98765 43210');
+    await panel.getByLabel('Email ID').fill(uniqueEmail(testInfo.project.name));
+    await panel.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await panel.getByLabel('Standard / Exam').selectOption('CLASS_11');
+    await page.screenshot({
+      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-panel-register.png`,
+    });
+    await panel.getByRole('button', { name: /create account/i }).click();
+
+    // Signed in: the same panel and batch, ready to pay
+    await expect(panel.getByLabel('Full name')).toHaveValue('Asha Verma');
+    await expect(
+      panel.getByRole('radio', { name: /December batch/ }),
+    ).toBeChecked();
+    await expect(panel.getByRole('button', { name: 'Pay ₹129' })).toBeVisible();
+  });
+
+  test('My learning asks a signed-out visitor to sign in on the page', async ({
     page,
     request,
   }, testInfo) => {
-    const email = uniqueEmail(`${testInfo.project.name}-redirect`);
+    const email = uniqueEmail(`${testInfo.project.name}-learning`);
     const register = await request.post('/api/auth/register', {
       data: {
         fullName: 'Ravi Shah',
@@ -125,9 +138,7 @@ test.describe('sign-in gate', () => {
     });
     expect(register.status()).toBe(201);
 
-    await page.goto(`/?topic=${GST_TOPIC}&batch=${NOVEMBER_BATCH}`);
-    await expect(page).toHaveURL(/\/login\?redirect_to=/);
-
+    await page.goto('/my-learning');
     await page.getByLabel('Email ID').fill(email);
     await page.getByLabel('Password', { exact: true }).fill('wrong-password');
     await page.getByRole('button', { name: /^sign in$/i }).click();
@@ -137,40 +148,15 @@ test.describe('sign-in gate', () => {
 
     await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
     await page.getByRole('button', { name: /^sign in$/i }).click();
-
-    await expect(page).toHaveURL(new RegExp(`batch=${NOVEMBER_BATCH}`));
-    await expect(
-      page.getByRole('dialog', { name: /review your\s*selection/i }),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/my-learning$/);
+    await expect(page.getByText('Signed in as Ravi Shah')).toBeVisible();
   });
 
-  test('protected pages redirect to sign-in and back', async ({
-    page,
-    request,
-  }, testInfo) => {
-    const email = uniqueEmail(`${testInfo.project.name}-protected`);
-    await request.post('/api/auth/register', {
-      data: {
-        fullName: 'Meera Iyer',
-        email,
-        password: PASSWORD,
-        dateOfBirth: '2008-06-02',
-        mobile: '9876543211',
-        standard: 'CLASS_11',
-        stream: 'COMMERCE',
-        address: null,
-      },
-    });
-
-    await page.goto('/batches');
-    await expect(page).toHaveURL(/\/login\?redirect_to=%2Fbatches/);
-    await page.getByLabel('Email ID').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
-    await page.getByRole('button', { name: /^sign in$/i }).click();
-
-    await expect(page).toHaveURL(/\/batches$/);
+  test('old sign-in links open the homepage', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page).toHaveURL(/\/$/);
     await expect(
-      page.getByRole('heading', { level: 1, name: /all\s*batches/i }),
+      page.getByRole('heading', { level: 1, name: /search your\s*topic/i }),
     ).toBeVisible();
   });
 });
@@ -179,13 +165,9 @@ test.describe('homepage', () => {
   test('renders every section without horizontal scrolling', async ({
     page,
   }, testInfo) => {
-    await signedIn(page, `${testInfo.project.name}-home`);
     await page.goto('/');
     await expect(
-      page.getByRole('heading', {
-        level: 1,
-        name: /a subject isn't learned in a day/i,
-      }),
+      page.getByRole('heading', { level: 1, name: /search your\s*topic/i }),
     ).toBeVisible();
     // The topic search lives in the header (inside the menu on phones)
     const menuButton = page.getByRole('button', { name: 'Open menu' });
@@ -275,7 +257,7 @@ test.describe('interactive book', () => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Turn to the next page' }).click();
     const selectInBook = book(page).getByRole('button', {
-      name: /select batch: learn gst for class 11, 1st & 2nd november/i,
+      name: /select batch: learn gst for class 11, 8th & 9th december/i,
     });
     await expect(selectInBook).toBeVisible();
     await page.waitForTimeout(1300);
@@ -288,14 +270,14 @@ test.describe('interactive book', () => {
       name: /review your\s*selection/i,
     });
     await expect(review).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`batch=${NOVEMBER_BATCH}`));
+    await expect(page).toHaveURL(new RegExp(`batch=${OPEN_BATCH}`));
     await review.getByRole('button', { name: 'Close' }).click();
 
     await book(page)
       .getByRole('link', { name: /explore more batches/i })
       .click();
     await expect(page).toHaveURL(/\/batches$/);
-    await expect(page.getByText('1st & 2nd November')).toBeVisible();
+    await expect(page.getByText('8th & 9th December')).toBeVisible();
   });
 });
 
@@ -315,7 +297,7 @@ test.describe('student journey', () => {
     const panel = page.getByRole('dialog', { name: /^GST/ });
     await expect(panel).toBeVisible();
     await expect(
-      panel.getByRole('radio', { name: /November batch/ }),
+      panel.getByRole('radio', { name: /December batch/ }),
     ).toBeChecked();
     await expect(panel.getByText('What is GST')).toBeVisible();
     await panel.getByLabel('Mobile number').fill('+91 98765 43210');
@@ -342,13 +324,16 @@ test.describe('student journey', () => {
       await page.getByRole('button', { name: 'Open menu' }).click();
     }
     await page.getByRole('button', { name: 'Log out' }).first().click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/$/);
 
     const response = await page.request.get('/api/enrolments');
     expect(response.status()).toBe(401);
 
+    // Signed out, the site stays open
     await page.goto('/');
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(
+      page.getByRole('heading', { level: 1, name: /search your\s*topic/i }),
+    ).toBeVisible();
   });
 
   test('model paper waitlist sign-ups are stored', async ({

@@ -23,7 +23,7 @@ import styles from './SiteHeader.module.css';
 const cn = cx.bind(styles);
 
 export const SiteHeader = () => {
-  const { clearSession } = useAuth();
+  const { status, clearSession } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -81,7 +81,7 @@ export const SiteHeader = () => {
 
     try {
       await logoutStudent();
-      await navigate(APP_ROUTES.LOGIN, { flushSync: true });
+      await navigate(APP_ROUTES.HOME, { flushSync: true });
       clearSession();
       showToast(AUTH_TEXT.loggedOutToast);
     } catch (error) {
@@ -93,34 +93,29 @@ export const SiteHeader = () => {
     }
   };
 
-  const accountActions = (
-    <>
-      <ButtonRouteLink
-        variant="plain"
-        tone={isCinema ? 'inverse' : 'default'}
-        to={APP_ROUTES.MY_LEARNING}
-        onClick={() => setIsMenuOpen(false)}
-      >
-        {HEADER_TEXT.myLearning}
-      </ButtonRouteLink>
-      <Button
-        variant="secondary"
-        tone={isCinema ? 'inverse' : 'default'}
-        loading={isLoggingOut}
-        onClick={handleLogout}
-      >
-        {HEADER_TEXT.logout}
-      </Button>
-      <ButtonRouteLink
-        variant="primary"
-        to={APP_ROUTES.REGISTER}
-        onClick={() => setIsMenuOpen(false)}
-        className={cn('registerCta')}
-      >
-        Join SriDha
-      </ButtonRouteLink>
-    </>
-  );
+  // Browsing needs no account; once signed in (at payment), the student's
+  // own seats are a click away
+  const accountActions =
+    status === 'authenticated' ? (
+      <>
+        <ButtonRouteLink
+          variant="plain"
+          tone={isCinema ? 'inverse' : 'default'}
+          to={APP_ROUTES.MY_LEARNING}
+          onClick={() => setIsMenuOpen(false)}
+        >
+          {HEADER_TEXT.myLearning}
+        </ButtonRouteLink>
+        <Button
+          variant="secondary"
+          tone={isCinema ? 'inverse' : 'default'}
+          loading={isLoggingOut}
+          onClick={handleLogout}
+        >
+          {HEADER_TEXT.logout}
+        </Button>
+      </>
+    ) : null;
 
   return (
     <header className={cn('header', { headerCinema: isCinema })}>
@@ -189,7 +184,9 @@ export const SiteHeader = () => {
               }}
             />
           </div>
-          <div className={cn('menuActions')}>{accountActions}</div>
+          {accountActions ? (
+            <div className={cn('menuActions')}>{accountActions}</div>
+          ) : null}
         </nav>
 
         <div className={cn('actions')}>{accountActions}</div>

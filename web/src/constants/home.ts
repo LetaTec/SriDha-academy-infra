@@ -1,6 +1,5 @@
 import { ABOUT_SECTION_ID, APP_ROUTES, toPageSection } from './routes';
 import { POLICY_LINKS, POLICY_LINKS_TITLE } from './policies';
-import { LIVE_TOPIC_COUNT } from './topics';
 
 export const BRAND = {
   name: 'SriDha Academy',
@@ -56,18 +55,12 @@ export const HEADER_TEXT = {
 } as const;
 
 export const HERO_TEXT = {
-  kicker: 'Topic-Wise Learning',
-  title: "A subject isn't learned in a day.",
-  titleEmphasis: "It's mastered",
-  titleEnd: 'one concept at a time.',
-  lead: "Learn topic by topic, practise what you've learned, and build confidence one concept at a time.",
-  primaryAction: 'Explore Subjects',
-  secondaryAction: 'Create Your Student Account',
-  stats: [
-    { value: '03', label: 'Learning paths' },
-    { value: LIVE_TOPIC_COUNT, label: 'Topics ready' },
-    { value: '100', label: 'Students / batch' },
-  ],
+  kicker: 'Topic-wise learning',
+  title: 'Search your',
+  titleEmphasis: 'topic.',
+  lead: 'Type a topic or your class to see its fee, lessons and next batches. No account needed to look around',
+  popularLabel: 'Popular',
+  searchLabel: 'Search your topic',
 } as const;
 
 export const CONCEPT_MAP_TEXT = {
@@ -212,7 +205,7 @@ export const CTA_TEXT = {
   eyebrow: 'Start here / 01',
   title: 'Turn the next page',
   titleEmphasis: 'with us.',
-  action: 'Create Your Student Account',
+  action: 'Browse all topics',
 } as const;
 
 export const FOOTER_COLUMNS = [

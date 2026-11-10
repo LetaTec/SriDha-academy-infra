@@ -41,22 +41,20 @@ Full, closed, inactive and upcoming batches show their status and cannot be sele
 
 ### Pages
 
-Visitors see only the sign-in screens until they log in or create an account.
+The site is open to everyone. The homepage starts with "Search your topic"; an account is asked for only when paying (in the payment panel, which offers sign-in and registration in place) and on the pages that list a student's own seats.
 
-| Path               | Who                | What                                                          |
-| ------------------ | ------------------ | ------------------------------------------------------------- |
-| `/login`           | signed-out         | Sign-in page: form, topics running now, our model             |
-| `/register`        | signed-out         | Student registration (10th–12th, CA, CS, NEET, JEE, Bank PO)  |
-| `/forgot-password` | signed-out         | Request a password-reset email                                |
-| `/reset-password`  | anyone with a link | Choose a new password from a reset email                      |
-| `/`                | signed-in students | Homepage, topic details and batch selection                   |
-| `/batches`         | signed-in students | Every topic batch with full details                           |
-| `/my-learning`     | signed-in students | The student's reserved seats                                  |
-| `/about`           | signed-in students | Motive, inspiration, how we teach and the tutors              |
-| `/ai-test`         | signed-in students | AI test papers: coming soon, with build progress              |
-| `/model-paper`     | signed-in students | AI model papers: coming soon, build progress and the waitlist |
+| Path              | Who                | What                                                             |
+| ----------------- | ------------------ | ---------------------------------------------------------------- |
+| `/`               | anyone             | Homepage: "Search your topic", topic details and batch selection |
+| `/topics`         | anyone             | Every topic, with search and filters                             |
+| `/batches`        | anyone             | Every topic batch with full details                              |
+| `/about`          | anyone             | Motive, inspiration, how we teach and the tutors                 |
+| `/ai-test`        | anyone             | AI test papers: coming soon, with build progress                 |
+| `/model-paper`    | anyone             | AI model papers: coming soon, build progress and the waitlist    |
+| `/my-learning`    | students           | The student's reserved seats. Signed out, the page shows sign-in |
+| `/reset-password` | anyone with a link | Choose a new password from a reset email                         |
 
-Opening any signed-in page while signed out redirects to `/login?redirect_to=…`. After signing in, the student returns to that page, including any chosen topic and batch. Signed-in students who open `/login` or `/register` go straight to the homepage.
+The old `/login`, `/register` and `/forgot-password` addresses open the homepage. Choosing a batch and paying keep the topic and batch in the URL (`?topic=`, `?batch=`, `?checkout=`), so signing in inside the payment panel carries on with the same batch.
 
 ### Tests
 

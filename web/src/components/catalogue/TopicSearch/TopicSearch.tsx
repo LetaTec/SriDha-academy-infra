@@ -40,6 +40,10 @@ export type TopicSearchProps = {
   // Opens the Topics page searched for the query: for topics without
   // batches yet, and for every result beyond the first few
   onBrowseTopics: (query: string) => void;
+  // compact sits in the header; large is the homepage's main search
+  size?: 'compact' | 'large';
+  // The search box's accessible name
+  label?: string;
 };
 
 const TAUGHT_CLASSES = TAUGHT_CLASS_NUMBERS.map(formatClassLevel).join(', ');
@@ -57,7 +61,7 @@ const batchStatus = (batch: Batch) =>
     ? CATALOGUE_TEXT.seatsRemaining(batch.seatsRemaining)
     : BATCH_AVAILABILITY_LABEL[batch.availability];
 
-// Topic search for the header. Matches a class ("class 11", "12th", "XI")
+// Topic search, in the header and as the homepage's main search. Matches a class ("class 11", "12th", "XI")
 // as well as topic names and subtopics, and lists
 // each open topic's fee and batches: choosing a topic opens its lessons and
 // batches, choosing a batch goes straight to reserving it.
@@ -66,6 +70,8 @@ export const TopicSearch = ({
   onOpenTopic,
   onSelectBatch,
   onBrowseTopics,
+  size = 'compact',
+  label = HEADER_TEXT.searchLabel,
 }: TopicSearchProps) => {
   const resultsId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -102,7 +108,7 @@ export const TopicSearch = ({
   return (
     <div
       ref={containerRef}
-      className={cn('search')}
+      className={cn('search', { searchLarge: size === 'large' })}
       onFocus={() => setIsOpen(true)}
       onBlur={event => {
         if (!containerRef.current?.contains(event.relatedTarget as Node)) {
@@ -112,14 +118,16 @@ export const TopicSearch = ({
     >
       <Input
         type="search"
-        label={HEADER_TEXT.searchLabel}
+        label={label}
         hideLabel
         placeholder={HEADER_TEXT.searchPlaceholder}
         value={query}
         aria-controls={resultsId}
         aria-expanded={showResults}
         autoComplete="off"
-        endAdornment={<Icon name="search" size="sm" />}
+        endAdornment={
+          <Icon name="search" size={size === 'large' ? 'md' : 'sm'} />
+        }
         className={cn('input')}
         onChange={event => {
           setQuery(event.target.value);

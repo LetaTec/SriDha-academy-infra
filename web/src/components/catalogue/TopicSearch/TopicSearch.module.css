@@ -9,6 +9,26 @@
   font-size: var(--text-sm);
 }
 
+/* The homepage's main search: full width and taller, results under it */
+.searchLarge {
+  width: 100%;
+  max-width: var(--width-hero-search);
+}
+
+.searchLarge .input {
+  min-height: var(--height-control-large);
+  padding-left: var(--space-3);
+  /* Light on any background, so the query reads on the dark hero */
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-size: var(--text-md);
+}
+
+.searchLarge .results {
+  left: 0;
+  width: 100%;
+}
+
 /* Results drop down over the page; the layout never shifts */
 .results {
   position: absolute;

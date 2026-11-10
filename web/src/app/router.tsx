@@ -1,12 +1,12 @@
 import { lazy, Suspense } from 'react';
 import {
   createBrowserRouter,
+  Navigate,
   Outlet,
   type RouteObject,
 } from 'react-router-dom';
 
 import { PageLoader } from '@components/ui/PageLoader/PageLoader';
-import { AUTH_VIEW } from '@constants/auth';
 import { PAGE_TEXT } from '@constants/pages';
 import { POLICY } from '@constants/policies';
 import { APP_ROUTES } from '@constants/routes';
@@ -14,10 +14,8 @@ import { AuthShell } from '@layout/AuthShell/AuthShell';
 import { SiteShell } from '@layout/SiteShell/SiteShell';
 
 import { ProtectedRoute } from '@/routes/ProtectedRoute';
-import { PublicOnlyRoute } from '@/routes/PublicOnlyRoute';
 import { RouteErrorBoundary } from '@/routes/RouteErrorBoundary';
 
-const AuthPage = lazy(() => import('@pages/auth/AuthPage'));
 const HomePage = lazy(() => import('@pages/home/HomePage'));
 const MyLearningPage = lazy(() => import('@pages/my-learning/MyLearningPage'));
 const BatchesPage = lazy(() => import('@pages/batches/BatchesPage'));
@@ -41,8 +39,9 @@ const SuspendedOutlet = () => (
   </Suspense>
 );
 
-// Visitors only see the sign-in screens until they log in or register;
-// every other page sits behind ProtectedRoute.
+// The site is open to everyone. An account is asked for only when paying
+// (in the payment panel) and on the pages that list a student's own seats,
+// which sit behind ProtectedRoute.
 export const routes: RouteObject[] = [
   {
     element: <AuthShell />,
@@ -51,23 +50,6 @@ export const routes: RouteObject[] = [
       {
         element: <SuspendedOutlet />,
         children: [
-          {
-            element: <PublicOnlyRoute />,
-            children: [
-              {
-                path: APP_ROUTES.LOGIN,
-                element: <AuthPage view={AUTH_VIEW.login} />,
-              },
-              {
-                path: APP_ROUTES.REGISTER,
-                element: <AuthPage view={AUTH_VIEW.register} />,
-              },
-              {
-                path: APP_ROUTES.FORGOT_PASSWORD,
-                element: <AuthPage view={AUTH_VIEW.forgotPassword} />,
-              },
-            ],
-          },
           { path: APP_ROUTES.RESET_PASSWORD, element: <ResetPasswordPage /> },
           { path: APP_ROUTES.ADMIN_SIGN_IN, element: <AdminSignInPage /> },
           // Public policy pages, with or without an account
@@ -87,27 +69,31 @@ export const routes: RouteObject[] = [
       },
     ],
   },
+  // The old sign-in pages are gone; their links land on the homepage
+  ...[APP_ROUTES.LOGIN, APP_ROUTES.REGISTER, APP_ROUTES.FORGOT_PASSWORD].map(
+    path => ({ path, element: <Navigate to={APP_ROUTES.HOME} replace /> }),
+  ),
   {
-    element: <ProtectedRoute />,
+    element: <SiteShell />,
     errorElement: <RouteErrorBoundary />,
     children: [
       {
-        element: <SiteShell />,
+        element: <SuspendedOutlet />,
         children: [
+          { path: APP_ROUTES.HOME, element: <HomePage /> },
+          { path: APP_ROUTES.BATCHES, element: <BatchesPage /> },
+          { path: APP_ROUTES.TOPICS, element: <TopicsPage /> },
+          { path: APP_ROUTES.ABOUT, element: <AboutPage /> },
+          { path: APP_ROUTES.AI_TEST, element: <AiTestPage /> },
+          { path: APP_ROUTES.MODEL_PAPER, element: <ModelPaperPage /> },
           {
-            element: <SuspendedOutlet />,
+            element: <ProtectedRoute />,
             children: [
-              { path: APP_ROUTES.HOME, element: <HomePage /> },
               { path: APP_ROUTES.MY_LEARNING, element: <MyLearningPage /> },
-              { path: APP_ROUTES.BATCHES, element: <BatchesPage /> },
-              { path: APP_ROUTES.TOPICS, element: <TopicsPage /> },
-              { path: APP_ROUTES.ABOUT, element: <AboutPage /> },
-              { path: APP_ROUTES.AI_TEST, element: <AiTestPage /> },
-              { path: APP_ROUTES.MODEL_PAPER, element: <ModelPaperPage /> },
               { path: APP_ROUTES.TEAM_ORDERS, element: <TeamOrdersPage /> },
-              { path: '*', element: <NotFoundPage /> },
             ],
           },
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
     ],

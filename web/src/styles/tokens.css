@@ -103,6 +103,8 @@
   --width-cta-title: 1000px;
   --width-header-search: 340px;
   --width-search-results: 440px;
+  --width-hero-search: 680px;
+  --height-hero-search: 72vh;
   --height-search-results: 480px;
   --width-about-photo: 440px;
   /* The site header is the "Now enrolling" ticker above the menu bar; pages
@@ -173,6 +175,7 @@
   /* Controls */
   --height-control: 46px;
   --height-control-compact: 38px;
+  --height-control-large: 60px;
   --padding-control-x: 20px;
   --padding-control-x-compact: 14px;
   --padding-control-y: 12px;
