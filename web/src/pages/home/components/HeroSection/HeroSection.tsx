@@ -1,13 +1,12 @@
 import cx from 'classnames/bind';
 
+import { StudentIllustration } from '@components/brand/StudentIllustration/StudentIllustration';
 import { TopicSearch } from '@components/catalogue/TopicSearch/TopicSearch';
 import { Button } from '@components/ui/Button/Button';
 import { Container } from '@components/ui/Container/Container';
 import { Heading } from '@components/ui/Heading/Heading';
-import { Photo } from '@components/ui/Photo/Photo';
 import { Text } from '@components/ui/Text/Text';
-import { HERO_PHOTOS, HERO_TEXT } from '@constants/home';
-import { STUDENT_PHOTOS, type StudentPhotoKey } from '@constants/photos';
+import { HERO_ILLUSTRATIONS, HERO_TEXT } from '@constants/home';
 import { HOME_SECTION_ID } from '@constants/routes';
 import { useTopicPreviews } from '@hooks/useTopicPreviews';
 import { hasBatches, type TopicPreview } from '@services/catalogue';
@@ -21,33 +20,23 @@ const TITLE_ID = 'hero-title';
 // Featured topics come first in the catalogue's previews
 const POPULAR_TOPIC_COUNT = 4;
 
-// Static, like every photo on the site; the first of each side stays on phones
-const PhotoColumn = ({
-  photos,
+// Static, like every illustration on the site; the first of each side stays
+// on phones. Decorative: the search beside them says what the page is for.
+const IllustrationColumn = ({
   side,
 }: {
-  photos: readonly StudentPhotoKey[];
-  side: 'start' | 'end';
+  side: keyof typeof HERO_ILLUSTRATIONS;
 }) => (
-  <div className={cn('photos', side)}>
-    {photos.map((key, index) => {
-      const photo = STUDENT_PHOTOS[key];
-      return (
-        <Photo
-          key={key}
-          src={photo.src}
-          alt={photo.alt}
-          credit={photo.credit}
-          ratio={
-            (index === 0) === (side === 'start') ? 'portrait' : 'landscape'
-          }
-          frame="offset"
+  <div className={cn('photos', side)} aria-hidden="true">
+    {HERO_ILLUSTRATIONS[side].map((item, index) => (
+      <div key={item.scene} className={cn('photo', { photoExtra: index > 0 })}>
+        <StudentIllustration
+          scene={item.scene}
+          palette={item.palette}
           tone="inverse"
-          loading="eager"
-          className={cn('photo', { photoExtra: index > 0 })}
         />
-      );
-    })}
+      </div>
+    ))}
   </div>
 );
 
@@ -80,7 +69,7 @@ export const HeroSection = ({
       aria-labelledby={TITLE_ID}
     >
       <Container className={cn('layout')}>
-        <PhotoColumn photos={HERO_PHOTOS.start} side="start" />
+        <IllustrationColumn side="start" />
         <div className={cn('center')}>
           <Text as="div" variant="eyebrow" tone="accentInverse">
             {HERO_TEXT.kicker}
@@ -146,7 +135,7 @@ export const HeroSection = ({
             ))}
           </ul>
         </div>
-        <PhotoColumn photos={HERO_PHOTOS.end} side="end" />
+        <IllustrationColumn side="end" />
       </Container>
     </section>
   );

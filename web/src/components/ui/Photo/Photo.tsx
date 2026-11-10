@@ -9,12 +9,6 @@ export type PhotoProps = {
   alt: string;
   credit?: string;
   ratio?: 'landscape' | 'portrait';
-  // offset adds the brand's flat accent block behind the photo
-  frame?: 'plain' | 'offset';
-  // inverse for photos on the dark green sections
-  tone?: 'default' | 'inverse';
-  // eager for photos in the first screen
-  loading?: 'lazy' | 'eager';
   className?: string;
 };
 
@@ -25,17 +19,14 @@ export const Photo = ({
   alt,
   credit,
   ratio = 'landscape',
-  frame = 'plain',
-  tone = 'default',
-  loading = 'lazy',
   className,
 }: PhotoProps) => (
-  <figure className={cn('photo', ratio, frame, tone, className)}>
+  <figure className={cn('photo', ratio, className)}>
     <div className={cn('frame')}>
       <img
         src={src}
         alt={alt}
-        loading={loading}
+        loading="lazy"
         decoding="async"
         className={cn('image')}
       />

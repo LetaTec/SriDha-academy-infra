@@ -1,5 +1,5 @@
 /* "Search your topic": the homepage opens on the search, framed by student
-   photos. No overflow clipping here, so the results can drop down over the
+   illustrations. No overflow clipping here, so the results can drop down over the
    next section. */
 .heroSection {
   position: relative;
@@ -12,7 +12,7 @@
   background: var(--color-bg-inverse-deep);
 }
 
-/* Photos, search, photos */
+/* Illustrations, search, illustrations */
 .layout {
   display: grid;
   grid-template-columns:
@@ -90,7 +90,7 @@
   background: var(--color-accent);
 }
 
-/* Two photos a side, staggered so the columns do not mirror each other */
+/* Two illustrations a side, staggered so the columns do not mirror each other */
 .photos {
   min-width: 0;
   display: flex;
@@ -114,7 +114,7 @@
   max-width: var(--width-hero-photo);
 }
 
-/* The second photo is smaller and sits toward the page edge, so the pair
+/* The second is smaller and sits toward the page edge, so the pair
    staggers while staying inside the column */
 .photoExtra {
   width: 80%;
@@ -128,7 +128,7 @@
   align-self: flex-end;
 }
 
-/* Tablets and phones: the search first, then one photo a side below it */
+/* Tablets and phones: the search first, then one illustration a side below it */
 @media (--viewport-md) {
   .heroSection {
     padding-top: calc(var(--height-header) + var(--space-6));
