@@ -40,10 +40,17 @@ export type TopicSearchProps = {
   // Opens the Topics page searched for the query: for topics without
   // batches yet, and for every result beyond the first few
   onBrowseTopics: (query: string) => void;
-  // compact sits in the header; large is the homepage's main search
-  size?: 'compact' | 'large';
-  // The search box's accessible name
+  // compact sits in the header; large is the homepage's main search; full
+  // spans its container at the normal control height (the Topics page)
+  size?: 'compact' | 'large' | 'full';
+  // The search box's accessible name, shown above the box when showLabel
   label?: string;
+  showLabel?: boolean;
+  placeholder?: string;
+  // Pass both to let the page own the text, for example to filter a list as
+  // the student types; the text then stays after a result is chosen
+  query?: string;
+  onQueryChange?: (query: string) => void;
 };
 
 const TAUGHT_CLASSES = TAUGHT_CLASS_NUMBERS.map(formatClassLevel).join(', ');
@@ -61,7 +68,8 @@ const batchStatus = (batch: Batch) =>
     ? CATALOGUE_TEXT.seatsRemaining(batch.seatsRemaining)
     : BATCH_AVAILABILITY_LABEL[batch.availability];
 
-// Topic search, in the header and as the homepage's main search. Matches a class ("class 11", "12th", "XI")
+// Topic search: in the header, as the homepage's main search and on the
+// Topics page. Matches a class ("class 11", "12th", "XI")
 // as well as topic names and subtopics, and lists
 // each open topic's fee and batches: choosing a topic opens its lessons and
 // batches, choosing a batch goes straight to reserving it.
@@ -72,11 +80,19 @@ export const TopicSearch = ({
   onBrowseTopics,
   size = 'compact',
   label = HEADER_TEXT.searchLabel,
+  showLabel = false,
+  placeholder = HEADER_TEXT.searchPlaceholder,
+  query: controlledQuery,
+  onQueryChange,
 }: TopicSearchProps) => {
   const resultsId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [query, setQuery] = useState('');
+  const [ownQuery, setOwnQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const isControlled = controlledQuery !== undefined;
+  const query = isControlled ? controlledQuery : ownQuery;
+  const setQuery = (next: string) =>
+    isControlled ? onQueryChange?.(next) : setOwnQuery(next);
 
   const normalisedQuery = query.trim().toLowerCase();
   const { classNumber, results } = normalisedQuery
@@ -91,7 +107,7 @@ export const TopicSearch = ({
 
   const finish = () => {
     setIsOpen(false);
-    setQuery('');
+    if (!isControlled) setQuery('');
   };
 
   const chooseTopic = (preview: TopicPreview) => {
@@ -108,7 +124,10 @@ export const TopicSearch = ({
   return (
     <div
       ref={containerRef}
-      className={cn('search', { searchLarge: size === 'large' })}
+      className={cn('search', {
+        searchLarge: size === 'large',
+        searchFull: size === 'full',
+      })}
       onFocus={() => setIsOpen(true)}
       onBlur={event => {
         if (!containerRef.current?.contains(event.relatedTarget as Node)) {
@@ -119,8 +138,8 @@ export const TopicSearch = ({
       <Input
         type="search"
         label={label}
-        hideLabel
-        placeholder={HEADER_TEXT.searchPlaceholder}
+        hideLabel={!showLabel}
+        placeholder={placeholder}
         value={query}
         aria-controls={resultsId}
         aria-expanded={showResults}

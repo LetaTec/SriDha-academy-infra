@@ -3,12 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import cx from 'classnames/bind';
 
 import { TopicPreviewGrid } from '@components/catalogue/TopicPreviewGrid/TopicPreviewGrid';
+import { TopicSearch } from '@components/catalogue/TopicSearch/TopicSearch';
 import { TopicsStatus } from '@components/catalogue/TopicsStatus/TopicsStatus';
 import { Button } from '@components/ui/Button/Button';
 import { EmptyState } from '@components/ui/EmptyState/EmptyState';
 import { Heading } from '@components/ui/Heading/Heading';
-import { Icon } from '@components/ui/Icon/Icon';
-import { Input } from '@components/ui/Input/Input';
 import { Section } from '@components/ui/Section/Section';
 import { Text } from '@components/ui/Text/Text';
 import { LANDING_TEXT } from '@constants/landing';
@@ -107,15 +106,19 @@ const TopicsPage = () => {
       </div>
 
       <div className={cn('controls')}>
-        <Input
-          type="search"
+        {/* Suggestions drop down as on every other search; the list below
+            filters as the student types */}
+        <TopicSearch
+          size="full"
           label={LANDING_TEXT.searchLabel}
+          showLabel
           placeholder={LANDING_TEXT.searchPlaceholder}
-          value={filters.query}
-          onChange={event =>
-            setParam(TOPIC_FILTER_PARAM.query, event.target.value)
-          }
-          endAdornment={<Icon name="search" size="sm" />}
+          previews={previews}
+          query={filters.query}
+          onQueryChange={value => setParam(TOPIC_FILTER_PARAM.query, value)}
+          onOpenTopic={topicId => openCheckout(topicId)}
+          onSelectBatch={(topicId, batchId) => openCheckout(topicId, batchId)}
+          onBrowseTopics={value => setParam(TOPIC_FILTER_PARAM.query, value)}
         />
         <ActiveFilters
           filters={filters}

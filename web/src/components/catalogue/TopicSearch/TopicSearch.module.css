@@ -30,6 +30,22 @@
   width: 100%;
 }
 
+/* The Topics page's search: as wide as the page, normal height */
+.searchFull {
+  width: 100%;
+}
+
+.searchFull .input {
+  min-height: var(--height-control);
+  font-size: var(--text-base);
+}
+
+.searchFull .results {
+  left: 0;
+  right: auto;
+  width: min(100%, var(--width-hero-search));
+}
+
 /* Results drop down over the page; the layout never shifts */
 .results {
   position: absolute;
