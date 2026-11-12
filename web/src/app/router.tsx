@@ -32,6 +32,7 @@ const AdminSignInPage = lazy(
 const NotFoundPage = lazy(() => import('@pages/not-found/NotFoundPage'));
 const PolicyPage = lazy(() => import('@pages/policy/PolicyPage'));
 const TeamOrdersPage = lazy(() => import('@pages/team-orders/TeamOrdersPage'));
+const CheckoutPage = lazy(() => import('@pages/checkout/CheckoutPage'));
 
 const SuspendedOutlet = () => (
   <Suspense fallback={<PageLoader label={PAGE_TEXT.loading} />}>
@@ -40,7 +41,7 @@ const SuspendedOutlet = () => (
 );
 
 // The site is open to everyone. An account is asked for only when paying
-// (in the payment panel) and on the pages that list a student's own seats,
+// (on the checkout page) and on the pages that list a student's own seats,
 // which sit behind ProtectedRoute.
 export const routes: RouteObject[] = [
   {
@@ -86,6 +87,8 @@ export const routes: RouteObject[] = [
           { path: APP_ROUTES.ABOUT, element: <AboutPage /> },
           { path: APP_ROUTES.AI_TEST, element: <AiTestPage /> },
           { path: APP_ROUTES.MODEL_PAPER, element: <ModelPaperPage /> },
+          // Open to everyone; the page asks for an account before paying
+          { path: APP_ROUTES.CHECKOUT, element: <CheckoutPage /> },
           {
             element: <ProtectedRoute />,
             children: [

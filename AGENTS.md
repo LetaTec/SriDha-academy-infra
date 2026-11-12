@@ -17,7 +17,7 @@ These rules follow the pro-web conventions, adapted to SriDha Academy. Differenc
 - Dependency direction: pages/layouts compose services, hooks, constants and components; services own backend calls; utilities stay pure and side-effect free.
 - Keep generic display formatting in `src/utils/*` (`currency`, `date`, `url`) or domain mappers. Components must not define local date, currency or entity formatters.
 - Use route-local `components/` folders (for example `pages/home/components`) for code used by one route. Promote to `src/components`, `src/hooks` or `src/services` only when reuse is real.
-- Browsing needs no account. Sign-in happens in place (`AccountAccess`): in the payment panel, and on the pages behind `ProtectedRoute` (My learning, team orders). Do not add sign-in pages or redirects.
+- Browsing needs no account. Sign-in happens in place (`AccountAccess`): on the checkout page (`/checkout`), and on the pages behind `ProtectedRoute` (My learning, team orders). Do not add sign-in pages or redirects.
 - Selection and dialog state that must survive signing in (open topic, chosen batch, checkout) lives in the URL. Use `useTopicSelection` and `useCheckout`; do not duplicate it in component state or storage.
 - Students choose topics, never subjects. Subjects appear only as a way to find topics on the Topics page (the subject filter and subject group headings); topic cards, dialogs and other copy never present a subject or a "course".
 

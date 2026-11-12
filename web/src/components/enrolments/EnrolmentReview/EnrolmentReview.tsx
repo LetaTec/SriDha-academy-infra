@@ -15,7 +15,7 @@ const cn = cx.bind(styles);
 export type EnrolmentReviewProps = {
   context: BatchContext;
   onChooseAnother: () => void;
-  // Opens the payment panel with this batch chosen
+  // Opens the checkout page with this batch chosen
   onContinueToPayment: () => void;
 };
 

@@ -9,7 +9,6 @@ import { Text } from '@components/ui/Text/Text';
 import { HERO_ILLUSTRATIONS, HERO_TEXT } from '@constants/home';
 import { HOME_SECTION_ID } from '@constants/routes';
 import { useTopicPreviews } from '@hooks/useTopicPreviews';
-import { hasBatches, type TopicPreview } from '@services/catalogue';
 
 import styles from './HeroSection.module.css';
 
@@ -52,11 +51,6 @@ export const HeroSection = ({
 }: HeroSectionProps) => {
   const { previews } = useTopicPreviews();
   const popular = previews.slice(0, POPULAR_TOPIC_COUNT);
-
-  const choosePopular = (preview: TopicPreview) => {
-    if (hasBatches(preview)) onOpenTopic(preview.topic.id);
-    else onBrowseTopics(preview.title);
-  };
 
   return (
     <section
@@ -105,7 +99,7 @@ export const HeroSection = ({
                   key={preview.catalogueTopicId}
                   variant="secondary"
                   className={cn('popularTopic')}
-                  onClick={() => choosePopular(preview)}
+                  onClick={() => onOpenTopic(preview.catalogueTopicId)}
                 >
                   {preview.title}
                 </Button>

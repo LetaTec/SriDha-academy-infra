@@ -10,7 +10,8 @@ export type CheckboxProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   'type'
 > & {
-  label: string;
+  // Text, or text with links (for example to the policies being agreed to)
+  label: React.ReactNode;
 };
 
 export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(

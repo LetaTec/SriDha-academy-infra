@@ -20,7 +20,7 @@ export type TopicDialogProps = {
   onClose: () => void;
   onSelectBatch: (batch: Batch) => void;
   onClearBatch: () => void;
-  // Hands the chosen batch over to the payment panel
+  // Hands the chosen batch over to the checkout page
   onContinueToPayment: (selection: BatchContext) => void;
 };
 

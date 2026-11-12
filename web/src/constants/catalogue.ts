@@ -8,10 +8,6 @@ import type { StatusColor } from './status';
 export const CATALOGUE_QUERY_PARAM = {
   topic: 'topic',
   batch: 'batch',
-  // The catalogue topic whose payment panel is open, on any signed-in page
-  checkout: 'checkout',
-  // A batch chosen before checkout opened, preselected in the panel
-  checkoutBatch: 'checkoutBatch',
 } as const;
 
 export const SUBJECT_STATUS = {

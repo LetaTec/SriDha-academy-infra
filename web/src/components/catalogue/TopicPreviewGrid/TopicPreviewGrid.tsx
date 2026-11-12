@@ -54,7 +54,7 @@ const TopicOffer = ({ topic }: { topic: Topic }) => {
 export type TopicPreviewGridProps = {
   // The topic cards to show, from the catalogue (useTopicPreviews)
   previews: readonly TopicPreview[];
-  // Opens the payment panel for the topic's catalogue id
+  // Opens the checkout page for the topic's catalogue id
   onChooseTopic: (topicId: string) => void;
   // The full grid has a search box and four columns; the compact panel
   // beside the sign-in form has neither.
@@ -152,6 +152,6 @@ const TopicPreviewGridView = ({
   );
 };
 
-// Memoised: a page can hold all 156 cards, and opening the payment panel
-// changes the URL, which must not rebuild them while the panel slides in
+// Memoised: a page can hold all 156 cards, which must not rebuild when
+// unrelated parts of the URL change
 export const TopicPreviewGrid = memo(TopicPreviewGridView);

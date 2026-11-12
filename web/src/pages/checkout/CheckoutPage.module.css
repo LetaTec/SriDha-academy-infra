@@ -1,0 +1,155 @@
+.page {
+  min-height: 100vh;
+  padding-top: calc(var(--height-header) + var(--space-6));
+  background: var(--color-bg-page);
+}
+
+.head {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1-5);
+  margin-bottom: var(--space-4);
+}
+
+/* Details on the left, the price summary beside them, like a booking review */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--width-checkout-summary);
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.main {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Stays in view while the details scroll */
+.aside {
+  position: sticky;
+  top: calc(var(--height-header) + var(--space-2));
+}
+
+.card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width-base) solid var(--color-border-base);
+  background: var(--color-bg-raised);
+}
+
+.cardHead {
+  display: grid;
+  gap: var(--space-0-5);
+}
+
+.note {
+  padding: var(--space-2) var(--space-3);
+  border-left: var(--border-width-accent) solid var(--color-accent);
+  background: var(--color-bg-raised);
+}
+
+.link {
+  justify-self: start;
+  color: var(--color-text-accent);
+  text-decoration: underline;
+  text-underline-offset: var(--space-0-25);
+}
+
+.fieldPair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.batches {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+}
+
+.batch {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1-5) var(--space-2);
+  border: var(--border-width-base) solid var(--color-border-base);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.batch:hover,
+.batch:focus-within {
+  border-color: var(--color-border-strong);
+}
+
+.batchSelected {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-subtle);
+}
+
+.batchClosed {
+  cursor: default;
+  opacity: var(--opacity-disabled);
+}
+
+.batch input {
+  accent-color: var(--color-bg-inverse);
+}
+
+.status,
+.result {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.result {
+  max-width: var(--width-copy-wide);
+  padding: var(--space-4);
+  border: var(--border-width-base) solid var(--color-border-base);
+  background: var(--color-bg-raised);
+}
+
+.resultActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+}
+
+/* Tablets and phones: one column, the total and Pay button after the details */
+@media (--viewport-md) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .aside {
+    position: static;
+  }
+}
+
+@media (--viewport-sm) {
+  .card {
+    padding: var(--space-2);
+  }
+
+  .fieldPair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (--reduced-motion) {
+  .batch {
+    transition: none;
+  }
+}

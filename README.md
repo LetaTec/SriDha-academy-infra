@@ -41,7 +41,7 @@ Full, closed, inactive and upcoming batches show their status and cannot be sele
 
 ### Pages
 
-The site is open to everyone. The homepage starts with "Search your topic"; an account is asked for only when paying (in the payment panel, which offers sign-in and registration in place) and on the pages that list a student's own seats.
+The site is open to everyone. The homepage starts with "Search your topic"; an account is asked for only when paying (on the checkout page, which offers sign-in and registration in place) and on the pages that list a student's own seats.
 
 | Path              | Who                | What                                                             |
 | ----------------- | ------------------ | ---------------------------------------------------------------- |
@@ -54,7 +54,7 @@ The site is open to everyone. The homepage starts with "Search your topic"; an a
 | `/my-learning`    | students           | The student's reserved seats. Signed out, the page shows sign-in |
 | `/reset-password` | anyone with a link | Choose a new password from a reset email                         |
 
-The old `/login`, `/register` and `/forgot-password` addresses open the homepage. Choosing a batch and paying keep the topic and batch in the URL (`?topic=`, `?batch=`, `?checkout=`), so signing in inside the payment panel carries on with the same batch.
+The old `/login`, `/register` and `/forgot-password` addresses open the homepage. Choosing a batch and paying keep the topic and batch in the URL (`/checkout?topic=…&batch=…`), so signing in on the checkout page carries on with the same batch. Clicking a topic or batch in either search box opens its checkout page directly.
 
 ### Tests
 

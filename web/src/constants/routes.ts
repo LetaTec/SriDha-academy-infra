@@ -6,6 +6,7 @@ export const APP_ROUTES = {
   ABOUT: '/about',
   AI_TEST: '/ai-test',
   MODEL_PAPER: '/model-paper',
+  CHECKOUT: '/checkout',
   LOGIN: '/login',
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',

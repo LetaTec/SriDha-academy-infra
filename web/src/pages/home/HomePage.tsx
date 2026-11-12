@@ -60,8 +60,8 @@ const HomePage = () => {
     <>
       {/* 1. Search your topic */}
       <HeroSection
-        onOpenTopic={openTopic}
-        onSelectBatch={selectBatch}
+        onOpenTopic={topicId => openCheckout(topicId)}
+        onSelectBatch={openCheckout}
         onBrowseTopics={browseTopics}
       />
       {/* 2. Real Subject Discovery */}

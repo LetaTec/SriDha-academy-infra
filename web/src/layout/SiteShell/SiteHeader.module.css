@@ -31,10 +31,6 @@
   gap: var(--space-4);
 }
 
-.searchSlot {
-  margin-left: var(--space-1);
-}
-
 .link {
   position: relative;
   font-size: var(--text-xs);
@@ -101,11 +97,6 @@
 
   .linksOpen {
     display: flex;
-  }
-
-  .searchSlot {
-    width: 100%;
-    margin-left: 0;
   }
 
   .menuActions {

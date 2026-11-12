@@ -1,16 +1,16 @@
 .page {
   min-height: 100vh;
-  padding-top: calc(var(--height-header) + var(--space-10));
+  padding-top: calc(var(--height-header) + var(--space-4));
 }
 
-.head {
-  display: grid;
-  gap: var(--space-2);
-  margin-bottom: var(--space-6);
-}
-
-.note {
-  max-width: var(--width-copy-wide);
+/* Read by screen readers, not shown */
+.visuallyHidden {
+  position: absolute;
+  width: var(--size-visually-hidden);
+  height: var(--size-visually-hidden);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .controls {
@@ -29,13 +29,14 @@
   gap: var(--space-5);
 }
 
-/* Rows off screen are skipped until scrolled to, so opening the payment
-   panel does not restyle all 156 cards behind it */
+/* Rows off screen are skipped until scrolled to, so the page does not lay
+   out all 156 cards at once. Only the height is estimated: an estimated
+   width would make every row that wide, wider than a phone */
 .classGroup {
   display: grid;
   gap: var(--space-2);
   content-visibility: auto;
-  contain-intrinsic-size: auto var(--height-topic-group-estimate);
+  contain-intrinsic-block-size: auto var(--height-topic-group-estimate);
 }
 
 .classHead {
