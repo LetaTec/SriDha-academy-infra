@@ -7,6 +7,27 @@
   min-height: var(--height-control-compact);
   padding-block: var(--space-1);
   font-size: var(--text-sm);
+  /* Light on any background, so the query reads on the dark homepage
+     header and hero as well as on the light pages */
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+}
+
+/* The homepage's main search: full width and taller, results under it */
+.searchLarge {
+  width: 100%;
+  max-width: var(--width-hero-search);
+}
+
+.searchLarge .input {
+  min-height: var(--height-control-large);
+  padding-left: var(--space-3);
+  font-size: var(--text-md);
+}
+
+.searchLarge .results {
+  left: 0;
+  width: 100%;
 }
 
 /* Results drop down over the page; the layout never shifts */

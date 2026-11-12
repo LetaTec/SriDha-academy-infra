@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ClosingCta } from '@components/brand/ClosingCta/ClosingCta';
 import { ModelPaperDialog } from '@components/enquiries/ModelPaperDialog/ModelPaperDialog';
 import { CTA_TEXT } from '@constants/home';
 import { APP_ROUTES } from '@constants/routes';
 import { useCatalogue } from '@hooks/useCatalogue';
+import { TOPIC_FILTER_PARAM } from '@constants/topics';
 import { useCheckout } from '@hooks/useCheckout';
 import { useTopicSelection } from '@hooks/useTopicSelection';
 import {
@@ -30,6 +32,7 @@ const HomePage = () => {
     useTopicSelection();
   const { openCheckout } = useCheckout();
   const [activeDialog, setActiveDialog] = useState<HomeDialog | null>(null);
+  const navigate = useNavigate();
 
   const topicContext = findTopicContext(catalogue.subjects, topicId);
   const batchContext = findBatchContext(catalogue.subjects, batchId);
@@ -47,13 +50,19 @@ const HomePage = () => {
 
   const closeDialog = () => setActiveDialog(null);
 
+  const browseTopics = (query: string) =>
+    navigate({
+      pathname: APP_ROUTES.TOPICS,
+      search: `?${new URLSearchParams({ [TOPIC_FILTER_PARAM.query]: query })}`,
+    });
+
   return (
     <>
-      {/* 1. Interactive Hero */}
+      {/* 1. Search your topic */}
       <HeroSection
-        catalogue={catalogue}
         onOpenTopic={openTopic}
-        onSelectBatch={handleSelectBatch}
+        onSelectBatch={selectBatch}
+        onBrowseTopics={browseTopics}
       />
       {/* 2. Real Subject Discovery */}
       <TopicsSection
@@ -79,14 +88,14 @@ const HomePage = () => {
         onJoinWaitlist={() => setActiveDialog('modelPaper')}
       />
 
-      {/* 7. Registration CTA */}
+      {/* 7. Closing CTA */}
       <ClosingCta
         titleId="cta-title"
         eyebrow={CTA_TEXT.eyebrow}
         title={CTA_TEXT.title}
         titleEmphasis={CTA_TEXT.titleEmphasis}
         actionLabel={CTA_TEXT.action}
-        to={APP_ROUTES.REGISTER}
+        to={APP_ROUTES.TOPICS}
       />
 
       {/* Preserved Modal Dialogs */}

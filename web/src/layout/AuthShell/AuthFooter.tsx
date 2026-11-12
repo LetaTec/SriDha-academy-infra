@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import cx from 'classnames/bind';
 
 import { BrandLogo } from '@components/brand/BrandLogo/BrandLogo';
@@ -8,17 +8,16 @@ import { ADMIN_SIGN_IN_TEXT } from '@constants/auth';
 import { AUTH_FOOTER_TEXT } from '@constants/landing';
 import { POLICY_LINKS, POLICY_LINKS_TITLE } from '@constants/policies';
 import { APP_ROUTES } from '@constants/routes';
-import { FOOTER_TOPIC_COUNT } from '@constants/topics';
+import { FOOTER_TOPIC_COUNT, TOPIC_FILTER_PARAM } from '@constants/topics';
 import { useTopicPreviews } from '@hooks/useTopicPreviews';
 
 import styles from './AuthFooter.module.css';
 
 const cn = cx.bind(styles);
 
-// Footer for signed-out visitors. Topic and subject links lead to
-// registration, since the catalogue itself needs an account.
+// Footer for the reset, team sign-in and policy pages. Topic links search
+// the Topics page.
 export const AuthFooter = () => {
-  const { search } = useLocation();
   const { previews } = useTopicPreviews();
 
   return (
@@ -42,7 +41,12 @@ export const AuthFooter = () => {
             {previews.slice(0, FOOTER_TOPIC_COUNT).map(topic => (
               <Link
                 key={topic.catalogueTopicId}
-                to={APP_ROUTES.REGISTER}
+                to={{
+                  pathname: APP_ROUTES.TOPICS,
+                  search: `?${new URLSearchParams({
+                    [TOPIC_FILTER_PARAM.query]: topic.title,
+                  })}`,
+                }}
                 className={cn('link')}
               >
                 {topic.title}
@@ -57,20 +61,8 @@ export const AuthFooter = () => {
             <Text as="div" variant="strong">
               {AUTH_FOOTER_TEXT.accountTitle}
             </Text>
-            <Link
-              to={{ pathname: APP_ROUTES.LOGIN, search }}
-              className={cn('link')}
-            >
-              {AUTH_FOOTER_TEXT.login}
-            </Link>
-            <Link
-              to={{ pathname: APP_ROUTES.REGISTER, search }}
-              className={cn('link')}
-            >
-              {AUTH_FOOTER_TEXT.register}
-            </Link>
-            <Link to={APP_ROUTES.FORGOT_PASSWORD} className={cn('link')}>
-              {AUTH_FOOTER_TEXT.forgotPassword}
+            <Link to={APP_ROUTES.MY_LEARNING} className={cn('link')}>
+              {AUTH_FOOTER_TEXT.myLearning}
             </Link>
             <Link to={APP_ROUTES.ADMIN_SIGN_IN} className={cn('link')}>
               {ADMIN_SIGN_IN_TEXT.footerLink}

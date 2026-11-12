@@ -123,53 +123,25 @@ describe('app routing', () => {
   });
 
   it(
-    'shows only the sign-in page to visitors and returns them to their batch after signing in',
+    'lets visitors browse without an account and asks them to sign in only to pay',
     async () => {
       vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
       const user = userEvent.setup();
       const router = renderApp(`/?topic=${GST_TOPIC_ID}&batch=${openBatch.id}`);
 
-      // The homepage is not rendered; the visitor lands on the sign-in page.
-      await screen.findByRole(
-        'heading',
-        { name: 'Welcome back' },
-        { timeout: LAZY_PAGE_TIMEOUT_MS },
-      );
-      expect(router.state.location.pathname).toBe('/login');
-      const redirectTo = new URLSearchParams(router.state.location.search).get(
-        'redirect_to',
-      );
-      expect(redirectTo).toBe(`/?topic=${GST_TOPIC_ID}&batch=${openBatch.id}`);
-      expect(
-        screen.queryByRole('group', {
-          name: 'Interactive SriDha Academy book',
-        }),
-      ).not.toBeInTheDocument();
-
-      // Switching to registration keeps the redirect.
-      await user.click(
-        screen.getAllByRole('link', { name: 'Join for free' })[0],
-      );
-      await screen.findByRole('heading', {
-        name: 'Create your student account',
-      });
-      expect(router.state.location.pathname).toBe('/register');
-      expect(router.state.location.search).toContain('redirect_to=');
-
-      await user.click(screen.getAllByRole('link', { name: 'Log in' })[0]);
-      await screen.findByRole('heading', { name: 'Welcome back' });
-      await user.type(screen.getByLabelText('Email ID'), 'asha@example.com');
-      await user.type(screen.getByLabelText('Password'), 'correct-horse-1');
-      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
-
-      // Signed in: back on the homepage with the chosen batch ready to review.
+      // The homepage opens for a signed-out visitor, chosen batch and all
       const review = await screen.findByRole(
         'dialog',
         { name: /review your\s*selection/i },
         { timeout: LAZY_PAGE_TIMEOUT_MS },
       );
       expect(router.state.location.pathname).toBe('/');
-      expect(router.state.location.search).toContain(`batch=${openBatch.id}`);
+      // The header offers no account links until there is an account
+      expect(
+        within(screen.getByRole('banner')).queryByRole('link', {
+          name: 'My learning',
+        }),
+      ).not.toBeInTheDocument();
 
       // Seats are only taken through payment: the review hands over to the
       // payment panel with the chosen batch preselected
@@ -187,11 +159,108 @@ describe('app routing', () => {
       expect(
         within(panel).getByRole('radio', { name: /November batch/ }),
       ).toBeChecked();
+
+      // Paying needs an account: the panel asks for it in place of the
+      // billing details, and there is nothing to pay with yet
+      expect(
+        within(panel).getByRole('heading', { name: 'Sign in to continue' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /^Pay / }),
+      ).not.toBeInTheDocument();
+
+      // Registration is a click away, in the same panel
+      await user.click(
+        within(panel).getByRole('button', { name: 'Create an account' }),
+      );
+      expect(
+        within(panel).getByRole('heading', {
+          name: 'Create your student account',
+        }),
+      ).toBeInTheDocument();
+      await user.click(within(panel).getByRole('button', { name: 'Sign in' }));
+
+      await user.type(
+        within(panel).getByLabelText('Email ID'),
+        'asha@example.com',
+      );
+      await user.type(
+        within(panel).getByLabelText('Password'),
+        'correct-horse-1',
+      );
+      await user.click(
+        within(panel).getByRole('button', { name: /^sign in$/i }),
+      );
+
+      // Signed in: the same panel, same batch, now with the student's details
+      expect(
+        await within(panel).findByRole('textbox', { name: 'Full name' }),
+      ).toHaveValue('Asha Verma');
+      expect(
+        within(panel).getByRole('radio', { name: /November batch/ }),
+      ).toBeChecked();
+      expect(
+        screen.getByRole('button', { name: 'Pay ₹129' }),
+      ).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe('/');
+      expect(
+        within(screen.getByRole('banner')).getAllByRole('link', {
+          name: 'My learning',
+        })[0],
+      ).toBeInTheDocument();
     },
     JOURNEY_TEST_TIMEOUT_MS,
   );
 
-  it('sends a signed-in student past the sign-in page', async () => {
+  it('opens the homepage on the topic search', async () => {
+    vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
+    const user = userEvent.setup();
+    const router = renderApp('/');
+
+    expect(
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: /search your\s*topic/i },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    const search = screen.getByRole('searchbox', { name: 'Search your topic' });
+    await user.type(search, 'gst');
+    await user.keyboard('{Enter}');
+
+    expect(
+      await screen.findByRole('dialog', { name: /GST/ }),
+    ).toBeInTheDocument();
+    expect(router.state.location.search).toContain(`topic=${GST_TOPIC_ID}`);
+  });
+
+  it('sends old sign-in links to the homepage', async () => {
+    vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
+    const router = renderApp('/register');
+
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: /search your\s*topic/i },
+      { timeout: LAZY_PAGE_TIMEOUT_MS },
+    );
+    expect(router.state.location.pathname).toBe('/');
+  });
+
+  it('asks a signed-out visitor to sign in on My learning', async () => {
+    vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
+    renderApp('/my-learning');
+
+    expect(
+      await screen.findByRole(
+        'heading',
+        { name: 'Sign in to continue' },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    expect(listEnrolments).not.toHaveBeenCalled();
+  });
+
+  it('sends a signed-in student from an old sign-in link to the homepage', async () => {
     vi.mocked(getCurrentSession).mockResolvedValue(student);
     const router = renderApp('/login');
 
@@ -289,7 +358,7 @@ describe('app routing', () => {
       { timeout: LAZY_PAGE_TIMEOUT_MS },
     );
     await user.type(search, 'hybridisation');
-    const results = screen.getByRole('region', {
+    const results = within(screen.getByRole('banner')).getByRole('region', {
       name: 'Matching topics and batches',
     });
     expect(

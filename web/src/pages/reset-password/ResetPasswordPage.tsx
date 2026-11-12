@@ -95,7 +95,7 @@ const ResetPasswordPage = () => {
             <FieldStatus tone="success">
               {AUTH_TEXT.resetSuccessMessage}
             </FieldStatus>
-            <ButtonRouteLink to={APP_ROUTES.LOGIN} endIcon="arrowRight">
+            <ButtonRouteLink to={APP_ROUTES.MY_LEARNING} endIcon="arrowRight">
               {AUTH_TEXT.loginSubmitLabel}
             </ButtonRouteLink>
           </div>

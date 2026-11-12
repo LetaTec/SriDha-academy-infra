@@ -101,9 +101,7 @@ export const AUTH_FOOTER_TEXT = {
   // The first few topics (FOOTER_TOPIC_COUNT), from the catalogue
   topicsTitle: 'Topics',
   accountTitle: 'Account',
-  login: 'Log in',
-  register: 'Join for free',
-  forgotPassword: 'Forgot password',
+  myLearning: 'My learning',
   copyright: '© 2026 SriDha Academy',
   note: 'Topic-wise learning for school, competitive and professional exams',
 } as const;

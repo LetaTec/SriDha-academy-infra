@@ -80,12 +80,6 @@ export const AiTestSection = () => {
 
         <div ref={paperRef} className={cn('paperWrapper')}>
           <Reveal>
-            <div className={cn('paperBanner')}>
-              <span>Interactive Assessment Preview</span>
-              <span className={cn('bannerPip')}>
-                5 Questions · Auto-Marking
-              </span>
-            </div>
             <SampleTestPaper />
           </Reveal>
         </div>

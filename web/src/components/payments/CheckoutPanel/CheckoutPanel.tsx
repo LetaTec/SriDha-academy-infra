@@ -1,8 +1,9 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import cx from 'classnames/bind';
 import { z } from 'zod';
 
+import { AccountAccess } from '@components/auth/AccountAccess/AccountAccess';
 import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Drawer } from '@components/ui/Drawer/Drawer';
 import { FieldForm, FieldStatus } from '@components/ui/Field/Field';
@@ -13,6 +14,7 @@ import { RuledList } from '@components/ui/RuledList/RuledList';
 import { Spinner } from '@components/ui/Spinner/Spinner';
 import { StatusDot } from '@components/ui/StatusDot/StatusDot';
 import { Text } from '@components/ui/Text/Text';
+import { ACCOUNT_ACCESS_TEXT } from '@constants/auth';
 import {
   CHECKOUT_KIND,
   CHECKOUT_TEXT,
@@ -94,7 +96,10 @@ export const CheckoutPanel = ({
   onRetry,
   onClose,
 }: CheckoutPanelProps) => {
-  const { user } = useAuth();
+  const { status, user } = useAuth();
+  // Browsing needs no account; paying does, so a signed-out visitor signs in
+  // here, in place of the billing details, without losing the chosen batch
+  const isSignedIn = status === 'authenticated';
   const batchFieldName = useId();
   const topic = preview?.topic ?? null;
   const batches = topic?.batches ?? [];
@@ -125,6 +130,7 @@ export const CheckoutPanel = ({
     formError,
     clearFormError,
     handleApiError,
+    reset,
   } = useApiForm<BillingFormValues>({
     resolver: zodResolver(billingSchema),
     defaultValues: {
@@ -133,6 +139,16 @@ export const CheckoutPanel = ({
       mobile: '',
     },
   });
+
+  // Signing in inside the panel fills in the details the account knows
+  useEffect(() => {
+    if (!user) return;
+    reset(current => ({
+      ...current,
+      fullName: current.fullName || (user.student?.fullName ?? ''),
+      email: current.email || user.email,
+    }));
+  }, [user, reset]);
 
   const onSubmit = handleSubmit(async values => {
     if (!topic) return;
@@ -202,7 +218,7 @@ export const CheckoutPanel = ({
       title={preview?.title ?? CHECKOUT_TEXT.topicPending}
       closeLabel={CHECKOUT_TEXT.close}
       footer={
-        !topic ? undefined : isFinished ? (
+        !topic || (!isFinished && !isSignedIn) ? undefined : isFinished ? (
           <div className={cn('finishActions')}>
             {stage.name === 'paid' ? (
               <ButtonRouteLink to={APP_ROUTES.MY_LEARNING} fullWidth>
@@ -350,38 +366,44 @@ export const CheckoutPanel = ({
             />
           </section>
 
-          <section className={cn('section')}>
-            <Heading level={3} variant="item">
-              {CHECKOUT_TEXT.detailsTitle}
-            </Heading>
-            <FieldForm id={FORM_ID} onSubmit={onSubmit}>
-              {formError || paymentError ? (
-                <FieldStatus tone="error">
-                  {formError ?? paymentError}
-                </FieldStatus>
-              ) : null}
-              <Input
-                label={CHECKOUT_TEXT.fullNameLabel}
-                autoComplete="name"
-                error={errors.fullName?.message}
-                {...register('fullName')}
-              />
-              <Input
-                label={CHECKOUT_TEXT.emailLabel}
-                type="email"
-                autoComplete="email"
-                error={errors.email?.message}
-                {...register('email')}
-              />
-              <Input
-                label={CHECKOUT_TEXT.mobileLabel}
-                type="tel"
-                autoComplete="tel"
-                error={errors.mobile?.message}
-                {...register('mobile')}
-              />
-            </FieldForm>
-          </section>
+          {isSignedIn ? (
+            <section className={cn('section')}>
+              <Heading level={3} variant="item">
+                {CHECKOUT_TEXT.detailsTitle}
+              </Heading>
+              <FieldForm id={FORM_ID} onSubmit={onSubmit}>
+                {formError || paymentError ? (
+                  <FieldStatus tone="error">
+                    {formError ?? paymentError}
+                  </FieldStatus>
+                ) : null}
+                <Input
+                  label={CHECKOUT_TEXT.fullNameLabel}
+                  autoComplete="name"
+                  error={errors.fullName?.message}
+                  {...register('fullName')}
+                />
+                <Input
+                  label={CHECKOUT_TEXT.emailLabel}
+                  type="email"
+                  autoComplete="email"
+                  error={errors.email?.message}
+                  {...register('email')}
+                />
+                <Input
+                  label={CHECKOUT_TEXT.mobileLabel}
+                  type="tel"
+                  autoComplete="tel"
+                  error={errors.mobile?.message}
+                  {...register('mobile')}
+                />
+              </FieldForm>
+            </section>
+          ) : status === 'anonymous' ? (
+            <section className={cn('section')}>
+              <AccountAccess note={ACCOUNT_ACCESS_TEXT.checkoutNote} />
+            </section>
+          ) : null}
         </div>
       )}
     </Drawer>

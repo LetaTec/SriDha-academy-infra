@@ -1,106 +1,131 @@
 import cx from 'classnames/bind';
 
-import { ButtonLink, ButtonRouteLink } from '@components/ui/Button/Button';
+import { StudentIllustration } from '@components/brand/StudentIllustration/StudentIllustration';
+import { TopicSearch } from '@components/catalogue/TopicSearch/TopicSearch';
+import { Button } from '@components/ui/Button/Button';
 import { Container } from '@components/ui/Container/Container';
 import { Heading } from '@components/ui/Heading/Heading';
 import { Text } from '@components/ui/Text/Text';
-import { HERO_TEXT } from '@constants/home';
-import { APP_ROUTES, HOME_SECTION_ID, toSectionHref } from '@constants/routes';
-import type { CatalogueState } from '@hooks/useCatalogue';
-import type { Batch } from '@services/catalogue';
+import { HERO_ILLUSTRATIONS, HERO_TEXT } from '@constants/home';
+import { HOME_SECTION_ID } from '@constants/routes';
+import { useTopicPreviews } from '@hooks/useTopicPreviews';
+import { hasBatches, type TopicPreview } from '@services/catalogue';
 
-import { ConceptMap } from './ConceptMap/ConceptMap';
 import styles from './HeroSection.module.css';
 
 const cn = cx.bind(styles);
 
+const TITLE_ID = 'hero-title';
+
+// Featured topics come first in the catalogue's previews
+const POPULAR_TOPIC_COUNT = 4;
+
+// Static, like every illustration on the site; the first of each side stays
+// on phones. Decorative: the search beside them says what the page is for.
+const IllustrationColumn = ({
+  side,
+}: {
+  side: keyof typeof HERO_ILLUSTRATIONS;
+}) => (
+  <div className={cn('photos', side)} aria-hidden="true">
+    {HERO_ILLUSTRATIONS[side].map((item, index) => (
+      <div key={item.scene} className={cn('photo', { photoExtra: index > 0 })}>
+        <StudentIllustration scene={item.scene} palette={item.palette} />
+      </div>
+    ))}
+  </div>
+);
+
 export type HeroSectionProps = {
-  catalogue?: CatalogueState;
-  onOpenTopic?: (topicId: string) => void;
-  onSelectBatch?: (nextTopicId: string, batch: Batch) => void;
+  onOpenTopic: (topicId: string) => void;
+  onSelectBatch: (topicId: string, batchId: string) => void;
+  // Opens the Topics page searched for the query
+  onBrowseTopics: (query: string) => void;
 };
 
-export const HeroSection = ({ onOpenTopic }: HeroSectionProps) => (
-  <section
-    id={HOME_SECTION_ID.home}
-    className={cn('heroSection')}
-    aria-label="SriDha Academy homepage hero introduction"
-  >
-    <Container className={cn('container')}>
-      <div className={cn('grid')}>
-        {/* Left Column: Headline and Primary Actions (~44%) */}
-        <div className={cn('copyColumn')}>
-          <div className={cn('kicker')}>
-            <span className={cn('kickerDot')} aria-hidden="true" />
-            <Text
-              as="span"
-              variant="eyebrow"
-              tone="accentInverse"
-              className={cn('kickerText')}
-            >
-              {HERO_TEXT.kicker}
-            </Text>
-          </div>
+// Section 1: "Search your topic". The first thing every visitor sees, with no
+// account needed: search by topic or class, then open a topic or a batch.
+export const HeroSection = ({
+  onOpenTopic,
+  onSelectBatch,
+  onBrowseTopics,
+}: HeroSectionProps) => {
+  const { previews } = useTopicPreviews();
+  const popular = previews.slice(0, POPULAR_TOPIC_COUNT);
+
+  const choosePopular = (preview: TopicPreview) => {
+    if (hasBatches(preview)) onOpenTopic(preview.topic.id);
+    else onBrowseTopics(preview.title);
+  };
+
+  return (
+    <section
+      id={HOME_SECTION_ID.home}
+      className={cn('heroSection')}
+      aria-labelledby={TITLE_ID}
+    >
+      <Container className={cn('layout')}>
+        <IllustrationColumn side="start" />
+        <div className={cn('center')}>
+          <Text as="div" variant="eyebrow" tone="accent">
+            {HERO_TEXT.kicker}
+          </Text>
 
           <Heading
             level={1}
             variant="hero"
-            tone="inverse"
+            id={TITLE_ID}
             className={cn('title')}
           >
-            {HERO_TEXT.title}
-            <br />
-            <em>
-              {HERO_TEXT.titleEmphasis} {HERO_TEXT.titleEnd}
-            </em>
+            {HERO_TEXT.title} <em>{HERO_TEXT.titleEmphasis}</em>
           </Heading>
 
-          <Text
-            as="p"
-            variant="lead"
-            tone="inverseMuted"
-            className={cn('lead')}
-          >
+          <Text as="p" variant="lead" tone="muted" className={cn('lead')}>
             {HERO_TEXT.lead}
           </Text>
 
-          <div className={cn('actions')}>
-            <ButtonLink
-              href={toSectionHref(HOME_SECTION_ID.topics)}
-              variant="primary"
-              endIcon="arrowUpRight"
-              className={cn('primaryCta')}
-            >
-              {HERO_TEXT.primaryAction}
-            </ButtonLink>
-            <ButtonRouteLink
-              to={APP_ROUTES.REGISTER}
-              variant="secondary"
-              tone="inverse"
-              className={cn('secondaryCta')}
-            >
-              {HERO_TEXT.secondaryAction}
-            </ButtonRouteLink>
+          <div className={cn('searchRow')}>
+            <TopicSearch
+              size="large"
+              label={HERO_TEXT.searchLabel}
+              previews={previews}
+              onOpenTopic={onOpenTopic}
+              onSelectBatch={onSelectBatch}
+              onBrowseTopics={onBrowseTopics}
+            />
           </div>
 
-          <div className={cn('methodPillRow')} aria-hidden="true">
-            <span className={cn('methodPill')}>
-              <span className={cn('pillDot')} /> Live Topic Batches
-            </span>
-            <span className={cn('methodPill')}>
-              <span className={cn('pillDot')} /> Verifiable Concept Milestones
-            </span>
-            <span className={cn('methodPill')}>
-              <span className={cn('pillDot')} /> AI Assessment Papers
-            </span>
-          </div>
-        </div>
+          {popular.length > 0 ? (
+            <div className={cn('popular')}>
+              <Text as="span" variant="small" tone="muted">
+                {HERO_TEXT.popularLabel}
+              </Text>
+              {popular.map(preview => (
+                <Button
+                  key={preview.catalogueTopicId}
+                  variant="secondary"
+                  className={cn('popularTopic')}
+                  onClick={() => choosePopular(preview)}
+                >
+                  {preview.title}
+                </Button>
+              ))}
+            </div>
+          ) : null}
 
-        {/* Right Column: Interactive Concept Map (~56%) */}
-        <div className={cn('demoColumn')}>
-          <ConceptMap onOpenTopic={onOpenTopic} />
+          <ul className={cn('highlights')}>
+            {HERO_TEXT.highlights.map(item => (
+              <li key={item} className={cn('highlight')}>
+                <span className={cn('highlightDot')} aria-hidden="true" />
+                <Text as="span" variant="small" tone="muted">
+                  {item}
+                </Text>
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
-    </Container>
-  </section>
-);
+        <IllustrationColumn side="end" />
+      </Container>
+    </section>
+  );
+};

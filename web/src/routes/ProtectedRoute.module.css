@@ -1,0 +1,23 @@
+.page {
+  min-height: 100vh;
+  padding-top: calc(var(--height-header) + var(--space-10));
+}
+
+.content {
+  display: grid;
+  gap: var(--space-3);
+  max-width: var(--width-copy-wide);
+}
+
+.panel {
+  padding: var(--space-4);
+  border: var(--border-width-base) solid var(--color-border-strong);
+  background: var(--color-bg-page);
+  box-shadow: var(--shadow-offset-accent);
+}
+
+@media (--viewport-sm) {
+  .panel {
+    padding: var(--space-3);
+  }
+}

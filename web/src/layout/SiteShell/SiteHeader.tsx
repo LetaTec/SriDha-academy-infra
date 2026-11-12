@@ -23,7 +23,7 @@ import styles from './SiteHeader.module.css';
 const cn = cx.bind(styles);
 
 export const SiteHeader = () => {
-  const { clearSession } = useAuth();
+  const { status, clearSession } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -31,26 +31,6 @@ export const SiteHeader = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { previews } = useTopicPreviews();
-
-  const isHome = location.pathname === APP_ROUTES.HOME;
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    if (!isHome) {
-      setIsScrolled(true);
-      return;
-    }
-
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 48);
-    };
-
-    handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isHome]);
-
-  const isCinema = isHome && !isScrolled;
 
   // Search results open the topic or batch on the homepage, from any page.
   const showOnHome = (params: Record<string, string>) => {
@@ -81,7 +61,7 @@ export const SiteHeader = () => {
 
     try {
       await logoutStudent();
-      await navigate(APP_ROUTES.LOGIN, { flushSync: true });
+      await navigate(APP_ROUTES.HOME, { flushSync: true });
       clearSession();
       showToast(AUTH_TEXT.loggedOutToast);
     } catch (error) {
@@ -93,48 +73,38 @@ export const SiteHeader = () => {
     }
   };
 
-  const accountActions = (
-    <>
-      <ButtonRouteLink
-        variant="plain"
-        tone={isCinema ? 'inverse' : 'default'}
-        to={APP_ROUTES.MY_LEARNING}
-        onClick={() => setIsMenuOpen(false)}
-      >
-        {HEADER_TEXT.myLearning}
-      </ButtonRouteLink>
-      <Button
-        variant="secondary"
-        tone={isCinema ? 'inverse' : 'default'}
-        loading={isLoggingOut}
-        onClick={handleLogout}
-      >
-        {HEADER_TEXT.logout}
-      </Button>
-      <ButtonRouteLink
-        variant="primary"
-        to={APP_ROUTES.REGISTER}
-        onClick={() => setIsMenuOpen(false)}
-        className={cn('registerCta')}
-      >
-        Join SriDha
-      </ButtonRouteLink>
-    </>
-  );
+  // Browsing needs no account; once signed in (at payment), the student's
+  // own seats are a click away
+  const accountActions =
+    status === 'authenticated' ? (
+      <>
+        <ButtonRouteLink
+          variant="plain"
+          to={APP_ROUTES.MY_LEARNING}
+          onClick={() => setIsMenuOpen(false)}
+        >
+          {HEADER_TEXT.myLearning}
+        </ButtonRouteLink>
+        <Button
+          variant="secondary"
+          loading={isLoggingOut}
+          onClick={handleLogout}
+        >
+          {HEADER_TEXT.logout}
+        </Button>
+      </>
+    ) : null;
 
   return (
-    <header className={cn('header', { headerCinema: isCinema })}>
+    <header className={cn('header')}>
       <BatchTicker />
       <Container className={cn('nav')}>
         <Link
           to={APP_ROUTES.HOME}
-          className={cn('logoLink', { logoCinema: isCinema })}
+          className={cn('logoLink')}
           aria-label={HEADER_TEXT.homeLabel}
         >
-          <BrandLogo
-            variant="horizontal"
-            tone={isCinema ? 'inverse' : 'default'}
-          />
+          <BrandLogo variant="horizontal" />
         </Link>
 
         <nav
@@ -189,7 +159,9 @@ export const SiteHeader = () => {
               }}
             />
           </div>
-          <div className={cn('menuActions')}>{accountActions}</div>
+          {accountActions ? (
+            <div className={cn('menuActions')}>{accountActions}</div>
+          ) : null}
         </nav>
 
         <div className={cn('actions')}>{accountActions}</div>
@@ -200,7 +172,7 @@ export const SiteHeader = () => {
           label={isMenuOpen ? HEADER_TEXT.closeMenu : HEADER_TEXT.openMenu}
           aria-expanded={isMenuOpen}
           aria-controls={navId}
-          className={cn('menuButton', { menuButtonCinema: isCinema })}
+          className={cn('menuButton')}
           onClick={() => setIsMenuOpen(open => !open)}
         />
       </Container>

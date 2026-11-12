@@ -60,24 +60,6 @@
   width: 100%;
 }
 
-.paperBanner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
-  background: rgba(247, 245, 239, 0.08);
-  border: 1px solid rgba(247, 245, 239, 0.16);
-  border-bottom: none;
-  font-size: var(--text-2xs);
-  color: var(--color-text-accent-inverse);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
-.bannerPip {
-  color: var(--color-accent);
-}
-
 @media (--viewport-md) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
