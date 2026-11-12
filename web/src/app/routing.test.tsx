@@ -89,6 +89,13 @@ const JOURNEY_TEST_TIMEOUT_MS = 20_000;
 const TOPICS_PAGE_TIMEOUT_MS = 15_000;
 const GST_TOPIC_ID = 'topic_accounts_gst_class_11';
 
+const findCheckoutPage = () =>
+  screen.findByRole(
+    'heading',
+    { level: 1, name: /review your\s*seat/i },
+    { timeout: LAZY_PAGE_TIMEOUT_MS },
+  );
+
 const renderApp = (initialEntry: string) => {
   const router = createMemoryRouter(routes, { initialEntries: [initialEntry] });
 
@@ -144,65 +151,51 @@ describe('app routing', () => {
       ).not.toBeInTheDocument();
 
       // Seats are only taken through payment: the review hands over to the
-      // payment panel with the chosen batch preselected
+      // checkout page with the chosen batch preselected
       await user.click(
         within(review).getByRole('button', { name: 'Continue to payment' }),
       );
-      const panel = await screen.findByRole('dialog', { name: /^GST/ });
-      expect(router.state.location.search).toContain(
-        `checkout=${GST_TOPIC_ID}`,
-      );
-      expect(router.state.location.search).toContain(
-        `checkoutBatch=${openBatch.id}`,
-      );
-      expect(router.state.location.search).not.toContain('topic=');
+      await findCheckoutPage();
+      expect(router.state.location.pathname).toBe('/checkout');
+      expect(router.state.location.search).toContain(`topic=${GST_TOPIC_ID}`);
+      expect(router.state.location.search).toContain(`batch=${openBatch.id}`);
       expect(
-        within(panel).getByRole('radio', { name: /November batch/ }),
+        screen.getByRole('radio', { name: /November batch/ }),
       ).toBeChecked();
 
-      // Paying needs an account: the panel asks for it in place of the
-      // billing details, and there is nothing to pay with yet
+      // Paying needs an account: the page asks for it in place of the
+      // student's details, and there is nothing to pay with yet
       expect(
-        within(panel).getByRole('heading', { name: 'Sign in to continue' }),
+        screen.getByRole('heading', { name: 'Sign in to continue' }),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: /^Pay / }),
       ).not.toBeInTheDocument();
 
-      // Registration is a click away, in the same panel
+      // Registration is a click away, on the same page
       await user.click(
-        within(panel).getByRole('button', { name: 'Create an account' }),
+        screen.getByRole('button', { name: 'Create an account' }),
       );
       expect(
-        within(panel).getByRole('heading', {
-          name: 'Create your student account',
-        }),
+        screen.getByRole('heading', { name: 'Create your student account' }),
       ).toBeInTheDocument();
-      await user.click(within(panel).getByRole('button', { name: 'Sign in' }));
+      await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
-      await user.type(
-        within(panel).getByLabelText('Email ID'),
-        'asha@example.com',
-      );
-      await user.type(
-        within(panel).getByLabelText('Password'),
-        'correct-horse-1',
-      );
-      await user.click(
-        within(panel).getByRole('button', { name: /^sign in$/i }),
-      );
+      await user.type(screen.getByLabelText('Email ID'), 'asha@example.com');
+      await user.type(screen.getByLabelText('Password'), 'correct-horse-1');
+      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
-      // Signed in: the same panel, same batch, now with the student's details
+      // Signed in: the same page and batch, now with the student's details
       expect(
-        await within(panel).findByRole('textbox', { name: 'Full name' }),
+        await screen.findByRole('textbox', { name: 'Full name' }),
       ).toHaveValue('Asha Verma');
       expect(
-        within(panel).getByRole('radio', { name: /November batch/ }),
+        screen.getByRole('radio', { name: /November batch/ }),
       ).toBeChecked();
       expect(
         screen.getByRole('button', { name: 'Pay ₹129' }),
       ).toBeInTheDocument();
-      expect(router.state.location.pathname).toBe('/');
+      expect(router.state.location.pathname).toBe('/checkout');
       expect(
         within(screen.getByRole('banner')).getAllByRole('link', {
           name: 'My learning',
@@ -228,9 +221,8 @@ describe('app routing', () => {
     await user.type(search, 'gst');
     await user.keyboard('{Enter}');
 
-    expect(
-      await screen.findByRole('dialog', { name: /GST/ }),
-    ).toBeInTheDocument();
+    await findCheckoutPage();
+    expect(router.state.location.pathname).toBe('/checkout');
     expect(router.state.location.search).toContain(`topic=${GST_TOPIC_ID}`);
   });
 
@@ -273,7 +265,7 @@ describe('app routing', () => {
   });
 
   it(
-    'enrols from a topic card through the payment panel',
+    'enrols from a topic card on the checkout page',
     async () => {
       vi.mocked(getCurrentSession).mockResolvedValue(student);
       vi.mocked(createCheckout).mockResolvedValue({
@@ -314,20 +306,29 @@ describe('app routing', () => {
       ).toBeEnabled();
 
       await user.click(enrol);
-      const panel = await screen.findByRole('dialog', { name: /^GST/ });
-      expect(router.state.location.search).toContain(
-        `checkout=${GST_TOPIC_ID}`,
-      );
+      await findCheckoutPage();
+      expect(router.state.location.pathname).toBe('/checkout');
+      expect(router.state.location.search).toContain(`topic=${GST_TOPIC_ID}`);
       expect(
-        within(panel).getByRole('radio', { name: /November batch/ }),
+        screen.getByRole('radio', { name: /November batch/ }),
       ).toBeChecked();
       expect(
-        within(panel).getByRole('radio', { name: /December batch/ }),
+        screen.getByRole('radio', { name: /December batch/ }),
       ).toBeDisabled();
 
       await user.type(
-        within(panel).getByRole('textbox', { name: 'Mobile number' }),
+        screen.getByRole('textbox', { name: 'Mobile number' }),
         '+91 98765 43210',
+      );
+      // Paying needs the terms ticked first
+      await user.click(screen.getByRole('button', { name: 'Pay ₹129' }));
+      expect(
+        await screen.findByText('Tick the box to agree before paying'),
+      ).toBeInTheDocument();
+      expect(createCheckout).not.toHaveBeenCalled();
+
+      await user.click(
+        screen.getByRole('checkbox', { name: /I agree to the/ }),
       );
       await user.click(screen.getByRole('button', { name: 'Pay ₹129' }));
 
@@ -339,54 +340,64 @@ describe('app routing', () => {
         mobile: '+91 98765 43210',
       });
       // Without Razorpay keys the seat is held until payment is collected
-      expect(await within(panel).findByText('Seat saved')).toBeInTheDocument();
-
-      await user.click(screen.getByRole('button', { name: 'Done' }));
-      expect(router.state.location.search).not.toContain('checkout=');
+      expect(await screen.findByText('Seat saved')).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Go to My learning' }),
+      ).toHaveAttribute('href', '/my-learning');
     },
     JOURNEY_TEST_TIMEOUT_MS,
   );
 
-  it('searches topics from the header and lists their batches', async () => {
-    vi.mocked(getCurrentSession).mockResolvedValue(student);
-    const user = userEvent.setup();
-    const router = renderApp('/');
+  it(
+    'searches topics at the top of the Topics page and lists their batches',
+    async () => {
+      vi.mocked(getCurrentSession).mockResolvedValue(student);
+      const user = userEvent.setup();
+      const router = renderApp('/topics');
 
-    const search = await screen.findByRole(
-      'searchbox',
-      { name: 'Find your topic' },
-      { timeout: LAZY_PAGE_TIMEOUT_MS },
-    );
-    await user.type(search, 'hybridisation');
-    const results = within(screen.getByRole('banner')).getByRole('region', {
-      name: 'Matching topics and batches',
-    });
-    expect(
-      within(results).getByRole('button', { name: /Chemical bonding/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(results).queryByRole('button', { name: /GST/ }),
-    ).not.toBeInTheDocument();
-
-    // An open topic shows its fee and each batch with its timing
-    await user.clear(search);
-    await user.type(search, 'gst');
-    await waitFor(() =>
+      const search = await screen.findByRole(
+        'searchbox',
+        { name: 'Search topics' },
+        { timeout: TOPICS_PAGE_TIMEOUT_MS },
+      );
+      // The header has no search of its own any more
       expect(
-        within(results).getByRole('button', { name: /^GST.*₹129/ }),
-      ).toBeInTheDocument(),
-    );
-    const november = within(results).getByRole('button', {
-      name: /Reserve GST, November batch, 1st & 2nd November/,
-    });
+        within(screen.getByRole('banner')).queryByRole('searchbox'),
+      ).not.toBeInTheDocument();
 
-    // Choosing a batch goes straight to reserving it
-    await user.click(november);
-    expect(
-      await screen.findByRole('dialog', { name: /review your\s*selection/i }),
-    ).toBeInTheDocument();
-    expect(router.state.location.search).toContain(`batch=${openBatch.id}`);
-  });
+      // Pasted in one go: typing re-renders every card on each keystroke
+      await user.click(search);
+      await user.paste('hybridisation');
+      const results = screen.getByRole('region', {
+        name: 'Matching topics and batches',
+      });
+      expect(
+        within(results).getByRole('button', { name: /Chemical bonding/ }),
+      ).toBeInTheDocument();
+      expect(
+        within(results).queryByRole('button', { name: /GST/ }),
+      ).not.toBeInTheDocument();
+
+      // An open topic shows its fee and each batch with its timing
+      await user.clear(search);
+      await user.paste('gst');
+      await waitFor(() =>
+        expect(
+          within(results).getByRole('button', { name: /^GST.*₹129/ }),
+        ).toBeInTheDocument(),
+      );
+      const november = within(results).getByRole('button', {
+        name: /Reserve GST, November batch, 1st & 2nd November/,
+      });
+
+      // Choosing a batch goes straight to its checkout page
+      await user.click(november);
+      await findCheckoutPage();
+      expect(router.state.location.pathname).toBe('/checkout');
+      expect(router.state.location.search).toContain(`batch=${openBatch.id}`);
+    },
+    JOURNEY_TEST_TIMEOUT_MS,
+  );
 
   it('opens the About page from the header and marks it as the current page', async () => {
     vi.mocked(getCurrentSession).mockResolvedValue(student);
@@ -548,8 +559,9 @@ describe('app routing', () => {
         name: 'Complete payment: Learn Ray optics for Class 12',
       }),
     );
+    expect(router.state.location.pathname).toBe('/checkout');
     expect(router.state.location.search).toContain(
-      'checkout=topic_physics_ray_optics_class_12',
+      'topic=topic_physics_ray_optics_class_12',
     );
   });
 

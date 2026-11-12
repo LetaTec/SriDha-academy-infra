@@ -106,6 +106,8 @@
   --width-hero-search: 680px;
   --height-hero-search: 92vh;
   --width-hero-photo: 240px;
+  --size-checkout-icon: 96px;
+  --width-checkout-summary: 360px;
   --height-search-results: 480px;
   --width-about-photo: 440px;
   /* The site header is the "Now enrolling" ticker above the menu bar; pages

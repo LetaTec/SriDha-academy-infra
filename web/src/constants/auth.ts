@@ -92,7 +92,7 @@ export const AUTH_TEXT = {
   standardRequired: 'Select your standard or exam',
 } as const;
 
-// Sign-in where an account is needed: in the payment panel and on pages
+// Sign-in where an account is needed: on the checkout page and on pages
 // that list a student's own seats. Browsing never asks for an account.
 export const ACCOUNT_ACCESS_TEXT = {
   loginHeading: 'Sign in to continue',

@@ -35,10 +35,13 @@ const MAX_RESULTS = 5;
 export type TopicSearchProps = {
   // Every topic card, from the catalogue
   previews: readonly TopicPreview[];
+  // A chosen topic: with batches to enrol in, or opening soon for
+  // pre-registration
   onOpenTopic: (topicId: string) => void;
+  // A chosen open batch, to enrol in straight away
   onSelectBatch: (topicId: string, batchId: string) => void;
-  // Opens the Topics page searched for the query: for topics without
-  // batches yet, and for every result beyond the first few
+  // Opens the Topics page searched for the query, for every result beyond
+  // the first few
   onBrowseTopics: (query: string) => void;
   // compact sits in the header; large is the homepage's main search; full
   // spans its container at the normal control height (the Topics page)
@@ -111,10 +114,8 @@ export const TopicSearch = ({
   };
 
   const chooseTopic = (preview: TopicPreview) => {
-    const topic = findOpenTopic(preview);
     finish();
-    if (topic) onOpenTopic(topic.id);
-    else onBrowseTopics(preview.title);
+    onOpenTopic(preview.catalogueTopicId);
   };
 
   const closeOnEscape = (event: KeyboardEvent) => {

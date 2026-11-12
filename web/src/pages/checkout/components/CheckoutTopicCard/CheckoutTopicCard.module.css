@@ -1,0 +1,74 @@
+.card {
+  border: var(--border-width-base) solid var(--color-border-base);
+  background: var(--color-bg-raised);
+}
+
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.text {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1-5);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.badge {
+  padding: var(--space-0-5) var(--space-1);
+  border: var(--border-width-base) solid var(--color-border-base);
+  background: var(--color-bg-subtle);
+}
+
+.badgeAccent {
+  border-color: var(--color-accent);
+  color: var(--color-text-accent);
+  background: transparent;
+}
+
+/* Stands where a booking shows its photo */
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-checkout-icon);
+  height: var(--size-checkout-icon);
+  background: var(--color-bg-inverse);
+  color: var(--color-accent);
+}
+
+/* The batch's dates, on a grey band like a booking's stay dates */
+.strip {
+  display: grid;
+  gap: var(--space-1-5);
+  padding: var(--space-2-5) var(--space-3);
+  border-top: var(--border-width-base) solid var(--color-border-base);
+  background: var(--color-bg-subtle);
+}
+
+.batchName {
+  margin: 0;
+}
+
+@media (--viewport-sm) {
+  .head {
+    padding: var(--space-2);
+  }
+
+  .strip {
+    padding: var(--space-2);
+  }
+
+  .icon {
+    width: var(--space-8);
+    height: var(--space-8);
+  }
+}

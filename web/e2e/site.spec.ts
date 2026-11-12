@@ -74,8 +74,10 @@ test.describe('open site', () => {
     });
 
     await search.press('Enter');
-    await expect(page).toHaveURL(new RegExp(`topic=${GST_TOPIC}`));
-    await expect(page.getByRole('dialog', { name: /GST/ })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/checkout\\?topic=${GST_TOPIC}`));
+    await expect(
+      page.getByRole('heading', { level: 1, name: /review your\s*seat/i }),
+    ).toBeVisible();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
@@ -83,7 +85,7 @@ test.describe('open site', () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
-  test('paying asks for an account in the payment panel', async ({
+  test('paying asks for an account on the checkout page', async ({
     page,
   }, testInfo) => {
     await page.goto(`/?topic=${GST_TOPIC}&batch=${OPEN_BATCH}`);
@@ -92,31 +94,32 @@ test.describe('open site', () => {
     });
     await review.getByRole('button', { name: 'Continue to payment' }).click();
 
-    const panel = page.getByRole('dialog', { name: /^GST/ });
+    await expect(page).toHaveURL(/\/checkout\?topic=/);
     await expect(
-      panel.getByRole('heading', { name: 'Sign in to continue' }),
+      page.getByRole('heading', { name: 'Sign in to continue' }),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: /^Pay / })).toHaveCount(0);
 
-    // A new student registers without leaving the panel
-    await panel.getByRole('button', { name: 'Create an account' }).click();
-    await panel.getByLabel('Student name').fill('Asha Verma');
-    await panel.getByLabel('Date of birth').fill('2009-04-12');
-    await panel.getByLabel('Mobile number').fill('+91 98765 43210');
-    await panel.getByLabel('Email ID').fill(uniqueEmail(testInfo.project.name));
-    await panel.getByLabel('Password', { exact: true }).fill(PASSWORD);
-    await panel.getByLabel('Standard / Exam').selectOption('CLASS_11');
+    // A new student registers without leaving the page
+    await page.getByRole('button', { name: 'Create an account' }).click();
+    await page.getByLabel('Student name').fill('Asha Verma');
+    await page.getByLabel('Date of birth').fill('2009-04-12');
+    await page.getByLabel('Mobile number').fill('+91 98765 43210');
+    await page.getByLabel('Email ID').fill(uniqueEmail(testInfo.project.name));
+    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await page.getByLabel('Standard / Exam').selectOption('CLASS_11');
     await page.screenshot({
-      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-panel-register.png`,
+      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-checkout-register.png`,
+      fullPage: true,
     });
-    await panel.getByRole('button', { name: /create account/i }).click();
+    await page.getByRole('button', { name: /create account/i }).click();
 
-    // Signed in: the same panel and batch, ready to pay
-    await expect(panel.getByLabel('Full name')).toHaveValue('Asha Verma');
+    // Signed in: the same page and batch, ready to pay
+    await expect(page.getByLabel('Full name')).toHaveValue('Asha Verma');
     await expect(
-      panel.getByRole('radio', { name: /December batch/ }),
+      page.getByRole('radio', { name: /December batch/ }),
     ).toBeChecked();
-    await expect(panel.getByRole('button', { name: 'Pay ₹129' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Pay ₹129' })).toBeVisible();
   });
 
   test('My learning asks a signed-out visitor to sign in on the page', async ({
@@ -169,15 +172,13 @@ test.describe('homepage', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: /search your\s*topic/i }),
     ).toBeVisible();
-    // The topic search lives in the header (inside the menu on phones)
-    const menuButton = page.getByRole('button', { name: 'Open menu' });
-    if (await menuButton.isVisible()) await menuButton.click();
+    // The topic search is on the page itself; the header has none
     await expect(
-      page.getByRole('searchbox', { name: 'Find your topic' }),
+      page.getByRole('searchbox', { name: 'Search your topic' }),
     ).toBeVisible();
-    if (await page.getByRole('button', { name: 'Close menu' }).isVisible()) {
-      await page.getByRole('button', { name: 'Close menu' }).click();
-    }
+    await expect(page.getByRole('banner').getByRole('searchbox')).toHaveCount(
+      0,
+    );
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
@@ -293,24 +294,26 @@ test.describe('student journey', () => {
     await expect(enrol).toBeEnabled();
     await enrol.click();
 
-    // The payment panel opens from the right over a dimmed page
-    const panel = page.getByRole('dialog', { name: /^GST/ });
-    await expect(panel).toBeVisible();
+    // Enrol now opens the checkout page
+    await expect(page).toHaveURL(/\/checkout\?topic=/);
     await expect(
-      panel.getByRole('radio', { name: /December batch/ }),
+      page.getByRole('heading', { level: 1, name: /review your\s*seat/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('radio', { name: /December batch/ }),
     ).toBeChecked();
-    await expect(panel.getByText('What is GST')).toBeVisible();
-    await panel.getByLabel('Mobile number').fill('+91 98765 43210');
-    await page.waitForTimeout(400);
+    await expect(page.getByText('What is GST')).toBeVisible();
+    await page.getByLabel('Mobile number').fill('+91 98765 43210');
+    await page.getByRole('checkbox', { name: /I agree to the/ }).check();
     await page.screenshot({
-      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-payment-panel.png`,
+      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-checkout.png`,
+      fullPage: true,
     });
-    await panel.getByRole('button', { name: 'Pay ₹129' }).click();
+    await page.getByRole('button', { name: 'Pay ₹129' }).click();
 
     // No Razorpay keys in the test API: the seat is held as payment pending
-    await expect(panel.getByText('Seat saved')).toBeVisible();
-    await panel.getByRole('button', { name: 'Done' }).click();
-    await expect(panel).toBeHidden();
+    await expect(page.getByText('Seat saved')).toBeVisible();
+    await page.getByRole('link', { name: 'Go to My learning' }).click();
 
     await page.goto('/my-learning');
     await expect(page).toHaveURL(/\/my-learning$/);

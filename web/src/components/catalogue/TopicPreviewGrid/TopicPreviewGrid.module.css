@@ -41,7 +41,7 @@
   opacity: 1;
 }
 
-/* Touch screens have no hover; the payment panel lists the subtopics */
+/* Touch screens have no hover; the checkout page lists the subtopics */
 @media (--no-hover) {
   .overlay {
     display: none;

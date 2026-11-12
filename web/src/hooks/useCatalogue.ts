@@ -15,7 +15,7 @@ export type CatalogueState = {
 const NO_SUBJECTS: Subject[] = [];
 
 // One request serves every component on the page (header search, topic
-// cards, payment panel), so they always agree on prices and batches. A
+// cards, checkout page), so they always agree on prices and batches. A
 // failed load retries, and the catalogue refreshes when the student comes
 // back to the tab.
 export const useCatalogue = (): CatalogueState => {

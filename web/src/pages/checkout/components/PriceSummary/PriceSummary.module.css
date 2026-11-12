@@ -1,0 +1,61 @@
+.summary {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width-base) solid var(--color-border-base);
+  background: var(--color-bg-raised);
+}
+
+.rows {
+  display: grid;
+  gap: var(--space-1-5);
+  margin: 0;
+  padding-top: var(--space-2);
+  border-top: var(--border-width-base) solid var(--color-border-base);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.row dt {
+  display: grid;
+  gap: var(--space-0-25);
+}
+
+.row dd {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.total {
+  padding-top: var(--space-1-5);
+  border-top: var(--border-width-base) solid var(--color-border-base);
+}
+
+.totalAmount {
+  font-size: var(--text-md);
+}
+
+.action {
+  display: grid;
+  gap: var(--space-1-5);
+}
+
+.secure {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+
+.secureIcon {
+  display: flex;
+  color: var(--color-text-accent);
+}

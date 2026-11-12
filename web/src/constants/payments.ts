@@ -40,12 +40,17 @@ export const PRE_REGISTRATION_STATUS_LABEL: Record<EnrolmentStatus, string> = {
   CANCELLED: 'Cancelled',
 };
 
-// The action on each topic card and the payment panel it opens
+// The checkout page (/checkout?topic=&batch=). The topic and batch live in
+// the URL, so the page survives signing in and can be shared or reloaded.
+export const CHECKOUT_QUERY_PARAM = {
+  topic: 'topic',
+  batch: 'batch',
+} as const;
+
+// The action on each topic card and the checkout page it opens
 export const CHECKOUT_TEXT = {
   enrolAction: 'Enrol now',
   preRegisterAction: 'Pre-register now',
-  // The panel's title until the topic has loaded
-  topicPending: 'Your topic',
   loadingTopic: 'Loading this topic',
   loadFailedTopic:
     'We could not load this topic. Check your connection and try again',
@@ -54,29 +59,60 @@ export const CHECKOUT_TEXT = {
     `${action}: ${topic}, ${level}`,
   enrolEyebrow: 'Enrol',
   preRegisterEyebrow: 'Pre-register',
-  eyebrow: (action: string, level: string) => `${action} · ${level}`,
-  close: 'Close payment',
+  // Page head
+  back: 'Back',
+  pageEyebrow: 'Checkout',
+  pageTitle: 'Review your',
+  pageTitleEmphasis: 'seat.',
+  // A topic id in the URL that the catalogue does not have
+  notFoundTitle: 'This topic is not available',
+  notFoundMessage:
+    'It may have been renamed or closed. Every open topic is on the Topics page',
+  browseTopics: 'Browse topics',
+  // Topic card
+  liveBatchBadge: 'Live batch',
+  preRegisterBadge: 'Pre-registration',
+  startsLabel: 'Starts',
+  timeLabel: 'Time',
+  sessionsLabel: 'Sessions',
+  seatsLabel: 'Seats left',
+  firstBatchLabel: 'Batch',
+  firstBatchValue: 'First batch when it opens',
+  // Batch choice
   batchLegend: 'Choose your batch',
   batchFull: 'Full',
   noOpenBatches: 'Every batch for this topic is full right now',
   preRegisterNote:
     'Batches for this topic open soon. Pre-register now to keep a seat in the first batch',
   teachTitle: 'What we will teach',
-  summaryTitle: 'Order summary',
-  summaryTopic: 'Topic',
-  summaryBatch: 'Batch',
-  summaryFirstBatch: 'First batch when it opens',
-  summaryTotal: 'Total',
-  detailsTitle: 'Your details',
+  refundPolicyLink: 'Refund and cancellation policy',
+  // Student details
+  detailsTitle: 'Student details',
+  detailsNote: 'Your payment receipt is sent to this email ID',
+  signInNote:
+    'Your seat is saved to your account, so you can find it in My learning',
   fullNameLabel: 'Full name',
   emailLabel: 'Email ID',
   mobileLabel: 'Mobile number',
   fullNameInvalid: 'Enter your full name',
   emailInvalid: 'Enter a valid email ID',
   mobileInvalid: 'Enter a valid mobile number',
+  // Price summary
+  summaryTitle: 'Price summary',
+  summaryFee: 'Topic fee',
+  summaryTotal: 'Total amount to be paid',
+  priceOnRequest: 'Fee on request',
+  agreePrefix: 'I agree to the',
+  agreeTerms: 'terms and conditions',
+  agreeJoin: 'and the',
+  agreeRefunds: 'refund and cancellation policy',
+  agreeRequired: 'Tick the box to agree before paying',
   pay: (amount: string) => `Pay ${amount}`,
+  signInToPay: 'Sign in to pay',
+  secureTitle: 'Secure payment',
   secureNote:
     'Card, UPI and netbanking details are entered with Razorpay. SriDha Academy never sees them',
+  // After paying
   paidTitle: 'Payment received',
   paidEnrolment: (batch: string) => `Your seat in the ${batch} is confirmed`,
   paidPreRegistration:
@@ -85,7 +121,6 @@ export const CHECKOUT_TEXT = {
   pendingMessage:
     'Online payment opens soon. Your seat is held and our team will contact you to complete the payment',
   goToLearning: 'Go to My learning',
-  done: 'Done',
   verifyFailed:
     'We could not confirm this payment. If money was taken, please contact us and we will sort it out',
   loadFailed: 'The payment window could not open. Please try again',

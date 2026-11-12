@@ -37,15 +37,14 @@ const TITLE_ID = 'topics-page-title';
 // Every topic we teach, searchable, with class, stream and availability
 // filters in a side panel. Subject tabs show one subject at a time; within a subject,
 // each class has its own row. "Enrol now" and "Pre-register now" open the
-// payment panel over this page.
+// topic's checkout page.
 const TopicsPage = () => {
   const { previews, isLoading, hasError, reload } = useTopicPreviews();
   const { openCheckout } = useCheckout();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
-  // The topic rows are rebuilt only when the filters or the catalogue
-  // change, not when the payment panel's ?checkout= changes the URL
+  // The topic rows are rebuilt only when the filters or the catalogue change
   const { query, classNumber, subject, stream, availability } =
     readTopicFilters(searchParams);
   const filters = useMemo(
@@ -93,17 +92,15 @@ const TopicsPage = () => {
 
   return (
     <Section labelledBy={TITLE_ID} className={cn('page')}>
-      <div className={cn('head')}>
-        <Text as="div" variant="eyebrow">
-          {PAGE_TEXT.topicsEyebrow}
-        </Text>
-        <Heading level={1} variant="display" id={TITLE_ID}>
-          {PAGE_TEXT.topicsTitle} <em>{PAGE_TEXT.topicsTitleEmphasis}</em>
-        </Heading>
-        <Text as="p" tone="muted" className={cn('note')}>
-          {PAGE_TEXT.topicsNote}
-        </Text>
-      </div>
+      {/* The search opens the page; the heading is for screen readers */}
+      <Heading
+        level={1}
+        variant="display"
+        id={TITLE_ID}
+        className={cn('visuallyHidden')}
+      >
+        {PAGE_TEXT.topicsTitle} {PAGE_TEXT.topicsTitleEmphasis}
+      </Heading>
 
       <div className={cn('controls')}>
         {/* Suggestions drop down as on every other search; the list below

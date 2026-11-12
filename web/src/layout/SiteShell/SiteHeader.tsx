@@ -3,18 +3,14 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import cx from 'classnames/bind';
 
 import { BrandLogo } from '@components/brand/BrandLogo/BrandLogo';
-import { TopicSearch } from '@components/catalogue/TopicSearch/TopicSearch';
 import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Container } from '@components/ui/Container/Container';
 import { IconButton } from '@components/ui/IconButton/IconButton';
 import { AUTH_TEXT } from '@constants/auth';
-import { CATALOGUE_QUERY_PARAM } from '@constants/catalogue';
 import { HEADER_TEXT, NAV_LINKS } from '@constants/home';
 import { APP_ROUTES } from '@constants/routes';
-import { TOPIC_FILTER_PARAM } from '@constants/topics';
 import { useAuth } from '@context/AuthContext';
 import { useToast } from '@context/ToastContext';
-import { useTopicPreviews } from '@hooks/useTopicPreviews';
 import { logoutStudent } from '@services/auth';
 
 import { BatchTicker } from './BatchTicker';
@@ -30,16 +26,6 @@ export const SiteHeader = () => {
   const navId = useId();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { previews } = useTopicPreviews();
-
-  // Search results open the topic or batch on the homepage, from any page.
-  const showOnHome = (params: Record<string, string>) => {
-    setIsMenuOpen(false);
-    navigate({
-      pathname: APP_ROUTES.HOME,
-      search: `?${new URLSearchParams(params)}`,
-    });
-  };
 
   useEffect(() => {
     setIsMenuOpen(false);
@@ -136,29 +122,6 @@ export const SiteHeader = () => {
               </NavLink>
             ),
           )}
-          <div className={cn('searchSlot')}>
-            <TopicSearch
-              previews={previews}
-              onOpenTopic={topicId =>
-                showOnHome({ [CATALOGUE_QUERY_PARAM.topic]: topicId })
-              }
-              onSelectBatch={(topicId, batchId) =>
-                showOnHome({
-                  [CATALOGUE_QUERY_PARAM.topic]: topicId,
-                  [CATALOGUE_QUERY_PARAM.batch]: batchId,
-                })
-              }
-              onBrowseTopics={searched => {
-                setIsMenuOpen(false);
-                navigate({
-                  pathname: APP_ROUTES.TOPICS,
-                  search: `?${new URLSearchParams({
-                    [TOPIC_FILTER_PARAM.query]: searched,
-                  })}`,
-                });
-              }}
-            />
-          </div>
           {accountActions ? (
             <div className={cn('menuActions')}>{accountActions}</div>
           ) : null}
