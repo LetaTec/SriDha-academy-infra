@@ -36,7 +36,7 @@ export const TICKER_TEXT = {
 } as const;
 
 export const HEADER_TEXT = {
-  myLearning: 'My learning',
+  teamOrders: 'Orders',
   logout: 'Log out',
   openMenu: 'Open menu',
   closeMenu: 'Close menu',
@@ -256,11 +256,6 @@ export const FOOTER_COLUMNS = [
   },
   { title: POLICY_LINKS_TITLE, links: POLICY_LINKS },
 ] as const;
-
-export const FOOTER_STUDENT_TEXT = {
-  title: 'Student',
-  myLearning: 'My learning',
-} as const;
 
 // Static closing chapters of the interactive book. Topic and batch pages are
 // generated from the live catalogue and inserted before these.

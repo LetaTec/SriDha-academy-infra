@@ -5,8 +5,6 @@ import { QueryClient } from '@tanstack/react-query';
 // them; a change on the server (a payment) invalidates the keys it affects.
 export const QUERY_KEY = {
   catalogue: ['catalogue'],
-  enrolments: ['enrolments'],
-  preRegistrations: ['pre-registrations'],
   teamOrders: ['team-orders'],
 } as const;
 

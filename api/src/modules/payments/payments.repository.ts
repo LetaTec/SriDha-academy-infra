@@ -130,15 +130,21 @@ export const insertPayment = (db: DatabaseClient, payment: NewPayment) =>
     ],
   );
 
-export const findPaymentForUser = (
+export const findPaymentById = (db: DatabaseClient, paymentId: string) =>
+  db.get<Row>('SELECT * FROM payments WHERE id = $1', [paymentId]);
+
+// Adds a passwordless student record for a billing email seen for the
+// first time; an email that already has one is left as it is
+export const insertBuyerIfNew = (
   db: DatabaseClient,
-  paymentId: string,
-  userId: string,
+  buyer: { id: string; email: string; role: string; timestamp: string },
 ) =>
-  db.get<Row>('SELECT * FROM payments WHERE id = $1 AND user_id = $2', [
-    paymentId,
-    userId,
-  ]);
+  db.query(
+    `INSERT INTO users (id, email, password_hash, role, created_at, updated_at)
+     VALUES ($1, $2, NULL, $3, $4, $4)
+     ON CONFLICT DO NOTHING`,
+    [buyer.id, buyer.email, buyer.role, buyer.timestamp],
+  );
 
 export const findPaymentByOrderId = (db: DatabaseClient, orderId: string) =>
   db.get<Row>('SELECT * FROM payments WHERE provider_order_id = $1', [orderId]);

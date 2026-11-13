@@ -38,21 +38,19 @@ export const createPaymentsRouter = (context: AppContext) => {
   const gateway =
     context.paymentGateway ?? createPaymentGateway(context.config);
 
-  router.use(requireAuth);
-
+  // Paying needs no account: the order is filed under the billing email,
+  // and the provider's signature is what proves a payment
   router.post('/checkout', async (req, res) => {
-    const { userId } = getRequiredAuth(req.auth);
     const input = validate(createCheckoutSchema, req.body);
     res.status(201).json({
-      checkout: await createCheckout(context, gateway, userId, input),
+      checkout: await createCheckout(context, gateway, input),
     } satisfies CheckoutResponse);
   });
 
   router.post('/verify', async (req, res) => {
-    const { userId } = getRequiredAuth(req.auth);
     const input = validate(verifyPaymentSchema, req.body);
     res.json({
-      payment: await verifyPayment(context, gateway, userId, input),
+      payment: await verifyPayment(context, gateway, input),
     } satisfies PaymentResultResponse);
   });
 

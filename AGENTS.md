@@ -11,14 +11,14 @@ These rules follow the pro-web conventions, adapted to SriDha Academy. Differenc
 
 ## Architecture (web)
 
-- Pages, layouts, components and hooks talk to domain services in `src/services/*` (`auth`, `catalogue`, `enrolments`, `payments`, `admin`, `enquiries`). Only services import the shared Axios client from `src/services/http/api.ts`.
-- Server data is read through TanStack Query hooks in `src/hooks` (`useCatalogue`, `useTopicPreviews`, `useMyLearning`, `useTeamOrders`), with keys in `QUERY_KEY` (`src/app/queryClient.ts`). Do not fetch in `useEffect`; after a change on the server, invalidate the keys it affects (see `useRefreshAfterPayment`).
+- Pages, layouts, components and hooks talk to domain services in `src/services/*` (`auth`, `catalogue`, `payments`, `admin`, `enquiries`). Only services import the shared Axios client from `src/services/http/api.ts`.
+- Server data is read through TanStack Query hooks in `src/hooks` (`useCatalogue`, `useTopicPreviews`, `useTeamOrders`), with keys in `QUERY_KEY` (`src/app/queryClient.ts`). Do not fetch in `useEffect`; after a change on the server, invalidate the keys it affects (see `useRefreshAfterPayment`).
 - Topics come only from the catalogue: use `useTopicPreviews` for topic cards. The topic list lives in `api/src/db/topicLibrary.ts`; never copy topic names or lists into the website.
 - Dependency direction: pages/layouts compose services, hooks, constants and components; services own backend calls; utilities stay pure and side-effect free.
 - Keep generic display formatting in `src/utils/*` (`currency`, `date`, `url`) or domain mappers. Components must not define local date, currency or entity formatters.
 - Use route-local `components/` folders (for example `pages/home/components`) for code used by one route. Promote to `src/components`, `src/hooks` or `src/services` only when reuse is real.
-- Browsing needs no account. Sign-in happens in place (`AccountAccess`): on the checkout page (`/checkout`), and on the pages behind `ProtectedRoute` (My learning, team orders). Do not add sign-in pages or redirects.
-- Selection and dialog state that must survive signing in (open topic, chosen batch, checkout) lives in the URL. Use `useTopicSelection` and `useCheckout`; do not duplicate it in component state or storage.
+- Students have no accounts. They never sign in or sign up: checkout (`/checkout`) asks only for name, email, mobile, state and city, and the API files the seat under that billing email. Only the team signs in, with an emailed one-time link, on the pages behind `ProtectedRoute` (team orders). Do not add student sign-in, sign-up or account pages.
+- Selection and dialog state that must survive a reload or a shared link (open topic, chosen batch, checkout) lives in the URL. Use `useTopicSelection` and `useCheckout`; do not duplicate it in component state or storage.
 - Students choose topics, never subjects. Subjects appear only as a way to find topics on the Topics page (the subject filter and subject group headings); topic cards, dialogs and other copy never present a subject or a "course".
 
 ## Access control
@@ -29,7 +29,7 @@ These rules follow the pro-web conventions, adapted to SriDha Academy. Differenc
 ## API conventions
 
 - Every error response is `{ message: string, code: string, details: unknown | null }`. Validation errors use `code: "REQUEST_VALIDATION_FAILED"` with field issues under `details.body`.
-- Validate every request body with a strict zod schema (`z.strictObject`) through `http/validate.ts`. Never accept a user or student ID from the client; use `req.auth.userId`.
+- Validate every request body with a strict zod schema (`z.strictObject`) through `http/validate.ts`. Never accept a user or student ID from the client; use `req.auth.userId` on signed-in (team) routes. Checkout and payment verification are open: the seat belongs to the billing email, and only a valid provider signature confirms a payment.
 - Error codes live in `ERROR_CODE` (`api/src/http/errors.ts`). Never hardcode error-code strings elsewhere.
 - Schema changes are new entries appended to `api/src/db/migrations.ts`. Never edit an applied migration. Production is migrated on start-up but seeded by hand, so a migration that adds columns fills existing rows itself.
 - Layers per module: routes validate and respond, services hold the rules, and every SQL statement lives in the module's `*.repository.ts`.

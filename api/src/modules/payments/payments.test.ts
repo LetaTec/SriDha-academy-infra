@@ -41,18 +41,11 @@ const sign = (orderId: string, paymentId: string) =>
 describe('payments', () => {
   let server: Awaited<ReturnType<typeof startTestServer>>;
   let student: TestClient;
-  let otherStudent: TestClient;
 
   before(async () => {
     server = await startTestServer({ paymentGateway: createFakeRazorpay() });
     student = server.createClient();
     await student.request('POST', '/api/auth/register', validRegistration());
-    otherStudent = server.createClient();
-    await otherStudent.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email: 'ravi@example.com', fullName: 'Ravi Shah' }),
-    );
   });
 
   after(async () => {
@@ -72,16 +65,48 @@ describe('payments', () => {
     );
   });
 
-  it('requires a signed-in student', async () => {
-    const response = await server
+  it('takes payment without an account, under the billing email', async () => {
+    const visitor = server.createClient();
+    const guest = { ...BILLING, email: 'Ravi.Shah@Example.com' };
+    const first = await visitor.request('POST', '/api/payments/checkout', {
+      kind: 'ENROLMENT',
+      batchId: DECEMBER_BATCH,
+      ...guest,
+    });
+    assert.equal(first.status, 201);
+
+    // Coming back with the same email reuses the same seat
+    const retry = await server
       .createClient()
       .request('POST', '/api/payments/checkout', {
         kind: 'ENROLMENT',
         batchId: DECEMBER_BATCH,
-        ...BILLING,
+        ...guest,
+        email: 'ravi.shah@example.com',
       });
+    assert.equal(retry.status, 201);
 
-    assert.equal(response.status, 401);
+    const seats = await server.db.all<{ email: string; password_hash: null }>(
+      `SELECT u.email, u.password_hash FROM enrolments e
+       JOIN users u ON u.id = e.user_id
+       WHERE e.batch_id = $1 AND u.email = 'ravi.shah@example.com'`,
+      [DECEMBER_BATCH],
+    );
+    assert.equal(seats.length, 1);
+    assert.equal(seats[0].password_hash, null);
+
+    // The provider's signature is the proof of payment, from any browser
+    const { paymentId, provider } = retry.body.checkout;
+    const verified = await server
+      .createClient()
+      .request('POST', '/api/payments/verify', {
+        paymentId,
+        providerOrderId: provider.orderId,
+        providerPaymentId: 'pay_guest',
+        signature: sign(provider.orderId, 'pay_guest'),
+      });
+    assert.equal(verified.status, 200);
+    assert.equal(verified.body.payment.status, 'PAID');
   });
 
   it('rejects a client-chosen amount or student', async () => {
@@ -121,17 +146,22 @@ describe('payments', () => {
     assert.equal(forged.status, 400);
     assert.equal(forged.body.code, 'PAYMENT_VERIFICATION_FAILED');
 
-    const someoneElse = await otherStudent.request(
-      'POST',
-      '/api/payments/verify',
-      {
-        paymentId,
-        providerOrderId: provider.orderId,
-        providerPaymentId: 'pay_1',
-        signature: sign(provider.orderId, 'pay_1'),
-      },
-    );
-    assert.equal(someoneElse.status, 404);
+    const unknown = await student.request('POST', '/api/payments/verify', {
+      paymentId: 'payment_missing',
+      providerOrderId: provider.orderId,
+      providerPaymentId: 'pay_1',
+      signature: sign(provider.orderId, 'pay_1'),
+    });
+    assert.equal(unknown.status, 404);
+
+    // Another order's signature does not confirm this one
+    const otherOrder = await student.request('POST', '/api/payments/verify', {
+      paymentId,
+      providerOrderId: 'order_other',
+      providerPaymentId: 'pay_1',
+      signature: sign('order_other', 'pay_1'),
+    });
+    assert.equal(otherOrder.status, 400);
 
     const verified = await student.request('POST', '/api/payments/verify', {
       paymentId,

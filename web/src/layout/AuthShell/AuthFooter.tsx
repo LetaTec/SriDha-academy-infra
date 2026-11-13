@@ -61,9 +61,6 @@ export const AuthFooter = () => {
             <Text as="div" variant="strong">
               {AUTH_FOOTER_TEXT.accountTitle}
             </Text>
-            <Link to={APP_ROUTES.MY_LEARNING} className={cn('link')}>
-              {AUTH_FOOTER_TEXT.myLearning}
-            </Link>
             <Link to={APP_ROUTES.ADMIN_SIGN_IN} className={cn('link')}>
               {ADMIN_SIGN_IN_TEXT.footerLink}
             </Link>
