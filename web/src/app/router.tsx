@@ -17,15 +17,11 @@ import { ProtectedRoute } from '@/routes/ProtectedRoute';
 import { RouteErrorBoundary } from '@/routes/RouteErrorBoundary';
 
 const HomePage = lazy(() => import('@pages/home/HomePage'));
-const MyLearningPage = lazy(() => import('@pages/my-learning/MyLearningPage'));
 const BatchesPage = lazy(() => import('@pages/batches/BatchesPage'));
 const TopicsPage = lazy(() => import('@pages/topics/TopicsPage'));
 const AboutPage = lazy(() => import('@pages/about/AboutPage'));
 const AiTestPage = lazy(() => import('@pages/ai-test/AiTestPage'));
 const ModelPaperPage = lazy(() => import('@pages/model-paper/ModelPaperPage'));
-const ResetPasswordPage = lazy(
-  () => import('@pages/reset-password/ResetPasswordPage'),
-);
 const AdminSignInPage = lazy(
   () => import('@pages/admin-sign-in/AdminSignInPage'),
 );
@@ -40,9 +36,10 @@ const SuspendedOutlet = () => (
   </Suspense>
 );
 
-// The site is open to everyone. An account is asked for only when paying
-// (on the checkout page) and on the pages that list a student's own seats,
-// which sit behind ProtectedRoute.
+// The site is open to everyone and students never sign in: they pay with
+// their name, email and mobile, and the seat belongs to that email. Only
+// the team signs in (with an emailed link), for the pages behind
+// ProtectedRoute.
 export const routes: RouteObject[] = [
   {
     element: <AuthShell />,
@@ -51,7 +48,6 @@ export const routes: RouteObject[] = [
       {
         element: <SuspendedOutlet />,
         children: [
-          { path: APP_ROUTES.RESET_PASSWORD, element: <ResetPasswordPage /> },
           { path: APP_ROUTES.ADMIN_SIGN_IN, element: <AdminSignInPage /> },
           // Public policy pages, with or without an account
           {
@@ -70,10 +66,18 @@ export const routes: RouteObject[] = [
       },
     ],
   },
-  // The old sign-in pages are gone; their links land on the homepage
-  ...[APP_ROUTES.LOGIN, APP_ROUTES.REGISTER, APP_ROUTES.FORGOT_PASSWORD].map(
-    path => ({ path, element: <Navigate to={APP_ROUTES.HOME} replace /> }),
-  ),
+  // Student accounts are gone; old links (from emails, bookmarks) land on
+  // the homepage
+  ...[
+    APP_ROUTES.LOGIN,
+    APP_ROUTES.REGISTER,
+    APP_ROUTES.FORGOT_PASSWORD,
+    APP_ROUTES.RESET_PASSWORD,
+    APP_ROUTES.MY_LEARNING,
+  ].map(path => ({
+    path,
+    element: <Navigate to={APP_ROUTES.HOME} replace />,
+  })),
   {
     element: <SiteShell />,
     errorElement: <RouteErrorBoundary />,
@@ -87,12 +91,11 @@ export const routes: RouteObject[] = [
           { path: APP_ROUTES.ABOUT, element: <AboutPage /> },
           { path: APP_ROUTES.AI_TEST, element: <AiTestPage /> },
           { path: APP_ROUTES.MODEL_PAPER, element: <ModelPaperPage /> },
-          // Open to everyone; the page asks for an account before paying
+          // Open to everyone; paying needs no account
           { path: APP_ROUTES.CHECKOUT, element: <CheckoutPage /> },
           {
             element: <ProtectedRoute />,
             children: [
-              { path: APP_ROUTES.MY_LEARNING, element: <MyLearningPage /> },
               { path: APP_ROUTES.TEAM_ORDERS, element: <TeamOrdersPage /> },
             ],
           },

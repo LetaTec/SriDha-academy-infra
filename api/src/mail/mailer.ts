@@ -9,7 +9,7 @@ export type PaymentConfirmation = {
   batch: string | null;
   amount: string;
   paymentReference: string;
-  learningUrl: string;
+  topicsUrl: string;
 };
 
 export type Mailer = {
@@ -116,8 +116,8 @@ const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
       send(email, {
         subject: `Payment received: ${confirmation.topic}`,
         intro: describePayment(confirmation),
-        action: 'Go to My learning',
-        url: confirmation.learningUrl,
+        action: 'See more topics',
+        url: confirmation.topicsUrl,
         note: `Payment reference: ${confirmation.paymentReference}. Keep it for any questions about this payment. Razorpay also emails a receipt.`,
       }),
   };

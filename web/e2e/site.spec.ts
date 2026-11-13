@@ -4,7 +4,6 @@ const SCREENSHOT_DIR = 'test-results/screenshots';
 // The next GST batch still open; the November one started on 1 November
 const OPEN_BATCH = 'batch_gst_class_11_december';
 const GST_TOPIC = 'topic_accounts_gst_class_11';
-const PASSWORD = 'correct-horse-1';
 
 const uniqueEmail = (label: string) =>
   `${label}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
@@ -26,27 +25,6 @@ const bookBox = async (page: Page) => {
   };
 };
 
-const registerViaApi = async (page: Page, email: string) => {
-  const response = await page.request.post('/api/auth/register', {
-    data: {
-      fullName: 'Asha Verma',
-      email,
-      password: PASSWORD,
-      dateOfBirth: '2009-04-12',
-      mobile: '9876543210',
-      standard: 'CLASS_11',
-      stream: 'COMMERCE',
-      address: null,
-    },
-  });
-  expect(response.status()).toBe(201);
-};
-
-// Registers through the API, which also signs this browser context in.
-const signedIn = async (page: Page, label: string) => {
-  await registerViaApi(page, uniqueEmail(label));
-};
-
 test.describe('open site', () => {
   test('visitors land on the topic search without an account', async ({
     page,
@@ -56,7 +34,7 @@ test.describe('open site', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: /search your\s*topic/i }),
     ).toBeVisible();
-    // No account links in the header until there is an account
+    // Students have no accounts, so the header has no account links
     await expect(
       page.getByRole('banner').getByRole('link', { name: 'My learning' }),
     ).toHaveCount(0);
@@ -85,82 +63,14 @@ test.describe('open site', () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
-  test('paying asks for an account on the checkout page', async ({
-    page,
-  }, testInfo) => {
-    await page.goto(`/?topic=${GST_TOPIC}&batch=${OPEN_BATCH}`);
-    const review = page.getByRole('dialog', {
-      name: /review your\s*selection/i,
-    });
-    await review.getByRole('button', { name: 'Continue to payment' }).click();
-
-    await expect(page).toHaveURL(/\/checkout\?topic=/);
-    await expect(
-      page.getByRole('heading', { name: 'Sign in to continue' }),
-    ).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Pay / })).toHaveCount(0);
-
-    // A new student registers without leaving the page
-    await page.getByRole('button', { name: 'Create an account' }).click();
-    await page.getByLabel('Student name').fill('Asha Verma');
-    await page.getByLabel('Date of birth').fill('2009-04-12');
-    await page.getByLabel('Mobile number').fill('+91 98765 43210');
-    await page.getByLabel('Email ID').fill(uniqueEmail(testInfo.project.name));
-    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
-    await page.getByLabel('Standard / Exam').selectOption('CLASS_11');
-    await page.screenshot({
-      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-checkout-register.png`,
-      fullPage: true,
-    });
-    await page.getByRole('button', { name: /create account/i }).click();
-
-    // Signed in: the same page and batch, ready to pay
-    await expect(page.getByLabel('Full name')).toHaveValue('Asha Verma');
-    await expect(
-      page.getByRole('radio', { name: /December batch/ }),
-    ).toBeChecked();
-    await expect(page.getByRole('button', { name: 'Pay ₹129' })).toBeVisible();
-  });
-
-  test('My learning asks a signed-out visitor to sign in on the page', async ({
-    page,
-    request,
-  }, testInfo) => {
-    const email = uniqueEmail(`${testInfo.project.name}-learning`);
-    const register = await request.post('/api/auth/register', {
-      data: {
-        fullName: 'Ravi Shah',
-        email,
-        password: PASSWORD,
-        dateOfBirth: '2008-01-20',
-        mobile: '9876543210',
-        standard: 'CLASS_12',
-        stream: 'COMMERCE',
-        address: null,
-      },
-    });
-    expect(register.status()).toBe(201);
-
-    await page.goto('/my-learning');
-    await page.getByLabel('Email ID').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill('wrong-password');
-    await page.getByRole('button', { name: /^sign in$/i }).click();
-    await expect(
-      page.getByText('The email or password is incorrect'),
-    ).toBeVisible();
-
-    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
-    await page.getByRole('button', { name: /^sign in$/i }).click();
-    await expect(page).toHaveURL(/\/my-learning$/);
-    await expect(page.getByText('Signed in as Ravi Shah')).toBeVisible();
-  });
-
-  test('old sign-in links open the homepage', async ({ page }) => {
-    await page.goto('/login');
-    await expect(page).toHaveURL(/\/$/);
-    await expect(
-      page.getByRole('heading', { level: 1, name: /search your\s*topic/i }),
-    ).toBeVisible();
+  test('old account links open the homepage', async ({ page }) => {
+    for (const path of ['/login', '/my-learning']) {
+      await page.goto(path);
+      await expect(page).toHaveURL(/\/$/);
+      await expect(
+        page.getByRole('heading', { level: 1, name: /search your\s*topic/i }),
+      ).toBeVisible();
+    }
   });
 });
 
@@ -208,8 +118,7 @@ test.describe('homepage', () => {
 test.describe('interactive book', () => {
   test('stays anchored under pointer movement, scrolling and rapid page turns', async ({
     page,
-  }, testInfo) => {
-    await signedIn(page, `${testInfo.project.name}-book`);
+  }) => {
     await page.goto('/');
     await expect(book(page)).toBeVisible();
     await expect(page.getByText(/spread 1 of/i)).toBeVisible();
@@ -254,7 +163,6 @@ test.describe('interactive book', () => {
   test('selects a batch from the book and explores more batches', async ({
     page,
   }, testInfo) => {
-    await signedIn(page, `${testInfo.project.name}-spread`);
     await page.goto('/');
     await page.getByRole('button', { name: 'Turn to the next page' }).click();
     const selectInBook = book(page).getByRole('button', {
@@ -283,10 +191,9 @@ test.describe('interactive book', () => {
 });
 
 test.describe('student journey', () => {
-  test('reserve a seat, restore the session and log out', async ({
+  test('reserve a seat with just the payment details, no account', async ({
     page,
   }, testInfo) => {
-    await signedIn(page, `${testInfo.project.name}-journey`);
     await page.goto('/#topics');
     const enrol = page.getByRole('button', {
       name: 'Enrol now: GST, Class 11',
@@ -303,6 +210,12 @@ test.describe('student journey', () => {
       page.getByRole('radio', { name: /December batch/ }),
     ).toBeChecked();
     await expect(page.getByText('What is GST')).toBeVisible();
+    // Nothing asks for a password or an account
+    await expect(page.getByLabel('Password')).toHaveCount(0);
+    await page.getByLabel('Full name').fill('Asha Verma');
+    await page
+      .getByLabel('Email ID')
+      .fill(uniqueEmail(`${testInfo.project.name}-journey`));
     await page.getByLabel('Mobile number').fill('+91 98765 43210');
     await page.getByLabel('State', { exact: true }).selectOption('Rajasthan');
     await page.getByLabel('City', { exact: true }).fill('Jaipur');
@@ -315,36 +228,11 @@ test.describe('student journey', () => {
 
     // No Razorpay keys in the test API: the seat is held as payment pending
     await expect(page.getByText('Seat saved')).toBeVisible();
-    await page.getByRole('link', { name: 'Go to My learning' }).click();
-
-    await page.goto('/my-learning');
-    await expect(page).toHaveURL(/\/my-learning$/);
-    await expect(page.getByText('Signed in as Asha Verma')).toBeVisible();
-
-    // Session restoration after a full page reload.
-    await page.reload();
-    await expect(page.getByText('Signed in as Asha Verma')).toBeVisible();
-
-    if (testInfo.project.name === 'mobile') {
-      await page.getByRole('button', { name: 'Open menu' }).click();
-    }
-    await page.getByRole('button', { name: 'Log out' }).first().click();
-    await expect(page).toHaveURL(/\/$/);
-
-    const response = await page.request.get('/api/enrolments');
-    expect(response.status()).toBe(401);
-
-    // Signed out, the site stays open
-    await page.goto('/');
-    await expect(
-      page.getByRole('heading', { level: 1, name: /search your\s*topic/i }),
-    ).toBeVisible();
+    await page.getByRole('link', { name: 'Browse topics' }).click();
+    await expect(page).toHaveURL(/\/topics$/);
   });
 
-  test('model paper waitlist sign-ups are stored', async ({
-    page,
-  }, testInfo) => {
-    await signedIn(page, `${testInfo.project.name}-waitlist`);
+  test('model paper waitlist sign-ups are stored', async ({ page }) => {
     await page.goto('/#model-paper');
     await expect(
       page.getByRole('heading', { level: 3, name: 'AI Model Paper' }),
@@ -352,6 +240,7 @@ test.describe('student journey', () => {
 
     await page.getByRole('button', { name: 'Join waitlist' }).first().click();
     const dialog = page.getByRole('dialog', { name: /prepare\s*ahead/i });
+    await dialog.getByLabel(/email/i).fill(uniqueEmail('waitlist'));
     await dialog.getByLabel('Exam').selectOption('NEET');
     await dialog.getByRole('button', { name: /join waitlist/i }).click();
     await expect(

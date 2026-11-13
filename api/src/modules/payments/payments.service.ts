@@ -13,7 +13,9 @@ import type {
 import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { logger } from '../../logging/logger.js';
+import { findUserIdByEmail } from '../auth/auth.repository.js';
 import { emailSchema, mobileSchema } from '../auth/auth.schema.js';
+import { USER_ROLE } from '../auth/roles.js';
 import { INDIAN_STATES } from './indianStates.js';
 import {
   BATCH_AVAILABILITY,
@@ -36,9 +38,10 @@ import type { PaymentGateway } from './gateway.js';
 import {
   findBatchForPurchase,
   findPaymentConfirmationRow,
-  findPaymentForUser,
+  findPaymentById,
   findPreRegistration,
   findTopicForPreRegistration,
+  insertBuyerIfNew,
   insertPayment,
   insertPreRegistration,
   setPaymentPaid,
@@ -70,7 +73,7 @@ const billingFields = {
 };
 
 // The client names a batch or a topic; the amount always comes from the
-// catalogue and the student from the session.
+// catalogue, and the seat is filed under the billing email.
 export const createCheckoutSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal(CHECKOUT_KIND.enrolment),
@@ -197,7 +200,7 @@ const prepareEnrolment = async (
     throw new ApiError(
       409,
       ERROR_CODE.alreadyEnrolled,
-      'You have already paid for this batch',
+      'This email has already paid for this batch',
       { enrolmentId: String(existing.id) },
     );
   }
@@ -255,7 +258,7 @@ const preparePreRegistration = async (
       throw new ApiError(
         409,
         ERROR_CODE.alreadyPreRegistered,
-        'You have already pre-registered for this topic',
+        'This email has already pre-registered for this topic',
       );
     }
 
@@ -289,12 +292,27 @@ const preparePreRegistration = async (
   });
 };
 
+// Students do not sign in. Each seat belongs to the email it was paid
+// with: the first checkout from a new email adds a passwordless student
+// record for it, and later ones reuse it.
+const findOrCreateBuyer = async (context: AppContext, email: string) => {
+  await insertBuyerIfNew(context.db, {
+    id: randomUUID(),
+    email,
+    role: USER_ROLE.student,
+    timestamp: context.now().toISOString(),
+  });
+  const userId = await findUserIdByEmail(context.db, email);
+  if (!userId) throw new Error('The buyer record was not saved');
+  return userId;
+};
+
 export const createCheckout = async (
   context: AppContext,
   gateway: PaymentGateway,
-  userId: string,
   input: CreateCheckoutInput,
 ): Promise<Checkout> => {
+  const userId = await findOrCreateBuyer(context, input.email);
   const purchase =
     input.kind === CHECKOUT_KIND.enrolment
       ? await prepareEnrolment(context, userId, input.batchId)
@@ -375,17 +393,17 @@ export const markPaymentPaid = async (
 };
 
 // Confirms the seat only when the provider's signature matches the order
-// this student created.
+// created for this payment. Only the provider and this API know the key
+// that signs it, so no account is needed.
 export const verifyPayment = async (
   context: AppContext,
   gateway: PaymentGateway,
-  userId: string,
   input: VerifyPaymentInput,
 ) => {
   const timestamp = context.now().toISOString();
 
   const result = await transaction(context.db, async tx => {
-    const payment = await findPaymentForUser(tx, input.paymentId, userId);
+    const payment = await findPaymentById(tx, input.paymentId);
 
     if (!payment) {
       throw new ApiError(
@@ -448,7 +466,7 @@ export const sendPaymentConfirmation = async (
       batch: row.batch_name === null ? null : String(row.batch_name),
       amount: formatRupees(Number(row.amount_paise)),
       paymentReference: String(row.provider_payment_id ?? row.id),
-      learningUrl: `${context.config.webOrigin}/my-learning`,
+      topicsUrl: `${context.config.webOrigin}/topics`,
     });
   } catch (error) {
     logger.error('payments.confirmation_email_failed', { paymentId, error });

@@ -143,8 +143,6 @@ export const CHECKOUT_TEXT = {
   // Student details
   detailsTitle: 'Student details',
   detailsNote: 'Your payment receipt is sent to this email ID',
-  signInNote:
-    'Your seat is saved to your account, so you can find it in My learning',
   fullNameLabel: 'Full name',
   emailLabel: 'Email ID',
   mobileLabel: 'Mobile number',
@@ -168,7 +166,6 @@ export const CHECKOUT_TEXT = {
   agreeRefunds: 'refund and cancellation policy',
   agreeRequired: 'Tick the box to agree before paying',
   pay: (amount: string) => `Pay ${amount}`,
-  signInToPay: 'Sign in to pay',
   secureTitle: 'Secure payment',
   secureNote:
     'Card, UPI and netbanking details are entered with Razorpay. SriDha Academy never sees them',
@@ -180,7 +177,8 @@ export const CHECKOUT_TEXT = {
   pendingTitle: 'Seat saved',
   pendingMessage:
     'Online payment opens soon. Your seat is held and our team will contact you to complete the payment',
-  goToLearning: 'Go to My learning',
+  emailedTo: (email: string) =>
+    `We have emailed the details to ${email}. Keep that email; it is your receipt`,
   verifyFailed:
     'We could not confirm this payment. If money was taken, please contact us and we will sort it out',
   loadFailed: 'The payment window could not open. Please try again',
