@@ -13,10 +13,53 @@ export type PaymentStatus = 'CREATED' | 'PAID';
 
 export type PaymentProvider = 'RAZORPAY' | 'TEST';
 
+// The 28 states and 8 union territories of India, as written on a tax
+// invoice
+export type IndianState =
+  | 'Andhra Pradesh'
+  | 'Arunachal Pradesh'
+  | 'Assam'
+  | 'Bihar'
+  | 'Chhattisgarh'
+  | 'Goa'
+  | 'Gujarat'
+  | 'Haryana'
+  | 'Himachal Pradesh'
+  | 'Jharkhand'
+  | 'Karnataka'
+  | 'Kerala'
+  | 'Madhya Pradesh'
+  | 'Maharashtra'
+  | 'Manipur'
+  | 'Meghalaya'
+  | 'Mizoram'
+  | 'Nagaland'
+  | 'Odisha'
+  | 'Punjab'
+  | 'Rajasthan'
+  | 'Sikkim'
+  | 'Tamil Nadu'
+  | 'Telangana'
+  | 'Tripura'
+  | 'Uttar Pradesh'
+  | 'Uttarakhand'
+  | 'West Bengal'
+  | 'Andaman and Nicobar Islands'
+  | 'Chandigarh'
+  | 'Dadra and Nagar Haveli and Daman and Diu'
+  | 'Delhi'
+  | 'Jammu and Kashmir'
+  | 'Ladakh'
+  | 'Lakshadweep'
+  | 'Puducherry';
+
 export type BillingDetails = {
   fullName: string;
   email: string;
   mobile: string;
+  // Where the student lives, for the payment's tax invoice
+  state: IndianState;
+  city: string;
 };
 
 // The amount is never sent: the API prices the batch or topic itself

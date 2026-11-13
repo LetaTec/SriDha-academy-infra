@@ -290,4 +290,13 @@ export const MIGRATIONS: readonly Migration[] = [
       ON CONFLICT (id) DO NOTHING;
     `,
   },
+  {
+    // Checkout asks for the student's state and city, for the tax invoice.
+    // Orders placed before have neither, so both stay optional here.
+    id: '009_payment_billing_state_city',
+    sql: `
+      ALTER TABLE payments ADD COLUMN billing_state TEXT;
+      ALTER TABLE payments ADD COLUMN billing_city TEXT;
+    `,
+  },
 ];

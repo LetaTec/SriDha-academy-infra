@@ -36,6 +36,8 @@ export const listTeamOrders = async ({
       name: String(row.billing_name),
       email: String(row.billing_email),
       mobile: String(row.billing_mobile),
+      state: row.billing_state === null ? null : String(row.billing_state),
+      city: row.billing_city === null ? null : String(row.billing_city),
     },
   }));
 };

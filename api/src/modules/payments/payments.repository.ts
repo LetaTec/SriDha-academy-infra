@@ -100,6 +100,8 @@ export type NewPayment = {
   billingName: string;
   billingEmail: string;
   billingMobile: string;
+  billingState: string;
+  billingCity: string;
   timestamp: string;
 };
 
@@ -107,8 +109,8 @@ export const insertPayment = (db: DatabaseClient, payment: NewPayment) =>
   db.query(
     `INSERT INTO payments (id, user_id, enrolment_id, pre_registration_id, amount_paise, currency,
        provider, provider_order_id, status, billing_name, billing_email, billing_mobile,
-       created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)`,
+       billing_state, billing_city, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15)`,
     [
       payment.id,
       payment.userId,
@@ -122,6 +124,8 @@ export const insertPayment = (db: DatabaseClient, payment: NewPayment) =>
       payment.billingName,
       payment.billingEmail,
       payment.billingMobile,
+      payment.billingState,
+      payment.billingCity,
       payment.timestamp,
     ],
   );

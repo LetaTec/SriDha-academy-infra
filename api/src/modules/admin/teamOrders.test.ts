@@ -21,6 +21,8 @@ const BILLING = {
   fullName: 'Asha Verma',
   email: 'asha@example.com',
   mobile: '+91 98765 43210',
+  state: 'Rajasthan',
+  city: 'Jaipur',
 };
 
 const createFakeRazorpay = (): PaymentGateway => {
@@ -154,5 +156,8 @@ describe('payment confirmations, pre-registrations and team orders', () => {
     assert.equal(older.batch, 'December batch');
     assert.equal(older.providerPaymentId, 'pay_email_1');
     assert.equal(older.student.accountEmail, 'asha@example.com');
+    // Where the student lives, for the tax invoice
+    assert.equal(older.student.state, 'Rajasthan');
+    assert.equal(older.student.city, 'Jaipur');
   });
 });

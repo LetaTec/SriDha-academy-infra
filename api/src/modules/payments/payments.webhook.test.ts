@@ -16,6 +16,8 @@ const BILLING = {
   fullName: 'Asha Verma',
   email: 'asha@example.com',
   mobile: '+91 98765 43210',
+  state: 'Rajasthan',
+  city: 'Jaipur',
 };
 
 const createFakeRazorpay = (): PaymentGateway => {

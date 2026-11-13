@@ -1,5 +1,6 @@
 import type {
   CheckoutKind,
+  IndianState,
   PaymentProvider,
   PaymentStatus,
 } from '@contracts/payments';
@@ -26,6 +27,59 @@ export const PAYMENT_STATUS = {
 } as const satisfies Record<string, PaymentStatus>;
 
 export type { PaymentStatus };
+
+// Where the student lives, for the payment's tax invoice: every state and
+// union territory once, the type makes a missing or misspelt one an error
+const INDIAN_STATE_SET = {
+  'Andhra Pradesh': true,
+  'Arunachal Pradesh': true,
+  Assam: true,
+  Bihar: true,
+  Chhattisgarh: true,
+  Goa: true,
+  Gujarat: true,
+  Haryana: true,
+  'Himachal Pradesh': true,
+  Jharkhand: true,
+  Karnataka: true,
+  Kerala: true,
+  'Madhya Pradesh': true,
+  Maharashtra: true,
+  Manipur: true,
+  Meghalaya: true,
+  Mizoram: true,
+  Nagaland: true,
+  Odisha: true,
+  Punjab: true,
+  Rajasthan: true,
+  Sikkim: true,
+  'Tamil Nadu': true,
+  Telangana: true,
+  Tripura: true,
+  'Uttar Pradesh': true,
+  Uttarakhand: true,
+  'West Bengal': true,
+  'Andaman and Nicobar Islands': true,
+  Chandigarh: true,
+  'Dadra and Nagar Haveli and Daman and Diu': true,
+  Delhi: true,
+  'Jammu and Kashmir': true,
+  Ladakh: true,
+  Lakshadweep: true,
+  Puducherry: true,
+} as const satisfies Record<IndianState, true>;
+
+export const INDIAN_STATES = Object.keys(INDIAN_STATE_SET) as [
+  IndianState,
+  ...IndianState[],
+];
+
+// Alphabetical, as a student looks for theirs
+export const INDIAN_STATE_OPTIONS = [...INDIAN_STATES]
+  .sort((a, b) => a.localeCompare(b))
+  .map(state => ({ value: state, label: state }));
+
+export type { IndianState };
 
 export const RAZORPAY = {
   scriptUrl: 'https://checkout.razorpay.com/v1/checkout.js',
@@ -94,9 +148,15 @@ export const CHECKOUT_TEXT = {
   fullNameLabel: 'Full name',
   emailLabel: 'Email ID',
   mobileLabel: 'Mobile number',
+  stateLabel: 'State',
+  statePlaceholder: 'Select your state',
+  cityLabel: 'City',
+  cityPlaceholder: 'Your city or town',
   fullNameInvalid: 'Enter your full name',
   emailInvalid: 'Enter a valid email ID',
   mobileInvalid: 'Enter a valid mobile number',
+  stateRequired: 'Select your state',
+  cityRequired: 'Enter your city',
   // Price summary
   summaryTitle: 'Price summary',
   summaryFee: 'Topic fee',
