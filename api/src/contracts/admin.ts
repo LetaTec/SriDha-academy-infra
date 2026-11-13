@@ -26,6 +26,9 @@ export type TeamOrder = {
     name: string;
     email: string;
     mobile: string;
+    // Null for orders placed before checkout asked for them
+    state: string | null;
+    city: string | null;
   };
 };
 

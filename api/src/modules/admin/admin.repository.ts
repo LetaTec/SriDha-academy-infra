@@ -5,7 +5,8 @@ export const listOrderRows = (db: DatabaseClient, limit: number) =>
   db.all<Row>(
     `SELECT p.id, p.created_at, p.status, p.provider, p.amount_paise,
             p.provider_order_id, p.provider_payment_id, p.billing_name,
-            p.billing_email, p.billing_mobile, u.email AS account_email,
+            p.billing_email, p.billing_mobile, p.billing_state, p.billing_city,
+            u.email AS account_email,
             p.enrolment_id, b.name AS batch_name,
             COALESCE(enrolled.title, registered.title) AS topic_title,
             COALESCE(e.status, r.status) AS seat_status

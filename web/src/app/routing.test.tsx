@@ -320,13 +320,22 @@ describe('app routing', () => {
         screen.getByRole('textbox', { name: 'Mobile number' }),
         '+91 98765 43210',
       );
-      // Paying needs the terms ticked first
+      // Paying needs the state, the city and the terms ticked first
       await user.click(screen.getByRole('button', { name: 'Pay ₹129' }));
       expect(
         await screen.findByText('Tick the box to agree before paying'),
       ).toBeInTheDocument();
+      expect(screen.getAllByText('Select your state').length).toBeGreaterThan(
+        1,
+      );
+      expect(screen.getByText('Enter your city')).toBeInTheDocument();
       expect(createCheckout).not.toHaveBeenCalled();
 
+      await user.selectOptions(
+        screen.getByRole('combobox', { name: 'State' }),
+        'Rajasthan',
+      );
+      await user.type(screen.getByRole('textbox', { name: 'City' }), 'Jaipur');
       await user.click(
         screen.getByRole('checkbox', { name: /I agree to the/ }),
       );
@@ -338,6 +347,8 @@ describe('app routing', () => {
         fullName: 'Asha Verma',
         email: 'asha@example.com',
         mobile: '+91 98765 43210',
+        state: 'Rajasthan',
+        city: 'Jaipur',
       });
       // Without Razorpay keys the seat is held until payment is collected
       expect(await screen.findByText('Seat saved')).toBeInTheDocument();
@@ -597,6 +608,8 @@ describe('app routing', () => {
           name: 'Asha Verma',
           email: 'asha@example.com',
           mobile: '+91 73035 48162',
+          state: 'Rajasthan',
+          city: 'Jaipur',
         },
       },
     ]);

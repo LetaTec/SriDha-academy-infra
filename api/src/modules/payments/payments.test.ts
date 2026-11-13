@@ -19,6 +19,8 @@ const BILLING = {
   fullName: 'Asha Verma',
   email: 'asha@example.com',
   mobile: '+91 98765 43210',
+  state: 'Rajasthan',
+  city: 'Jaipur',
 };
 
 // Razorpay's real signature check, with orders made locally instead of
@@ -188,6 +190,26 @@ describe('payments', () => {
 
     assert.equal(response.status, 409);
     assert.equal(response.body.code, 'PRE_REGISTRATION_CLOSED');
+  });
+
+  it('asks for a real state and a city', async () => {
+    const response = await student.request('POST', '/api/payments/checkout', {
+      kind: 'ENROLMENT',
+      batchId: 'batch_gst_class_11_december',
+      ...BILLING,
+      state: 'Atlantis',
+      city: '',
+    });
+
+    assert.equal(response.status, 400);
+    assert.equal(response.body.code, 'REQUEST_VALIDATION_FAILED');
+    const fields = (
+      response.body.details.body as { path: string[]; message: string }[]
+    ).map(issue => [issue.path.join('.'), issue.message]);
+    assert.deepEqual(fields, [
+      ['state', 'Select your state'],
+      ['city', 'Enter your city'],
+    ]);
   });
 
   it('reports unknown topics', async () => {

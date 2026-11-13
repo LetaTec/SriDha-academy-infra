@@ -98,3 +98,114 @@ describe('migration 007: topic card fields', () => {
     }
   });
 });
+
+const MORE_BATCHES_MIGRATION = '008_ray_optics_more_batches';
+const RAY_OPTICS_TOPIC_ID = 'topic_physics_ray_optics_class_12';
+
+type BatchRow = {
+  id: string;
+  name: string;
+  schedule_label: string;
+  start_date: string;
+  start_time: string;
+  session_count: number;
+  capacity: number;
+  status: string;
+  position: number;
+};
+
+const RAY_OPTICS_BATCHES_SQL = `
+  SELECT id, name, schedule_label, start_date, start_time, session_count,
+    capacity, status, position
+  FROM batches WHERE topic_id = $1 ORDER BY position
+`;
+
+// A database migrated up to (not including) the given migration
+const migrateBefore = async (
+  db: Awaited<ReturnType<typeof openDatabase>>,
+  migrationId: string,
+) => {
+  await db.exec(
+    'CREATE TABLE schema_migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL)',
+  );
+  for (const migration of MIGRATIONS.filter(item => item.id < migrationId)) {
+    await db.exec(migration.sql);
+    await db.query(
+      'INSERT INTO schema_migrations (id, applied_at) VALUES ($1, $2)',
+      [migration.id, new Date().toISOString()],
+    );
+  }
+};
+
+describe('migration 008: more Ray optics batches', () => {
+  it('adds the January and February batches beside December on a seeded database', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      // Production before 008: seeded with December only
+      await migrateBefore(db, MORE_BATCHES_MIGRATION);
+      await seedCatalogue(db);
+      await db.query(
+        "DELETE FROM batches WHERE topic_id = $1 AND id <> 'batch_physics_ray_optics_class_12_december'",
+        [RAY_OPTICS_TOPIC_ID],
+      );
+
+      await runMigrations(db);
+
+      const rows = await db.all<BatchRow>(RAY_OPTICS_BATCHES_SQL, [
+        RAY_OPTICS_TOPIC_ID,
+      ]);
+      assert.deepEqual(
+        rows.map(row => [row.name, row.schedule_label, row.start_date]),
+        [
+          ['December batch', '1st & 2nd December', '2026-12-01'],
+          ['January batch', '5th & 6th January', '2027-01-05'],
+          ['February batch', '2nd & 3rd February', '2027-02-02'],
+        ],
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
+  it('writes the same batches as the seed', async () => {
+    const migrated = await openDatabase(':memory:');
+    const seeded = await openDatabase(':memory:');
+    try {
+      await migrateBefore(migrated, MORE_BATCHES_MIGRATION);
+      await seedCatalogue(migrated);
+      await migrated.query(
+        "DELETE FROM batches WHERE topic_id = $1 AND id <> 'batch_physics_ray_optics_class_12_december'",
+        [RAY_OPTICS_TOPIC_ID],
+      );
+      await runMigrations(migrated);
+
+      await runMigrations(seeded);
+      await seedCatalogue(seeded);
+
+      assert.deepEqual(
+        await migrated.all<BatchRow>(RAY_OPTICS_BATCHES_SQL, [
+          RAY_OPTICS_TOPIC_ID,
+        ]),
+        await seeded.all<BatchRow>(RAY_OPTICS_BATCHES_SQL, [
+          RAY_OPTICS_TOPIC_ID,
+        ]),
+      );
+    } finally {
+      await migrated.close();
+      await seeded.close();
+    }
+  });
+
+  it('adds nothing where Ray optics does not exist yet', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      await runMigrations(db);
+      const { count } = (await db.get<{ count: number }>(
+        'SELECT COUNT(*)::int AS count FROM batches',
+      )) ?? { count: -1 };
+      assert.equal(count, 0);
+    } finally {
+      await db.close();
+    }
+  });
+});

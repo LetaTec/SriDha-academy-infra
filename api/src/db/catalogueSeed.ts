@@ -62,12 +62,22 @@ const BATCH_CAPACITY = 100;
 // topic. The launch topics open with one batch on 1 and 2 December 2026.
 const LAUNCH_TOPIC_PRICE_PAISE = 12900;
 
+// A batch after December, on the same 10:00 two-session pattern
+type LaterBatch = {
+  // The batch id's ending, e.g. "january" for batch_<topic>_january
+  key: string;
+  name: string;
+  scheduleLabel: string;
+  startDate: string;
+};
+
 type LaunchTopic = {
   key: string;
   title: string;
   level: string;
   summary: string;
   lessons: readonly string[];
+  laterBatches?: readonly LaterBatch[];
 };
 
 const launchTopic = ({
@@ -76,6 +86,7 @@ const launchTopic = ({
   level,
   summary,
   lessons,
+  laterBatches = [],
 }: LaunchTopic): SeedTopic => ({
   id: `topic_${key}`,
   title,
@@ -101,6 +112,18 @@ const launchTopic = ({
       capacity: BATCH_CAPACITY,
       status: 'OPEN',
     },
+    ...laterBatches.map(batch => ({
+      id: `batch_${key}_${batch.key}`,
+      name: batch.name,
+      scheduleLabel: batch.scheduleLabel,
+      startDate: batch.startDate,
+      startTime: '10:00',
+      sessionCount: 2,
+      sessionDurationMinutes: null,
+      instructorName: null,
+      capacity: BATCH_CAPACITY,
+      status: 'OPEN' as const,
+    })),
   ],
 });
 
@@ -374,6 +397,21 @@ const HANDWRITTEN_CATALOGUE: readonly SeedSubject[] = [
               'Refraction and lenses',
               'Total internal reflection',
               'Microscopes and telescopes',
+            ],
+            // Migration 008 adds these to databases seeded before them
+            laterBatches: [
+              {
+                key: 'january',
+                name: 'January batch',
+                scheduleLabel: '5th & 6th January',
+                startDate: '2027-01-05',
+              },
+              {
+                key: 'february',
+                name: 'February batch',
+                scheduleLabel: '2nd & 3rd February',
+                startDate: '2027-02-02',
+              },
             ],
           }),
         ],

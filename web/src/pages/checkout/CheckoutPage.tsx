@@ -13,6 +13,7 @@ import { Heading } from '@components/ui/Heading/Heading';
 import { Input } from '@components/ui/Input/Input';
 import { RuledList } from '@components/ui/RuledList/RuledList';
 import { Section } from '@components/ui/Section/Section';
+import { Select } from '@components/ui/Select/Select';
 import { Spinner } from '@components/ui/Spinner/Spinner';
 import { StatusDot } from '@components/ui/StatusDot/StatusDot';
 import { Text } from '@components/ui/Text/Text';
@@ -20,6 +21,8 @@ import {
   CHECKOUT_KIND,
   CHECKOUT_QUERY_PARAM,
   CHECKOUT_TEXT,
+  INDIAN_STATE_OPTIONS,
+  INDIAN_STATES,
   PAYMENT_PROVIDER,
 } from '@constants/payments';
 import { APP_ROUTES } from '@constants/routes';
@@ -57,10 +60,16 @@ const billingSchema = z.object({
     .string()
     .trim()
     .regex(/^\+?[0-9][0-9\s-]{8,16}[0-9]$/, CHECKOUT_TEXT.mobileInvalid),
+  state: z
+    .union([z.enum(INDIAN_STATES), z.literal('')])
+    .refine(value => value !== '', CHECKOUT_TEXT.stateRequired),
+  city: z.string().trim().min(2, CHECKOUT_TEXT.cityRequired).max(80),
   agreed: z.boolean().refine(Boolean, CHECKOUT_TEXT.agreeRequired),
 });
 
-type BillingFormValues = z.infer<typeof billingSchema>;
+// The state starts empty, so the form holds more than it submits
+type BillingFormInput = z.input<typeof billingSchema>;
+type BillingFormValues = z.output<typeof billingSchema>;
 
 type Stage =
   | { name: 'details' }
@@ -194,12 +203,14 @@ const CheckoutDetails = ({
     clearFormError,
     handleApiError,
     reset,
-  } = useApiForm<BillingFormValues>({
+  } = useApiForm<BillingFormInput, BillingFormValues>({
     resolver: zodResolver(billingSchema),
     defaultValues: {
       fullName: user?.student?.fullName ?? '',
       email: user?.email ?? '',
       mobile: '',
+      state: '',
+      city: '',
       agreed: false,
     },
   });
@@ -440,6 +451,24 @@ const CheckoutDetails = ({
                     autoComplete="tel"
                     error={errors.mobile?.message}
                     {...register('mobile')}
+                  />
+                </div>
+                {/* Where the student lives, for the tax invoice */}
+                <div className={cn('fieldPair')}>
+                  <Select
+                    label={CHECKOUT_TEXT.stateLabel}
+                    placeholder={CHECKOUT_TEXT.statePlaceholder}
+                    options={INDIAN_STATE_OPTIONS}
+                    autoComplete="address-level1"
+                    error={errors.state?.message}
+                    {...register('state')}
+                  />
+                  <Input
+                    label={CHECKOUT_TEXT.cityLabel}
+                    placeholder={CHECKOUT_TEXT.cityPlaceholder}
+                    autoComplete="address-level2"
+                    error={errors.city?.message}
+                    {...register('city')}
                   />
                 </div>
               </FieldForm>

@@ -14,6 +14,7 @@ import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { logger } from '../../logging/logger.js';
 import { emailSchema, mobileSchema } from '../auth/auth.schema.js';
+import { INDIAN_STATES } from './indianStates.js';
 import {
   BATCH_AVAILABILITY,
   countActiveEnrolmentsForBatch,
@@ -64,6 +65,8 @@ const billingFields = {
   fullName: z.string().trim().min(2, 'Enter your full name').max(120),
   email: emailSchema,
   mobile: mobileSchema,
+  state: z.enum(INDIAN_STATES, 'Select your state'),
+  city: z.string().trim().min(2, 'Enter your city').max(80),
 };
 
 // The client names a batch or a topic; the amount always comes from the
@@ -318,6 +321,8 @@ export const createCheckout = async (
     billingName: input.fullName,
     billingEmail: input.email,
     billingMobile: input.mobile,
+    billingState: input.state,
+    billingCity: input.city,
     timestamp,
   });
 

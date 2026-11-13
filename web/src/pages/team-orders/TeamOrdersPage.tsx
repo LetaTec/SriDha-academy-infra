@@ -153,6 +153,14 @@ const TeamOrdersPage = () => {
                         <Text as="div" variant="small" tone="muted">
                           {order.student.mobile}
                         </Text>
+                        {/* Orders from before checkout asked have neither */}
+                        {order.student.city || order.student.state ? (
+                          <Text as="div" variant="small" tone="muted">
+                            {[order.student.city, order.student.state]
+                              .filter(Boolean)
+                              .join(', ')}
+                          </Text>
+                        ) : null}
                       </td>
                       <td>
                         <Text as="div" variant="small">

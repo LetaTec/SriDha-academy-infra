@@ -267,4 +267,36 @@ export const MIGRATIONS: readonly Migration[] = [
       WHERE topics.id = featured.id;
     `,
   },
+  {
+    // Ray optics gets a January and a February batch beside December.
+    // Production is seeded by hand, so the batches are added here, once and
+    // only where the topic exists; the seed writes the same rows.
+    id: '008_ray_optics_more_batches',
+    sql: `
+      INSERT INTO batches (id, topic_id, name, schedule_label, start_date,
+        start_time, session_count, session_duration_minutes, instructor_name,
+        capacity, status, position)
+      SELECT more.id, more.topic_id, more.name, more.schedule_label,
+        more.start_date, '10:00', 2, NULL, NULL, 100, 'OPEN', more.position
+      FROM (VALUES
+        ('batch_physics_ray_optics_class_12_january',
+          'topic_physics_ray_optics_class_12', 'January batch',
+          '5th & 6th January', '2027-01-05', 1),
+        ('batch_physics_ray_optics_class_12_february',
+          'topic_physics_ray_optics_class_12', 'February batch',
+          '2nd & 3rd February', '2027-02-02', 2)
+      ) AS more (id, topic_id, name, schedule_label, start_date, position)
+      WHERE EXISTS (SELECT 1 FROM topics WHERE topics.id = more.topic_id)
+      ON CONFLICT (id) DO NOTHING;
+    `,
+  },
+  {
+    // Checkout asks for the student's state and city, for the tax invoice.
+    // Orders placed before have neither, so both stay optional here.
+    id: '009_payment_billing_state_city',
+    sql: `
+      ALTER TABLE payments ADD COLUMN billing_state TEXT;
+      ALTER TABLE payments ADD COLUMN billing_city TEXT;
+    `,
+  },
 ];

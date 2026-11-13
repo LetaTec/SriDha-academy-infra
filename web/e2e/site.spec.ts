@@ -304,6 +304,8 @@ test.describe('student journey', () => {
     ).toBeChecked();
     await expect(page.getByText('What is GST')).toBeVisible();
     await page.getByLabel('Mobile number').fill('+91 98765 43210');
+    await page.getByLabel('State', { exact: true }).selectOption('Rajasthan');
+    await page.getByLabel('City', { exact: true }).fill('Jaipur');
     await page.getByRole('checkbox', { name: /I agree to the/ }).check();
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/${testInfo.project.name}-checkout.png`,
