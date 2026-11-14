@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { z } from 'zod';
 
+import { isValidWildcardOrigin } from '../http/origins.js';
 import { LOG_LEVEL, type LogLevel } from '../logging/logger.js';
 
 export const MAIL_TRANSPORT = {
@@ -174,8 +175,11 @@ export const loadConfig = (
     ? env.ALLOWED_ORIGINS.split(',').map(normalizeOrigin).filter(Boolean)
     : [];
 
-  const invalidOrigins = additionalOrigins.filter(
-    origin => !isHttpOrigin(origin),
+  // A "*" is only allowed as an https preview wildcard (http/origins.ts)
+  const invalidOrigins = additionalOrigins.filter(origin =>
+    origin.includes('*')
+      ? !isValidWildcardOrigin(origin)
+      : !isHttpOrigin(origin),
   );
   if (invalidOrigins.length > 0) {
     throw new Error(

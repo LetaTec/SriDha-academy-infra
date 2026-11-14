@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 
 import { ApiError, ERROR_CODE } from './errors.js';
+import { isOriginAllowed } from './origins.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -17,7 +18,7 @@ export const createOriginGuard =
     const rawOrigin = req.get('origin');
     const origin = rawOrigin ? rawOrigin.trim().replace(/\/+$/, '') : null;
 
-    if (origin && !allowedOrigins.includes(origin)) {
+    if (origin && !isOriginAllowed(allowedOrigins, origin)) {
       next(
         new ApiError(
           403,
