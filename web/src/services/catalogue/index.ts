@@ -20,4 +20,5 @@ export type {
   Subject,
   Topic,
   TopicContext,
+  Tutor,
 } from './types';

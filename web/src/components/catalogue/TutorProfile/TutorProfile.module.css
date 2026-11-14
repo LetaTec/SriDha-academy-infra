@@ -1,0 +1,50 @@
+.profile {
+  display: grid;
+  grid-template-columns: var(--size-tutor-portrait) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.portrait {
+  width: var(--size-tutor-portrait);
+}
+
+.text {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+}
+
+.credentials {
+  display: grid;
+  gap: var(--space-0-5);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A small accent rule before each credential */
+.credentials li {
+  display: grid;
+  grid-template-columns: var(--space-1-5) minmax(0, 1fr);
+  gap: var(--space-1);
+  align-items: baseline;
+}
+
+.credentials li::before {
+  content: '';
+  height: var(--border-width-base);
+  background: var(--color-accent);
+  transform: translateY(-0.25em);
+}
+
+@media (--viewport-sm) {
+  .profile {
+    grid-template-columns: var(--size-tutor-portrait-sm) minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .portrait {
+    width: var(--size-tutor-portrait-sm);
+  }
+}

@@ -83,8 +83,7 @@ export const ABOUT_PAGE_TEXT = {
     title: 'Meet your',
     titleEmphasis: 'tutors.',
     description:
-      'Every topic is taught by a specialist in that topic. Full tutor profiles appear here as each topic team is confirmed',
-    status: 'Tutor profile coming soon',
+      'Every topic is taught by a specialist in its subject. You see your tutor on the checkout page before you pay',
   },
   stats: [
     { value: '03', label: 'Learning paths' },

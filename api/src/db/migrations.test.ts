@@ -137,13 +137,24 @@ const migrateBefore = async (
   }
 };
 
+// A seeded database on which a data migration has not run yet: it runs
+// again on the next start. Today's seed needs today's schema, so the
+// database is migrated in full and the migration is marked as not applied.
+const seededWithout = async (
+  db: Awaited<ReturnType<typeof openDatabase>>,
+  migrationId: string,
+) => {
+  await runMigrations(db);
+  await seedCatalogue(db);
+  await db.query('DELETE FROM schema_migrations WHERE id = $1', [migrationId]);
+};
+
 describe('migration 008: more Ray optics batches', () => {
   it('adds the January and February batches beside December on a seeded database', async () => {
     const db = await openDatabase(':memory:');
     try {
       // Production before 008: seeded with December only
-      await migrateBefore(db, MORE_BATCHES_MIGRATION);
-      await seedCatalogue(db);
+      await seededWithout(db, MORE_BATCHES_MIGRATION);
       await db.query(
         "DELETE FROM batches WHERE topic_id = $1 AND id <> 'batch_physics_ray_optics_class_12_december'",
         [RAY_OPTICS_TOPIC_ID],
@@ -171,8 +182,7 @@ describe('migration 008: more Ray optics batches', () => {
     const migrated = await openDatabase(':memory:');
     const seeded = await openDatabase(':memory:');
     try {
-      await migrateBefore(migrated, MORE_BATCHES_MIGRATION);
-      await seedCatalogue(migrated);
+      await seededWithout(migrated, MORE_BATCHES_MIGRATION);
       await migrated.query(
         "DELETE FROM batches WHERE topic_id = $1 AND id <> 'batch_physics_ray_optics_class_12_december'",
         [RAY_OPTICS_TOPIC_ID],
@@ -202,6 +212,61 @@ describe('migration 008: more Ray optics batches', () => {
       await runMigrations(db);
       const { count } = (await db.get<{ count: number }>(
         'SELECT COUNT(*)::int AS count FROM batches',
+      )) ?? { count: -1 };
+      assert.equal(count, 0);
+    } finally {
+      await db.close();
+    }
+  });
+});
+
+const TUTORS_MIGRATION = '010_tutors';
+
+describe('migration 010: tutors', () => {
+  it("gives every existing topic its subject's tutor", async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      // Production before 010: topics with no tutor
+      await migrateBefore(db, TUTORS_MIGRATION);
+      await db.exec(`
+        INSERT INTO subjects (id, slug, name, description, status, position)
+          VALUES ('subject_accounts', 'accounts', 'Accounts', '', 'AVAILABLE', 0),
+                 ('subject_new', 'new', 'New', '', 'AVAILABLE', 1);
+        INSERT INTO chapters (id, subject_id, title, position)
+          VALUES ('chapter_a', 'subject_accounts', 'A', 0),
+                 ('chapter_n', 'subject_new', 'N', 0);
+        INSERT INTO topics (id, chapter_id, title, summary, level, position) VALUES
+          ('topic_gst', 'chapter_a', 'Learn GST for Class 11', '', 'Class 11', 0),
+          ('topic_new', 'chapter_n', 'Learn New for Class 11', '', 'Class 11', 0);
+      `);
+
+      await runMigrations(db);
+
+      assert.deepEqual(
+        await db.all('SELECT id, tutor_id FROM topics ORDER BY id'),
+        [
+          { id: 'topic_gst', tutor_id: 'tutor_accounts' },
+          // A subject with no tutor leaves its topics without one
+          { id: 'topic_new', tutor_id: null },
+        ],
+      );
+      const tutor = await db.get<{ name: string; credentials: string[] }>(
+        "SELECT name, credentials FROM tutors WHERE id = 'tutor_accounts'",
+      );
+      assert.equal(typeof tutor?.name, 'string');
+      assert.ok((tutor?.credentials.length ?? 0) > 0);
+    } finally {
+      await db.close();
+    }
+  });
+
+  it('leaves no seeded topic without a tutor', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      await runMigrations(db);
+      await seedCatalogue(db);
+      const { count } = (await db.get<{ count: number }>(
+        'SELECT COUNT(*)::int AS count FROM topics WHERE tutor_id IS NULL',
       )) ?? { count: -1 };
       assert.equal(count, 0);
     } finally {

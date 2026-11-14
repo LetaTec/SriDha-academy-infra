@@ -264,6 +264,12 @@ describe('app routing', () => {
       expect(
         screen.getByRole('radio', { name: /December batch/ }),
       ).toBeDisabled();
+      // The student sees who teaches the topic before paying
+      const tutor = screen.getByRole('region', {
+        name: 'Your tutor, Neha Agarwal',
+      });
+      expect(within(tutor).getByText('Accounts tutor')).toBeInTheDocument();
+      expect(within(tutor).getByText('M.Com, Accountancy')).toBeInTheDocument();
 
       await user.type(
         screen.getByRole('textbox', { name: 'Full name' }),

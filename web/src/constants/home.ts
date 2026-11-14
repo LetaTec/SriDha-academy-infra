@@ -1,8 +1,5 @@
 import { ABOUT_SECTION_ID, APP_ROUTES, toPageSection } from './routes';
-import type {
-  StudentPalette,
-  StudentScene,
-} from '@components/brand/StudentIllustration/StudentIllustration';
+import type { HeroSceneName } from '@components/brand/HeroScene/HeroScene';
 
 import { POLICY_LINKS, POLICY_LINKS_TITLE } from './policies';
 
@@ -73,21 +70,13 @@ export const HERO_TEXT = {
   ],
 } as const;
 
-// Student illustrations either side of the search (one per side on phones)
-type HeroIllustration = { scene: StudentScene; palette: StudentPalette };
-
+// Scenes either side of the search (the first of each side on phones)
 export const HERO_ILLUSTRATIONS: {
-  start: readonly HeroIllustration[];
-  end: readonly HeroIllustration[];
+  start: readonly HeroSceneName[];
+  end: readonly HeroSceneName[];
 } = {
-  start: [
-    { scene: 'ledger', palette: 'forest' },
-    { scene: 'molecule', palette: 'sage' },
-  ],
-  end: [
-    { scene: 'equations', palette: 'gold' },
-    { scene: 'charts', palette: 'forest' },
-  ],
+  start: ['studyGroup', 'bookStack'],
+  end: ['atTheBoard', 'celebrate'],
 };
 
 export const CONCEPT_MAP_TEXT = {

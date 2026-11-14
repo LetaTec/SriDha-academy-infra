@@ -48,6 +48,13 @@ export const catalogueFixture: Subject[] = [
             summary: 'A focused topic on GST.',
             level: 'Class 11',
             price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+            tutor: {
+              id: 'tutor_accounts',
+              name: 'Neha Agarwal',
+              headline: 'Accounts tutor',
+              credentials: ['M.Com, Accountancy', '9 years teaching accounts'],
+              photoUrl: null,
+            },
             lessons: [
               { id: 'lesson_1', title: 'What is GST', durationMinutes: null },
               { id: 'lesson_2', title: 'GST entries', durationMinutes: null },
@@ -80,6 +87,7 @@ export const catalogueFixture: Subject[] = [
             summary: 'Mirrors, lenses and optical instruments.',
             level: 'Class 12',
             price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+            tutor: null,
             lessons: [],
             batches: [],
           },
@@ -110,6 +118,7 @@ export const catalogueFixture: Subject[] = [
             summary: 'Bonds, shapes and hybridisation.',
             level: 'Class 11',
             price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+            tutor: null,
             lessons: [
               {
                 id: 'lesson_bonding_1',
@@ -144,6 +153,7 @@ export const catalogueFixture: Subject[] = [
             summary: 'Energy flow and ecological pyramids.',
             level: 'Class 12',
             price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+            tutor: null,
             lessons: [],
             batches: [],
           },

@@ -35,6 +35,18 @@ export type Batch = {
   availability: BatchAvailability;
 };
 
+// Who teaches a topic, shown on checkout and the About page
+export type Tutor = {
+  id: string;
+  name: string;
+  // e.g. "Chemistry tutor"
+  headline: string;
+  // Short lines: degrees, years of teaching, specialities
+  credentials: string[];
+  // Null until a photograph is added; the website shows initials instead
+  photoUrl: string | null;
+};
+
 export type Topic = {
   id: string;
   // The full title, e.g. "Learn GST for Class 11"
@@ -48,6 +60,8 @@ export type Topic = {
   // Featured topics lead the short lists, 1 first; null when not featured
   featuredRank: number | null;
   price: Price | null;
+  // Null while no tutor is assigned
+  tutor: Tutor | null;
   lessons: Lesson[];
   batches: Batch[];
 };

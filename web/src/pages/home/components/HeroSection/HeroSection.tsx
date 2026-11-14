@@ -1,6 +1,6 @@
 import cx from 'classnames/bind';
 
-import { StudentIllustration } from '@components/brand/StudentIllustration/StudentIllustration';
+import { HeroScene } from '@components/brand/HeroScene/HeroScene';
 import { TopicSearch } from '@components/catalogue/TopicSearch/TopicSearch';
 import { Button } from '@components/ui/Button/Button';
 import { Container } from '@components/ui/Container/Container';
@@ -27,9 +27,9 @@ const IllustrationColumn = ({
   side: keyof typeof HERO_ILLUSTRATIONS;
 }) => (
   <div className={cn('photos', side)} aria-hidden="true">
-    {HERO_ILLUSTRATIONS[side].map((item, index) => (
-      <div key={item.scene} className={cn('photo', { photoExtra: index > 0 })}>
-        <StudentIllustration scene={item.scene} palette={item.palette} />
+    {HERO_ILLUSTRATIONS[side].map((scene, index) => (
+      <div key={scene} className={cn('photo', { photoExtra: index > 0 })}>
+        <HeroScene scene={scene} />
       </div>
     ))}
   </div>

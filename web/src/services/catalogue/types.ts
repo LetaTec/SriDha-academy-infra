@@ -9,6 +9,7 @@ export type {
   Subject,
   SubjectStatus,
   Topic,
+  Tutor,
 } from '@contracts/catalogue';
 
 // A topic together with the chapter and subject it belongs to.

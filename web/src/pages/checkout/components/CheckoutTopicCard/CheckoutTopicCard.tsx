@@ -1,5 +1,6 @@
 import cx from 'classnames/bind';
 
+import { TutorProfile } from '@components/catalogue/TutorProfile/TutorProfile';
 import { Heading } from '@components/ui/Heading/Heading';
 import { Icon } from '@components/ui/Icon/Icon';
 import { KeyValueList } from '@components/ui/KeyValueList/KeyValueList';
@@ -23,8 +24,8 @@ export type CheckoutTopicCardProps = {
 const orToBeAnnounced = <T,>(value: T | null, format: (value: T) => string) =>
   value === null ? CATALOGUE_TEXT.toBeAnnounced : format(value);
 
-// What the student is paying for: the topic, then a strip with the chosen
-// batch's dates, like the stay dates on a booking.
+// What the student is paying for: the topic, who teaches it, then a strip
+// with the chosen batch's dates, like the stay dates on a booking.
 export const CheckoutTopicCard = ({
   preview,
   batch,
@@ -90,6 +91,10 @@ export const CheckoutTopicCard = ({
           <Icon name={preview.icon} size="xl" />
         </span>
       </div>
+
+      {preview.topic.tutor ? (
+        <TutorProfile tutor={preview.topic.tutor} className={cn('tutor')} />
+      ) : null}
 
       <div className={cn('strip')}>
         {batch ? (

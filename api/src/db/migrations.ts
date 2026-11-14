@@ -299,4 +299,53 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE payments ADD COLUMN billing_city TEXT;
     `,
   },
+  {
+    // Each topic shows who teaches it. The tutors here are placeholders,
+    // one per subject; a later migration swaps in the real ones. Production
+    // is seeded by hand, so the tutors are added here and every existing
+    // topic takes its subject's tutor (subject_<key> → tutor_<key>).
+    id: '010_tutors',
+    sql: `
+      CREATE TABLE tutors (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        headline TEXT NOT NULL,
+        credentials TEXT[] NOT NULL DEFAULT '{}',
+        photo_url TEXT,
+        position INTEGER NOT NULL
+      );
+
+      ALTER TABLE topics
+        ADD COLUMN tutor_id TEXT REFERENCES tutors (id) ON DELETE SET NULL;
+
+      INSERT INTO tutors (id, name, headline, credentials, position) VALUES
+        ('tutor_accounts', 'Neha Agarwal', 'Accounts tutor',
+          ARRAY['M.Com, Accountancy', '9 years teaching Class 11 and 12 accounts', 'Specialises in GST and partnership accounts'], 0),
+        ('tutor_chemistry', 'Rohan Mehta', 'Chemistry tutor',
+          ARRAY['M.Sc. Chemistry', '8 years teaching Class 11 and 12 chemistry', 'Specialises in physical and organic chemistry'], 1),
+        ('tutor_physics', 'Ananya Iyer', 'Physics tutor',
+          ARRAY['M.Sc. Physics', '10 years teaching Class 11 and 12 physics', 'Specialises in optics and electricity'], 2),
+        ('tutor_economics', 'Kabir Sethi', 'Economics tutor',
+          ARRAY['M.A. Economics', '7 years teaching Class 11 and 12 economics', 'Specialises in micro and macroeconomics'], 3),
+        ('tutor_mathematics', 'Priya Nair', 'Mathematics tutor',
+          ARRAY['M.Sc. Mathematics', '9 years teaching Class 11 and 12 mathematics', 'Specialises in calculus and algebra'], 4),
+        ('tutor_neet', 'Dr. Arjun Rao', 'NEET tutor',
+          ARRAY['MBBS', '6 years preparing students for NEET', 'Specialises in biology and chemistry for NEET'], 5),
+        ('tutor_jee', 'Vikram Joshi', 'JEE tutor',
+          ARRAY['B.Tech, M.Tech', '8 years preparing students for JEE Main and Advanced', 'Specialises in physics and mathematics problem solving'], 6),
+        ('tutor_business_studies', 'Meera Kapoor', 'Business Studies tutor',
+          ARRAY['MBA', '7 years teaching Class 11 and 12 business studies', 'Specialises in management and marketing'], 7),
+        ('tutor_biology', 'Sana Qureshi', 'Biology tutor',
+          ARRAY['M.Sc. Zoology', '8 years teaching Class 11 and 12 biology', 'Specialises in human physiology and genetics'], 8),
+        ('tutor_ca_cs', 'Aditya Malhotra', 'CA / CS tutor',
+          ARRAY['Chartered Accountant', '6 years teaching CA and CS foundation', 'Specialises in accounting standards and law'], 9)
+      ON CONFLICT (id) DO NOTHING;
+
+      UPDATE topics SET tutor_id = tutors.id
+      FROM chapters, tutors
+      WHERE chapters.id = topics.chapter_id
+        AND tutors.id = 'tutor_' || substring(chapters.subject_id FROM 9)
+        AND topics.tutor_id IS NULL;
+    `,
+  },
 ];
