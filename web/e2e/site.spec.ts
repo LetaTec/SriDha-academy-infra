@@ -210,6 +210,10 @@ test.describe('student journey', () => {
       page.getByRole('radio', { name: /December batch/ }),
     ).toBeChecked();
     await expect(page.getByText('What is GST')).toBeVisible();
+    // Who teaches it, before paying
+    await expect(
+      page.getByRole('region', { name: /^Your tutor, / }),
+    ).toBeVisible();
     // Nothing asks for a password or an account
     await expect(page.getByLabel('Password')).toHaveCount(0);
     await page.getByLabel('Full name').fill('Asha Verma');
@@ -230,6 +234,18 @@ test.describe('student journey', () => {
     await expect(page.getByText('Seat saved')).toBeVisible();
     await page.getByRole('link', { name: 'Browse topics' }).click();
     await expect(page).toHaveURL(/\/topics$/);
+  });
+
+  test('the About page introduces the tutors', async ({ page }, testInfo) => {
+    await page.goto('/about#tutors');
+    const tutors = page.locator('#tutors');
+    await expect(tutors.getByText('Accounts tutor')).toBeVisible();
+    await expect(tutors.getByText(/coming soon/i)).toHaveCount(0);
+    await tutors.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(900);
+    await tutors.screenshot({
+      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-about-tutors.png`,
+    });
   });
 
   test('model paper waitlist sign-ups are stored', async ({ page }) => {

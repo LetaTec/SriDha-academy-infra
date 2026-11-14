@@ -30,6 +30,7 @@ export const buildTopic = (
   icon,
   featuredRank,
   price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+  tutor: null,
   lessons: lessons.map((title, index) => ({
     id: `${id}_lesson_${index + 1}`,
     title,

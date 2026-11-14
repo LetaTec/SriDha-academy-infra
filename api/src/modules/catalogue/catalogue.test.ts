@@ -27,6 +27,18 @@ describe('catalogue', () => {
     await server.close();
   });
 
+  it('names who teaches each topic, with their credentials', () => {
+    const gst = topics.find(
+      topic => topic.id === 'topic_accounts_gst_class_11',
+    );
+    assert.equal(gst?.tutor?.id, 'tutor_accounts');
+    assert.equal(gst?.tutor?.headline, 'Accounts tutor');
+    assert.ok((gst?.tutor?.credentials.length ?? 0) > 0);
+    // No photographs yet; the website shows initials
+    assert.equal(gst?.tutor?.photoUrl, null);
+    assert.ok(topics.every(topic => topic.tutor !== null));
+  });
+
   it('serves every topic in the topic library, which the website reads', () => {
     const served = new Set(topics.map(topic => topic.id));
 

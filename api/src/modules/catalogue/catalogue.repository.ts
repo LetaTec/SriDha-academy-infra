@@ -7,6 +7,7 @@ import type {
   Price,
   Subject,
   Topic,
+  Tutor,
 } from '../../contracts/catalogue.js';
 import type { DatabaseClient, Row } from '../../db/client.js';
 
@@ -18,6 +19,7 @@ export type {
   Price,
   Subject,
   Topic,
+  Tutor,
 };
 
 export const BATCH_AVAILABILITY = {
@@ -124,6 +126,16 @@ export const toTopicSummary = (row: Row) => ({
   price: toPrice(row.price_paise, row.price_tax_label),
 });
 
+export const toTutor = (row: Row): Tutor => ({
+  id: String(row.id),
+  name: String(row.name),
+  headline: String(row.headline),
+  credentials: Array.isArray(row.credentials)
+    ? row.credentials.map(String)
+    : [],
+  photoUrl: toNullableString(row.photo_url),
+});
+
 export const toLesson = (row: Row): Lesson => ({
   id: String(row.id),
   title: String(row.title),
@@ -144,14 +156,25 @@ export const getCatalogue = async ({
   const today = toDateOnly(now());
   const taken = await countActiveEnrolments(db, now());
 
-  const [lessonsRows, batchesRows, topicsRows, chaptersRows, subjectsRows] =
-    await Promise.all([
-      db.all('SELECT * FROM lessons ORDER BY position'),
-      db.all('SELECT * FROM batches ORDER BY position'),
-      db.all('SELECT * FROM topics ORDER BY position'),
-      db.all('SELECT * FROM chapters ORDER BY position'),
-      db.all('SELECT * FROM subjects ORDER BY position'),
-    ]);
+  const [
+    lessonsRows,
+    batchesRows,
+    topicsRows,
+    chaptersRows,
+    subjectsRows,
+    tutorsRows,
+  ] = await Promise.all([
+    db.all('SELECT * FROM lessons ORDER BY position'),
+    db.all('SELECT * FROM batches ORDER BY position'),
+    db.all('SELECT * FROM topics ORDER BY position'),
+    db.all('SELECT * FROM chapters ORDER BY position'),
+    db.all('SELECT * FROM subjects ORDER BY position'),
+    db.all('SELECT * FROM tutors ORDER BY position'),
+  ]);
+
+  const tutorsById = new Map(
+    tutorsRows.map(row => [String(row.id), toTutor(row)] as const),
+  );
 
   const lessonsByTopic = groupBy(lessonsRows, 'topic_id', toLesson);
   const batchesByTopic = groupBy(batchesRows, 'topic_id', row =>
@@ -159,6 +182,10 @@ export const getCatalogue = async ({
   );
   const topicsByChapter = groupBy(topicsRows, 'chapter_id', (row): Topic => ({
     ...toTopicSummary(row),
+    tutor:
+      row.tutor_id === null
+        ? null
+        : (tutorsById.get(String(row.tutor_id)) ?? null),
     lessons: lessonsByTopic.get(String(row.id)) ?? [],
     batches: batchesByTopic.get(String(row.id)) ?? [],
   }));

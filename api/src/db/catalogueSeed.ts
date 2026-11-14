@@ -755,5 +755,15 @@ export const seedCatalogue = async (db: Database): Promise<void> => {
         }
       }
     }
+
+    // Topics without a tutor take their subject's, as migration 010 does.
+    // The tutors themselves come from the migrations.
+    await tx.query(`
+      UPDATE topics SET tutor_id = tutors.id
+      FROM chapters, tutors
+      WHERE chapters.id = topics.chapter_id
+        AND tutors.id = 'tutor_' || substring(chapters.subject_id FROM 9)
+        AND topics.tutor_id IS NULL;
+    `);
   });
 };

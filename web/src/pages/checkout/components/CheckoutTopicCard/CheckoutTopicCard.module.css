@@ -45,6 +45,11 @@
   color: var(--color-accent);
 }
 
+.tutor {
+  padding: var(--space-3);
+  border-top: var(--border-width-base) solid var(--color-border-base);
+}
+
 /* The batch's dates, on a grey band like a booking's stay dates */
 .strip {
   display: grid;
@@ -63,7 +68,8 @@
     padding: var(--space-2);
   }
 
-  .strip {
+  .strip,
+  .tutor {
     padding: var(--space-2);
   }
 

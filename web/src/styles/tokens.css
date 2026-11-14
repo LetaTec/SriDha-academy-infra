@@ -51,8 +51,12 @@
   --color-illus-lilac: #ddd5e4;
   --color-illus-skin: #e9b896;
   --color-illus-skin-deep: #c98b64;
+  --color-illus-skin-fair: #f2cfb4;
+  --color-illus-skin-rich: #8a5a3c;
   --color-illus-cheek: #e39a82;
   --color-illus-hair: #2c221d;
+  --color-illus-hair-brown: #5a3926;
+  --color-illus-hair-auburn: #7b3f24;
   --color-illus-paper: #ffffff;
   --color-illus-line: #9fb3b0;
   --color-illus-gold: #b69a5a;
@@ -107,6 +111,8 @@
   --height-hero-search: 92vh;
   --width-hero-photo: 240px;
   --size-checkout-icon: 96px;
+  --size-tutor-portrait: 120px;
+  --size-tutor-portrait-sm: 88px;
   --width-checkout-summary: 360px;
   --height-search-results: 480px;
   --width-about-photo: 440px;

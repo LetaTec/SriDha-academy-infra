@@ -91,6 +91,9 @@ export const CATALOGUE_TEXT = {
   seatsLabel: 'Seats',
   priceLabel: 'Price',
   toBeAnnounced: 'To be announced',
+  tutorEyebrow: 'Your tutor',
+  tutorLabel: (name: string) => `Your tutor, ${name}`,
+  tutorPhotoAlt: (name: string) => `${name}, SriDha Academy tutor`,
   priceOnRequest: 'Price to be announced',
   selectBatch: 'Select batch',
   selectBatchLabel: (topic: string, schedule: string) =>
