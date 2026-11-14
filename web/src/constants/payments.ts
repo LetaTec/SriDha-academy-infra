@@ -6,6 +6,7 @@ import type {
 } from '@contracts/payments';
 
 import type { EnrolmentStatus } from './catalogue';
+import { SUPPORT_EMAIL } from './policies';
 
 export const CHECKOUT_KIND = {
   enrolment: 'ENROLMENT',
@@ -139,7 +140,8 @@ export const CHECKOUT_TEXT = {
   preRegisterNote:
     'Batches for this topic open soon. Pre-register now to keep a seat in the first batch',
   teachTitle: 'What we will teach',
-  refundPolicyLink: 'Refund and cancellation policy',
+  // Shown under what the topic teaches; there is no refund policy yet
+  paymentNote: `Please check the topic and batch before you pay. For any question about a payment, write to ${SUPPORT_EMAIL}`,
   // Student details
   detailsTitle: 'Student details',
   detailsNote: 'Your payment receipt is sent to this email ID',
@@ -162,8 +164,6 @@ export const CHECKOUT_TEXT = {
   priceOnRequest: 'Fee on request',
   agreePrefix: 'I agree to the',
   agreeTerms: 'terms and conditions',
-  agreeJoin: 'and the',
-  agreeRefunds: 'refund and cancellation policy',
   agreeRequired: 'Tick the box to agree before paying',
   pay: (amount: string) => `Pay ${amount}`,
   secureTitle: 'Secure payment',

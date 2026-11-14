@@ -1,11 +1,10 @@
 import { APP_ROUTES } from './routes';
 
-// Terms, refund and contact pages. These are public: payment providers and
+// Terms and contact pages. These are public: payment providers and
 // students read them before paying. Review with the business before changes.
 
 export const POLICY = {
   terms: 'terms',
-  refunds: 'refunds',
   contact: 'contact',
 } as const;
 
@@ -37,7 +36,7 @@ export const POLICY_CONTENT: Record<PolicyKey, PolicyContent> = {
     titleEmphasis: 'conditions.',
     updated: UPDATED,
     intro:
-      'These terms apply when you create a SriDha Academy student account, enrol in a batch or pre-register for a topic. By using the website you agree to them.',
+      'These terms apply when you enrol in a batch or pre-register for a topic. By using the website you agree to them.',
     sections: [
       {
         heading: 'What we offer',
@@ -61,13 +60,12 @@ export const POLICY_CONTENT: Record<PolicyKey, PolicyContent> = {
           'Payments are processed securely by Razorpay. SriDha Academy never sees or stores your card, UPI or bank details.',
           'Your seat in a batch is confirmed only once the payment succeeds.',
           'A pre-registration fee keeps your seat in the first batch of a topic when it opens.',
-          'Refunds and cancellations follow our Refund and cancellation policy.',
         ],
       },
       {
         heading: 'Batches and schedules',
         paragraphs: [
-          'We may occasionally need to reschedule a session or a batch. We will tell you as early as we can, and if a new time does not suit you, you can move to another batch or ask for a refund as set out in our Refund and cancellation policy.',
+          'We may occasionally need to reschedule a session or a batch. We will tell you as early as we can, and if a new time does not suit you, you can move to another batch of the same topic.',
         ],
       },
       {
@@ -93,58 +91,13 @@ export const POLICY_CONTENT: Record<PolicyKey, PolicyContent> = {
       },
     ],
   },
-  refunds: {
-    eyebrow: 'SriDha Academy / Refunds',
-    title: 'Refund and',
-    titleEmphasis: 'cancellation policy.',
-    updated: UPDATED,
-    intro:
-      'We want every student to be happy with their topic. This policy explains when you can cancel and how refunds work for batch enrolments and pre-registrations.',
-    sections: [
-      {
-        heading: 'Batch enrolments',
-        items: [
-          'Cancel at least 24 hours before the first session of your batch for a full refund.',
-          'Within 24 hours of the first session, or once the batch has started, fees are not refundable, but you may ask to move to a later batch of the same topic once, if seats are available.',
-        ],
-      },
-      {
-        heading: 'Pre-registrations',
-        items: [
-          'You can cancel a pre-registration for a full refund at any time before the first batch of that topic starts.',
-          'If no batch for the topic opens within 90 days of your payment, we will refund you in full automatically.',
-          'When the first batch opens, your pre-registration becomes your seat in it. The batch enrolment rules above then apply.',
-        ],
-      },
-      {
-        heading: 'If we cancel or reschedule',
-        paragraphs: [
-          'If we cancel a batch, or move it to a time you cannot attend, you can choose a full refund or a free move to another batch of the same topic.',
-        ],
-      },
-      {
-        heading: 'Failed or duplicate payments',
-        paragraphs: [
-          'If money leaves your account but your seat is not confirmed, or you are charged twice for the same seat, contact us with the payment reference and we will refund the extra amount in full.',
-        ],
-      },
-      {
-        heading: 'How to ask for a refund',
-        items: [
-          `Email ${SUPPORT_EMAIL} from the email address on your student account.`,
-          'Include the topic, your batch and the payment reference from your confirmation email or Razorpay receipt.',
-          'We reply within 2 working days. Approved refunds go back to the original payment method through Razorpay within 5–7 working days; your bank may take a little longer to show it.',
-        ],
-      },
-    ],
-  },
   contact: {
     eyebrow: 'SriDha Academy / Contact',
     title: 'Contact',
     titleEmphasis: 'us.',
     updated: UPDATED,
     intro:
-      'Questions about a topic, a batch, a payment or your account? Write to us and the SriDha Academy team will help.',
+      'Questions about a topic, a batch or a payment? Write to us and the SriDha Academy team will help.',
     sections: [
       {
         heading: 'Email',
@@ -160,9 +113,9 @@ export const POLICY_CONTENT: Record<PolicyKey, PolicyContent> = {
         ],
       },
       {
-        heading: 'About your account',
+        heading: 'About your seat',
         paragraphs: [
-          'Write from the email address on your student account. For your security we never ask for your password.',
+          'Write from the email address you paid with, so we can find your seat. We never ask for card, UPI or bank details.',
         ],
       },
     ],
@@ -171,7 +124,6 @@ export const POLICY_CONTENT: Record<PolicyKey, PolicyContent> = {
 
 export const POLICY_ROUTE: Record<PolicyKey, string> = {
   terms: APP_ROUTES.TERMS,
-  refunds: APP_ROUTES.REFUNDS,
   contact: APP_ROUTES.CONTACT,
 };
 
@@ -181,5 +133,4 @@ export const POLICY_LINKS_TITLE = 'Help';
 export const POLICY_LINKS = [
   { label: 'Contact us', to: APP_ROUTES.CONTACT },
   { label: 'Terms and conditions', to: APP_ROUTES.TERMS },
-  { label: 'Refund and cancellation', to: APP_ROUTES.REFUNDS },
 ] as const;
