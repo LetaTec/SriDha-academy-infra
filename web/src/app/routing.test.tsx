@@ -12,15 +12,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider } from '@context/AuthContext';
 import { ToastProvider } from '@context/ToastContext';
-import {
-  confirmAdminSignIn,
-  getCurrentSession,
-  loginStudent,
-} from '@services/auth/api';
+import { confirmAdminSignIn, getCurrentSession } from '@services/auth/api';
 import { getCatalogue } from '@services/catalogue/api';
 import { listTeamOrders } from '@services/admin/api';
-import { listEnrolments } from '@services/enrolments/api';
-import { createCheckout, listPreRegistrations } from '@services/payments/api';
+import { createCheckout } from '@services/payments/api';
 import { catalogueFixture, openBatch } from '@/test/catalogueFixture';
 
 import { routes } from './router';
@@ -28,23 +23,15 @@ import { routes } from './router';
 vi.mock('@services/catalogue/api', () => ({ getCatalogue: vi.fn() }));
 vi.mock('@services/auth/api', () => ({
   getCurrentSession: vi.fn(),
-  loginStudent: vi.fn(),
-  registerStudent: vi.fn(),
   logoutStudent: vi.fn(),
-  requestPasswordReset: vi.fn(),
-  confirmPasswordReset: vi.fn(),
   requestAdminSignIn: vi.fn(),
   confirmAdminSignIn: vi.fn(),
 }));
 vi.mock('@services/payments/api', () => ({
   createCheckout: vi.fn(),
   verifyPayment: vi.fn(),
-  listPreRegistrations: vi.fn(),
 }));
 vi.mock('@services/admin/api', () => ({ listTeamOrders: vi.fn() }));
-vi.mock('@services/enrolments/api', () => ({
-  listEnrolments: vi.fn(),
-}));
 
 const student = {
   id: '6f0a3c1e-0000-4000-8000-000000000001',
@@ -121,8 +108,7 @@ const renderApp = (initialEntry: string) => {
 describe('app routing', () => {
   beforeEach(() => {
     vi.mocked(getCatalogue).mockResolvedValue(catalogueFixture);
-    vi.mocked(listPreRegistrations).mockResolvedValue([]);
-    vi.mocked(loginStudent).mockResolvedValue(student);
+    vi.mocked(listTeamOrders).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -130,20 +116,20 @@ describe('app routing', () => {
   });
 
   it(
-    'lets visitors browse without an account and asks them to sign in only to pay',
+    'lets visitors browse and pay without an account',
     async () => {
       vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
       const user = userEvent.setup();
       const router = renderApp(`/?topic=${GST_TOPIC_ID}&batch=${openBatch.id}`);
 
-      // The homepage opens for a signed-out visitor, chosen batch and all
+      // The homepage opens for a visitor, chosen batch and all
       const review = await screen.findByRole(
         'dialog',
         { name: /review your\s*selection/i },
         { timeout: LAZY_PAGE_TIMEOUT_MS },
       );
       expect(router.state.location.pathname).toBe('/');
-      // The header offers no account links until there is an account
+      // Students have no accounts, so the header has no account links
       expect(
         within(screen.getByRole('banner')).queryByRole('link', {
           name: 'My learning',
@@ -163,43 +149,17 @@ describe('app routing', () => {
         screen.getByRole('radio', { name: /November batch/ }),
       ).toBeChecked();
 
-      // Paying needs an account: the page asks for it in place of the
-      // student's details, and there is nothing to pay with yet
+      // No sign-in or sign-up: just the payment details and the Pay button
       expect(
-        screen.getByRole('heading', { name: 'Sign in to continue' }),
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /^Pay / }),
+        screen.queryByRole('heading', { name: 'Sign in to continue' }),
       ).not.toBeInTheDocument();
-
-      // Registration is a click away, on the same page
-      await user.click(
-        screen.getByRole('button', { name: 'Create an account' }),
-      );
-      expect(
-        screen.getByRole('heading', { name: 'Create your student account' }),
-      ).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Sign in' }));
-
-      await user.type(screen.getByLabelText('Email ID'), 'asha@example.com');
-      await user.type(screen.getByLabelText('Password'), 'correct-horse-1');
-      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
-
-      // Signed in: the same page and batch, now with the student's details
-      expect(
-        await screen.findByRole('textbox', { name: 'Full name' }),
-      ).toHaveValue('Asha Verma');
-      expect(
-        screen.getByRole('radio', { name: /November batch/ }),
-      ).toBeChecked();
+      expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
+      for (const field of ['Full name', 'Email ID', 'Mobile number', 'City']) {
+        expect(screen.getByRole('textbox', { name: field })).toHaveValue('');
+      }
+      expect(screen.getByRole('combobox', { name: 'State' })).toHaveValue('');
       expect(
         screen.getByRole('button', { name: 'Pay ₹129' }),
-      ).toBeInTheDocument();
-      expect(router.state.location.pathname).toBe('/checkout');
-      expect(
-        within(screen.getByRole('banner')).getAllByRole('link', {
-          name: 'My learning',
-        })[0],
       ).toBeInTheDocument();
     },
     JOURNEY_TEST_TIMEOUT_MS,
@@ -226,31 +186,20 @@ describe('app routing', () => {
     expect(router.state.location.search).toContain(`topic=${GST_TOPIC_ID}`);
   });
 
-  it('sends old sign-in links to the homepage', async () => {
-    vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
-    const router = renderApp('/register');
+  it.each(['/register', '/my-learning', '/reset-password?token=old'])(
+    'sends the retired student-account link %s to the homepage',
+    async path => {
+      vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
+      const router = renderApp(path);
 
-    await screen.findByRole(
-      'heading',
-      { level: 1, name: /search your\s*topic/i },
-      { timeout: LAZY_PAGE_TIMEOUT_MS },
-    );
-    expect(router.state.location.pathname).toBe('/');
-  });
-
-  it('asks a signed-out visitor to sign in on My learning', async () => {
-    vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
-    renderApp('/my-learning');
-
-    expect(
       await screen.findByRole(
         'heading',
-        { name: 'Sign in to continue' },
+        { level: 1, name: /search your\s*topic/i },
         { timeout: LAZY_PAGE_TIMEOUT_MS },
-      ),
-    ).toBeInTheDocument();
-    expect(listEnrolments).not.toHaveBeenCalled();
-  });
+      );
+      expect(router.state.location.pathname).toBe('/');
+    },
+  );
 
   it('sends a signed-in student from an old sign-in link to the homepage', async () => {
     vi.mocked(getCurrentSession).mockResolvedValue(student);
@@ -265,9 +214,9 @@ describe('app routing', () => {
   });
 
   it(
-    'enrols from a topic card on the checkout page',
+    'enrols from a topic card on the checkout page, with no account',
     async () => {
-      vi.mocked(getCurrentSession).mockResolvedValue(student);
+      vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
       vi.mocked(createCheckout).mockResolvedValue({
         paymentId: 'payment_1',
         status: 'CREATED',
@@ -317,6 +266,14 @@ describe('app routing', () => {
       ).toBeDisabled();
 
       await user.type(
+        screen.getByRole('textbox', { name: 'Full name' }),
+        'Asha Verma',
+      );
+      await user.type(
+        screen.getByRole('textbox', { name: 'Email ID' }),
+        'asha@example.com',
+      );
+      await user.type(
         screen.getByRole('textbox', { name: 'Mobile number' }),
         '+91 98765 43210',
       );
@@ -353,8 +310,11 @@ describe('app routing', () => {
       // Without Razorpay keys the seat is held until payment is collected
       expect(await screen.findByText('Seat saved')).toBeInTheDocument();
       expect(
-        screen.getByRole('link', { name: 'Go to My learning' }),
-      ).toHaveAttribute('href', '/my-learning');
+        screen.queryByRole('link', { name: /my learning/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Browse topics' }),
+      ).toHaveAttribute('href', '/topics');
     },
     JOURNEY_TEST_TIMEOUT_MS,
   );
@@ -533,50 +493,22 @@ describe('app routing', () => {
     ).toHaveAttribute('href', '/refund-policy');
   });
 
-  it('lets students pay for a pending pre-registration from My learning', async () => {
-    vi.mocked(getCurrentSession).mockResolvedValue(student);
-    vi.mocked(listEnrolments).mockResolvedValue([]);
-    vi.mocked(listPreRegistrations).mockResolvedValue([
-      {
-        id: 'pre-1',
-        status: 'PENDING_PAYMENT',
-        createdAt: '2026-10-28T09:00:00Z',
-        topic: {
-          id: 'topic_physics_ray_optics_class_12',
-          title: 'Learn Ray optics for Class 12',
-          level: 'Class 12',
-          price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
-        },
-      },
-    ]);
-    const user = userEvent.setup();
-    const router = renderApp('/my-learning');
-
+  it('keeps orders and payments for the team', async () => {
+    // Signed out: the team's emailed-link sign-in, never a student one
+    vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
+    renderApp('/team/orders');
     expect(
       await screen.findByRole(
-        'heading',
-        { level: 2, name: 'Pre-registered topics' },
+        'button',
+        { name: 'Email me a sign-in link' },
         { timeout: LAZY_PAGE_TIMEOUT_MS },
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText('Payment pending')).toBeInTheDocument();
-    // Students never see the team's orders link
-    expect(
-      screen.queryByRole('link', { name: /orders and payments/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
+    expect(listTeamOrders).not.toHaveBeenCalled();
+    cleanup();
 
-    await user.click(
-      screen.getByRole('button', {
-        name: 'Complete payment: Learn Ray optics for Class 12',
-      }),
-    );
-    expect(router.state.location.pathname).toBe('/checkout');
-    expect(router.state.location.search).toContain(
-      'topic=topic_physics_ray_optics_class_12',
-    );
-  });
-
-  it('keeps orders and payments for the team', async () => {
+    // An older student account sees no orders
     vi.mocked(getCurrentSession).mockResolvedValue(student);
     renderApp('/team/orders');
     expect(
@@ -624,6 +556,12 @@ describe('app routing', () => {
     expect(within(table).getByText('pay_1')).toBeInTheDocument();
     expect(within(table).getByText('Paid')).toBeInTheDocument();
     expect(screen.getByText('Paid orders')).toBeInTheDocument();
+    // The header takes the team back to orders from anywhere
+    expect(
+      within(screen.getByRole('banner')).getAllByRole('link', {
+        name: 'Orders',
+      })[0],
+    ).toHaveAttribute('href', '/team/orders');
   });
 
   it('shows AI test papers as in progress, with progress derived from the milestones', async () => {
@@ -667,7 +605,10 @@ describe('app routing', () => {
       { level: 1 },
       { timeout: LAZY_PAGE_TIMEOUT_MS },
     );
-    expect(router.state.location.pathname).toBe('/');
+    // The team signs in to see orders, so the link opens them
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/team/orders'),
+    );
     expect(confirmAdminSignIn).toHaveBeenCalledTimes(1);
     expect(confirmAdminSignIn).toHaveBeenCalledWith({
       token: 'one-time-token',

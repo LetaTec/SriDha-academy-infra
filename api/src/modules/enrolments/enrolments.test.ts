@@ -60,8 +60,8 @@ describe('catalogue and enrolments', () => {
     assert.equal(topic.batches[0].instructorName, null);
   });
 
-  // Seats are only taken through checkout; the amount and student come
-  // from the server
+  // Seats are only taken through checkout; the amount comes from the
+  // server and the seat belongs to the billing email
   const checkout = (
     client: TestClient,
     batchId: string,
@@ -71,19 +71,12 @@ describe('catalogue and enrolments', () => {
       kind: 'ENROLMENT',
       batchId,
       fullName: 'Asha Verma',
-      email: 'asha@example.com',
+      email: client === otherStudent ? 'ravi@example.com' : 'asha@example.com',
       mobile: '+91 98765 43210',
       state: 'Rajasthan',
       city: 'Jaipur',
       ...extra,
     });
-
-  it('requires authentication to enrol', async () => {
-    const response = await checkout(server.createClient(), NOVEMBER_BATCH);
-
-    assert.equal(response.status, 401);
-    assert.equal(response.body.code, 'UNAUTHENTICATED');
-  });
 
   it('no longer reserves seats without checkout', async () => {
     const response = await student.request('POST', '/api/enrolments', {
@@ -93,7 +86,7 @@ describe('catalogue and enrolments', () => {
     assert.equal(response.status, 404);
   });
 
-  it('enrols the signed-in student as pending payment', async () => {
+  it('enrols the student who owns the billing email as pending payment', async () => {
     const response = await checkout(student, NOVEMBER_BATCH);
     assert.equal(response.status, 201);
 

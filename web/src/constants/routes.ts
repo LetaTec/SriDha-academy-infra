@@ -1,12 +1,13 @@
 export const APP_ROUTES = {
   HOME: '/',
-  MY_LEARNING: '/my-learning',
   BATCHES: '/batches',
   TOPICS: '/topics',
   ABOUT: '/about',
   AI_TEST: '/ai-test',
   MODEL_PAPER: '/model-paper',
   CHECKOUT: '/checkout',
+  // Retired student-account pages, kept so old links still land somewhere
+  MY_LEARNING: '/my-learning',
   LOGIN: '/login',
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
@@ -30,12 +31,6 @@ export const HOME_SECTION_ID = {
   programs: 'programs',
   about: 'about',
   team: 'team',
-} as const;
-
-// Sections of the sign-in pages: the form at the top, and the model below.
-export const AUTH_SECTION_ID = {
-  access: 'student-access',
-  model: 'our-model',
 } as const;
 
 // Anchors on the About page.

@@ -37,11 +37,15 @@ describe('unpaid seat holds', () => {
   let asha: TestClient;
   let ravi: TestClient;
 
+  // Each student pays with their own email, which owns the seat
   const checkout = (client: TestClient) =>
     client.request('POST', '/api/payments/checkout', {
       kind: 'ENROLMENT',
       batchId: BATCH,
       ...BILLING,
+      ...(client === ravi
+        ? { fullName: 'Ravi Shah', email: 'ravi@example.com' }
+        : {}),
     });
 
   const batchAvailability = async () => {

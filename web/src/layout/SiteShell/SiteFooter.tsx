@@ -4,8 +4,7 @@ import cx from 'classnames/bind';
 import { BrandLogo } from '@components/brand/BrandLogo/BrandLogo';
 import { Container } from '@components/ui/Container/Container';
 import { Text } from '@components/ui/Text/Text';
-import { BRAND, FOOTER_COLUMNS, FOOTER_STUDENT_TEXT } from '@constants/home';
-import { APP_ROUTES } from '@constants/routes';
+import { BRAND, FOOTER_COLUMNS } from '@constants/home';
 
 import styles from './SiteFooter.module.css';
 
@@ -44,20 +43,6 @@ export const SiteFooter = () => {
               ))}
             </nav>
           ))}
-
-          <nav aria-label={FOOTER_STUDENT_TEXT.title} className={cn('column')}>
-            <Text
-              as="div"
-              variant="label"
-              tone="accentInverse"
-              className={cn('columnTitle')}
-            >
-              {FOOTER_STUDENT_TEXT.title}
-            </Text>
-            <Link to={APP_ROUTES.MY_LEARNING} className={cn('link')}>
-              {FOOTER_STUDENT_TEXT.myLearning}
-            </Link>
-          </nav>
         </div>
 
         <div className={cn('bottom')}>

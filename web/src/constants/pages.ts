@@ -39,21 +39,4 @@ export const PAGE_TEXT = {
   batchesEmptyTitle: 'No batches are open yet',
   batchesEmptyMessage:
     'New topic batches will appear here as soon as they are scheduled',
-  myLearningEyebrow: 'Student / My learning',
-  myLearningTitle: 'My',
-  myLearningTitleEmphasis: 'learning.',
-  myLearningGreeting: (name: string, role?: string) =>
-    role ? `Signed in as ${name} · ${role}` : `Signed in as ${name}`,
-  myLearningEmptyTitle: 'No topics selected yet',
-  myLearningEmptyMessage:
-    'Browse the topics and select a batch for the topic you want to learn first',
-  myLearningBrowse: 'Browse topics',
-  myLearningLoadError: 'Your enrolments could not be loaded',
-  myLearningPaymentNote:
-    'A seat waiting for payment is held for 30 minutes. Complete the payment to confirm it',
-  myLearningSeatsTitle: 'Your batches',
-  myLearningPreRegisteredTitle: 'Pre-registered topics',
-  myLearningPreRegisteredNote: 'First batch opening soon',
-  myLearningCompletePayment: 'Complete payment',
-  myLearningTeamOrders: 'Orders and payments',
 } as const;

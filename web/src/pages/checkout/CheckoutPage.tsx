@@ -1,10 +1,9 @@
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import cx from 'classnames/bind';
 import { z } from 'zod';
 
-import { AccountAccess } from '@components/auth/AccountAccess/AccountAccess';
 import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Checkbox } from '@components/ui/Checkbox/Checkbox';
 import { EmptyState } from '@components/ui/EmptyState/EmptyState';
@@ -26,7 +25,6 @@ import {
   PAYMENT_PROVIDER,
 } from '@constants/payments';
 import { APP_ROUTES } from '@constants/routes';
-import { useAuth } from '@context/AuthContext';
 import { useApiForm } from '@hooks/useApiForm';
 import { useRefreshAfterPayment } from '@hooks/useRefreshAfterPayment';
 import { useTopicPreviews } from '@hooks/useTopicPreviews';
@@ -73,7 +71,8 @@ type BillingFormValues = z.output<typeof billingSchema>;
 
 type Stage =
   | { name: 'details' }
-  | { name: 'paid'; checkout: Checkout }
+  // The confirmation goes to the email the student paid with
+  | { name: 'paid'; checkout: Checkout; email: string }
   // Test mode: the seat is held until the team collects payment
   | { name: 'pending'; checkout: Checkout };
 
@@ -87,8 +86,9 @@ const batchLabel = (batch: Batch) =>
     .join(' · ');
 
 // The page for one topic's payment: what the student is buying and when,
-// their details, and the total with the Pay button. Razorpay's own window
-// takes the card or UPI details.
+// their details, and the total with the Pay button. No account is needed:
+// the seat belongs to the email they pay with. Razorpay's own window takes
+// the card or UPI details.
 const CheckoutPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const topicId = searchParams.get(CHECKOUT_QUERY_PARAM.topic);
@@ -165,7 +165,7 @@ const CheckoutPage = () => {
 
 type CheckoutDetailsProps = {
   preview: TopicPreview;
-  // A batch chosen before checkout (or after signing in), from the URL
+  // A batch chosen before checkout, from the URL
   preferredBatchId: string | null;
   onChooseBatch: (batchId: string) => void;
 };
@@ -175,8 +175,6 @@ const CheckoutDetails = ({
   preferredBatchId,
   onChooseBatch,
 }: CheckoutDetailsProps) => {
-  const { status, user } = useAuth();
-  const isSignedIn = status === 'authenticated';
   const batchFieldName = useId();
   const refreshAfterPayment = useRefreshAfterPayment();
   const [stage, setStage] = useState<Stage>({ name: 'details' });
@@ -202,28 +200,17 @@ const CheckoutDetails = ({
     formError,
     clearFormError,
     handleApiError,
-    reset,
   } = useApiForm<BillingFormInput, BillingFormValues>({
     resolver: zodResolver(billingSchema),
     defaultValues: {
-      fullName: user?.student?.fullName ?? '',
-      email: user?.email ?? '',
+      fullName: '',
+      email: '',
       mobile: '',
       state: '',
       city: '',
       agreed: false,
     },
   });
-
-  // Signing in on this page fills in the details the account knows
-  useEffect(() => {
-    if (!user) return;
-    reset(current => ({
-      ...current,
-      fullName: current.fullName || (user.student?.fullName ?? ''),
-      email: current.email || user.email,
-    }));
-  }, [user, reset]);
 
   const onSubmit = handleSubmit(async ({ agreed: _agreed, ...billing }) => {
     clearFormError();
@@ -263,7 +250,7 @@ const CheckoutDetails = ({
         throw new Error(CHECKOUT_TEXT.verifyFailed);
       });
       refreshAfterPayment();
-      setStage({ name: 'paid', checkout });
+      setStage({ name: 'paid', checkout, email: billing.email });
     } catch (error) {
       if (
         error instanceof Error &&
@@ -291,11 +278,13 @@ const CheckoutDetails = ({
               ? CHECKOUT_TEXT.paidEnrolment(stage.checkout.batch.name)
               : CHECKOUT_TEXT.paidPreRegistration}
         </Text>
+        {stage.name === 'paid' ? (
+          <Text as="p" variant="small" tone="muted">
+            {CHECKOUT_TEXT.emailedTo(stage.email)}
+          </Text>
+        ) : null}
         <div className={cn('resultActions')}>
-          <ButtonRouteLink to={APP_ROUTES.MY_LEARNING} endIcon="arrowRight">
-            {CHECKOUT_TEXT.goToLearning}
-          </ButtonRouteLink>
-          <ButtonRouteLink to={APP_ROUTES.TOPICS} variant="secondary">
+          <ButtonRouteLink to={APP_ROUTES.TOPICS} endIcon="arrowRight">
             {CHECKOUT_TEXT.browseTopics}
           </ButtonRouteLink>
         </div>
@@ -303,7 +292,7 @@ const CheckoutDetails = ({
     );
   }
 
-  const payAction = isSignedIn ? (
+  const payAction = (
     <>
       {formError || paymentError ? (
         <FieldStatus tone="error">{formError ?? paymentError}</FieldStatus>
@@ -344,10 +333,6 @@ const CheckoutDetails = ({
             : CHECKOUT_TEXT.preRegisterEyebrow}
       </Button>
     </>
-  ) : (
-    <Text as="p" variant="small" tone="muted">
-      {CHECKOUT_TEXT.signInToPay}
-    </Text>
   );
 
   return (
@@ -420,64 +405,56 @@ const CheckoutDetails = ({
         </section>
 
         <section className={cn('card')}>
-          {isSignedIn ? (
-            <>
-              <div className={cn('cardHead')}>
-                <Heading level={2} variant="item">
-                  {CHECKOUT_TEXT.detailsTitle}
-                </Heading>
-                <Text as="p" variant="small" tone="muted">
-                  {CHECKOUT_TEXT.detailsNote}
-                </Text>
-              </div>
-              <FieldForm id={FORM_ID} onSubmit={onSubmit}>
-                <Input
-                  label={CHECKOUT_TEXT.fullNameLabel}
-                  autoComplete="name"
-                  error={errors.fullName?.message}
-                  {...register('fullName')}
-                />
-                <div className={cn('fieldPair')}>
-                  <Input
-                    label={CHECKOUT_TEXT.emailLabel}
-                    type="email"
-                    autoComplete="email"
-                    error={errors.email?.message}
-                    {...register('email')}
-                  />
-                  <Input
-                    label={CHECKOUT_TEXT.mobileLabel}
-                    type="tel"
-                    autoComplete="tel"
-                    error={errors.mobile?.message}
-                    {...register('mobile')}
-                  />
-                </div>
-                {/* Where the student lives, for the tax invoice */}
-                <div className={cn('fieldPair')}>
-                  <Select
-                    label={CHECKOUT_TEXT.stateLabel}
-                    placeholder={CHECKOUT_TEXT.statePlaceholder}
-                    options={INDIAN_STATE_OPTIONS}
-                    autoComplete="address-level1"
-                    error={errors.state?.message}
-                    {...register('state')}
-                  />
-                  <Input
-                    label={CHECKOUT_TEXT.cityLabel}
-                    placeholder={CHECKOUT_TEXT.cityPlaceholder}
-                    autoComplete="address-level2"
-                    error={errors.city?.message}
-                    {...register('city')}
-                  />
-                </div>
-              </FieldForm>
-            </>
-          ) : status === 'anonymous' ? (
-            <AccountAccess note={CHECKOUT_TEXT.signInNote} />
-          ) : (
-            <Spinner tone="muted" />
-          )}
+          <div className={cn('cardHead')}>
+            <Heading level={2} variant="item">
+              {CHECKOUT_TEXT.detailsTitle}
+            </Heading>
+            <Text as="p" variant="small" tone="muted">
+              {CHECKOUT_TEXT.detailsNote}
+            </Text>
+          </div>
+          <FieldForm id={FORM_ID} onSubmit={onSubmit}>
+            <Input
+              label={CHECKOUT_TEXT.fullNameLabel}
+              autoComplete="name"
+              error={errors.fullName?.message}
+              {...register('fullName')}
+            />
+            <div className={cn('fieldPair')}>
+              <Input
+                label={CHECKOUT_TEXT.emailLabel}
+                type="email"
+                autoComplete="email"
+                error={errors.email?.message}
+                {...register('email')}
+              />
+              <Input
+                label={CHECKOUT_TEXT.mobileLabel}
+                type="tel"
+                autoComplete="tel"
+                error={errors.mobile?.message}
+                {...register('mobile')}
+              />
+            </div>
+            {/* Where the student lives, for the tax invoice */}
+            <div className={cn('fieldPair')}>
+              <Select
+                label={CHECKOUT_TEXT.stateLabel}
+                placeholder={CHECKOUT_TEXT.statePlaceholder}
+                options={INDIAN_STATE_OPTIONS}
+                autoComplete="address-level1"
+                error={errors.state?.message}
+                {...register('state')}
+              />
+              <Input
+                label={CHECKOUT_TEXT.cityLabel}
+                placeholder={CHECKOUT_TEXT.cityPlaceholder}
+                autoComplete="address-level2"
+                error={errors.city?.message}
+                {...register('city')}
+              />
+            </div>
+          </FieldForm>
         </section>
       </div>
 

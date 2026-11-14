@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import cx from 'classnames/bind';
 
+import { canViewTeamOrders } from '@/access/team';
 import { BrandLogo } from '@components/brand/BrandLogo/BrandLogo';
 import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Container } from '@components/ui/Container/Container';
@@ -19,7 +20,8 @@ import styles from './SiteHeader.module.css';
 const cn = cx.bind(styles);
 
 export const SiteHeader = () => {
-  const { status, clearSession } = useAuth();
+  const auth = useAuth();
+  const { status, clearSession } = auth;
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -59,18 +61,20 @@ export const SiteHeader = () => {
     }
   };
 
-  // Browsing needs no account; once signed in (at payment), the student's
-  // own seats are a click away
+  // Students never sign in; a signed-in team member reaches orders and
+  // signs out here
   const accountActions =
     status === 'authenticated' ? (
       <>
-        <ButtonRouteLink
-          variant="plain"
-          to={APP_ROUTES.MY_LEARNING}
-          onClick={() => setIsMenuOpen(false)}
-        >
-          {HEADER_TEXT.myLearning}
-        </ButtonRouteLink>
+        {canViewTeamOrders(auth) ? (
+          <ButtonRouteLink
+            variant="plain"
+            to={APP_ROUTES.TEAM_ORDERS}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            {HEADER_TEXT.teamOrders}
+          </ButtonRouteLink>
+        ) : null}
         <Button
           variant="secondary"
           loading={isLoggingOut}

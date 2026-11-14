@@ -42,7 +42,7 @@ const AdminSignInPage = () => {
       .then(user => {
         login(user);
         showToast(ADMIN_SIGN_IN_TEXT.signedInToast);
-        navigate(APP_ROUTES.HOME, { replace: true });
+        navigate(APP_ROUTES.TEAM_ORDERS, { replace: true });
       })
       .catch((error: unknown) => {
         setLinkError(getApiErrorMessage(error, ADMIN_SIGN_IN_TEXT.linkError));

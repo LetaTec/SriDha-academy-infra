@@ -100,8 +100,7 @@ export const AUTH_FOOTER_TEXT = {
   lead: 'SriDha Academy teaches one topic at a time, so students learn a single concept well and build confidence along the way',
   // The first few topics (FOOTER_TOPIC_COUNT), from the catalogue
   topicsTitle: 'Topics',
-  accountTitle: 'Account',
-  myLearning: 'My learning',
+  accountTitle: 'Team',
   copyright: '© 2026 SriDha Academy',
   note: 'Topic-wise learning for school, competitive and professional exams',
 } as const;
