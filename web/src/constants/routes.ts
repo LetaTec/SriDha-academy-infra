@@ -15,6 +15,7 @@ export const APP_ROUTES = {
   ADMIN_SIGN_IN: '/admin-sign-in',
   // Public policy pages, readable with or without an account
   TERMS: '/terms',
+  // Retired: there is no refund policy for now; old links go home
   REFUNDS: '/refund-policy',
   CONTACT: '/contact',
   // Super admins only

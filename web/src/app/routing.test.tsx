@@ -186,20 +186,22 @@ describe('app routing', () => {
     expect(router.state.location.search).toContain(`topic=${GST_TOPIC_ID}`);
   });
 
-  it.each(['/register', '/my-learning', '/reset-password?token=old'])(
-    'sends the retired student-account link %s to the homepage',
-    async path => {
-      vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
-      const router = renderApp(path);
+  it.each([
+    '/register',
+    '/my-learning',
+    '/reset-password?token=old',
+    '/refund-policy',
+  ])('sends the retired link %s to the homepage', async path => {
+    vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
+    const router = renderApp(path);
 
-      await screen.findByRole(
-        'heading',
-        { level: 1, name: /search your\s*topic/i },
-        { timeout: LAZY_PAGE_TIMEOUT_MS },
-      );
-      expect(router.state.location.pathname).toBe('/');
-    },
-  );
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: /search your\s*topic/i },
+      { timeout: LAZY_PAGE_TIMEOUT_MS },
+    );
+    expect(router.state.location.pathname).toBe('/');
+  });
 
   it('sends a signed-in student from an old sign-in link to the homepage', async () => {
     vi.mocked(getCurrentSession).mockResolvedValue(student);
@@ -264,6 +266,13 @@ describe('app routing', () => {
       expect(
         screen.getByRole('radio', { name: /December batch/ }),
       ).toBeDisabled();
+      // No refund policy for now: a note instead, and the box names only the terms
+      expect(
+        screen.getByText(/Please check the topic and batch before you pay/),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: /refund/i }),
+      ).not.toBeInTheDocument();
       // The student sees who teaches the topic before paying
       const tutor = screen.getByRole('region', {
         name: 'Your tutor, Neha Agarwal',
@@ -495,8 +504,8 @@ describe('app routing', () => {
       within(help).getByRole('link', { name: 'Terms and conditions' }),
     ).toHaveAttribute('href', '/terms');
     expect(
-      within(help).getByRole('link', { name: 'Refund and cancellation' }),
-    ).toHaveAttribute('href', '/refund-policy');
+      within(help).queryByRole('link', { name: /refund/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps orders and payments for the team', async () => {

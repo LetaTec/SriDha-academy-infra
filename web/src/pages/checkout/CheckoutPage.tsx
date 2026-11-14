@@ -304,10 +304,6 @@ const CheckoutDetails = ({
             {CHECKOUT_TEXT.agreePrefix}{' '}
             <Link to={APP_ROUTES.TERMS} className={cn('link')}>
               {CHECKOUT_TEXT.agreeTerms}
-            </Link>{' '}
-            {CHECKOUT_TEXT.agreeJoin}{' '}
-            <Link to={APP_ROUTES.REFUNDS} className={cn('link')}>
-              {CHECKOUT_TEXT.agreeRefunds}
             </Link>
           </>
         }
@@ -399,9 +395,9 @@ const CheckoutDetails = ({
             {CHECKOUT_TEXT.teachTitle}
           </Heading>
           <RuledList items={preview.subtopics} ordered />
-          <Link to={APP_ROUTES.REFUNDS} className={cn('link')}>
-            {CHECKOUT_TEXT.refundPolicyLink}
-          </Link>
+          <Text as="p" variant="small" tone="muted">
+            {CHECKOUT_TEXT.paymentNote}
+          </Text>
         </section>
 
         <section className={cn('card')}>

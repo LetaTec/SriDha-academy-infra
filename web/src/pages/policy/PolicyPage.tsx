@@ -17,7 +17,7 @@ export type PolicyPageProps = {
   policy: PolicyKey;
 };
 
-// Terms, refund and contact pages. Public, so payment providers and
+// Terms and contact pages. Public, so payment providers and
 // visitors can read them without an account.
 const PolicyPage = ({ policy }: PolicyPageProps) => {
   const content = POLICY_CONTENT[policy];

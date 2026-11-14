@@ -55,10 +55,6 @@ export const routes: RouteObject[] = [
             element: <PolicyPage policy={POLICY.terms} />,
           },
           {
-            path: APP_ROUTES.REFUNDS,
-            element: <PolicyPage policy={POLICY.refunds} />,
-          },
-          {
             path: APP_ROUTES.CONTACT,
             element: <PolicyPage policy={POLICY.contact} />,
           },
@@ -74,6 +70,7 @@ export const routes: RouteObject[] = [
     APP_ROUTES.FORGOT_PASSWORD,
     APP_ROUTES.RESET_PASSWORD,
     APP_ROUTES.MY_LEARNING,
+    APP_ROUTES.REFUNDS,
   ].map(path => ({
     path,
     element: <Navigate to={APP_ROUTES.HOME} replace />,
