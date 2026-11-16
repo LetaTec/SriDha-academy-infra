@@ -2,14 +2,13 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { after, before, describe, it } from 'node:test';
 
+import { createFakeRazorpay } from '../../test/fakeRazorpay.js';
 import {
   startTestServer,
   validRegistration,
   type TestClient,
 } from '../../test/testServer.js';
-import { createRazorpayGateway, type PaymentGateway } from './gateway.js';
 
-const KEY_SECRET = 'rzp_test_secret';
 const WEBHOOK_SECRET = 'whsec_test';
 const PRE_REGISTER_TOPIC = 'topic_physics_wave_optics_class_12';
 const BILLING = {
@@ -18,14 +17,6 @@ const BILLING = {
   mobile: '+91 98765 43210',
   state: 'Rajasthan',
   city: 'Jaipur',
-};
-
-const createFakeRazorpay = (): PaymentGateway => {
-  let orderNumber = 0;
-  return {
-    ...createRazorpayGateway('rzp_test_key', KEY_SECRET),
-    createOrder: async () => ({ orderId: `order_${(orderNumber += 1)}` }),
-  };
 };
 
 // The body Razorpay posts when a payment is captured

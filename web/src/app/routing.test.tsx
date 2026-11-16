@@ -15,7 +15,8 @@ import { ToastProvider } from '@context/ToastContext';
 import { confirmAdminSignIn, getCurrentSession } from '@services/auth/api';
 import { getCatalogue } from '@services/catalogue/api';
 import { listTeamOrders } from '@services/admin/api';
-import { createCheckout } from '@services/payments/api';
+import { createCheckout, verifyPayment } from '@services/payments/api';
+import { payWithRazorpay } from '@services/payments/razorpay';
 import { catalogueFixture, openBatch } from '@/test/catalogueFixture';
 
 import { routes } from './router';
@@ -31,6 +32,8 @@ vi.mock('@services/payments/api', () => ({
   createCheckout: vi.fn(),
   verifyPayment: vi.fn(),
 }));
+// Razorpay's own checkout window (an external script) is never loaded
+vi.mock('@services/payments/razorpay', () => ({ payWithRazorpay: vi.fn() }));
 vi.mock('@services/admin/api', () => ({ listTeamOrders: vi.fn() }));
 
 const student = {
@@ -330,6 +333,90 @@ describe('app routing', () => {
       expect(
         screen.getByRole('link', { name: 'Browse topics' }),
       ).toHaveAttribute('href', '/topics');
+    },
+    JOURNEY_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'says a payment is being confirmed, not paid, until Razorpay reports the capture',
+    async () => {
+      vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
+      vi.mocked(createCheckout).mockResolvedValue({
+        paymentId: 'payment_2',
+        status: 'CREATED',
+        kind: 'ENROLMENT',
+        amount: { amountPaise: 12900, currency: 'INR', taxLabel: null },
+        topic: {
+          id: GST_TOPIC_ID,
+          title: 'Learn GST for Class 11',
+          level: 'Class 11',
+        },
+        batch: {
+          id: openBatch.id,
+          name: openBatch.name,
+          scheduleLabel: openBatch.scheduleLabel,
+        },
+        provider: {
+          name: 'RAZORPAY',
+          orderId: 'order_2',
+          keyId: 'rzp_test_key',
+        },
+      });
+      vi.mocked(payWithRazorpay).mockResolvedValue({
+        status: 'paid',
+        verification: {
+          paymentId: 'payment_2',
+          providerOrderId: 'order_2',
+          providerPaymentId: 'pay_2',
+          signature: 'signed-by-razorpay',
+        },
+      });
+      // Signed, but Razorpay has not reported it captured yet
+      vi.mocked(verifyPayment).mockResolvedValue({
+        paymentId: 'payment_2',
+        status: 'AUTHORIZED',
+      });
+      const user = userEvent.setup();
+      renderApp(`/checkout?topic=${GST_TOPIC_ID}`);
+      await findCheckoutPage();
+
+      // Opened directly, the form appears once the catalogue has loaded
+      await user.type(
+        await screen.findByRole(
+          'textbox',
+          { name: 'Full name' },
+          { timeout: LAZY_PAGE_TIMEOUT_MS },
+        ),
+        'Asha Verma',
+      );
+      await user.type(
+        screen.getByRole('textbox', { name: 'Email ID' }),
+        'asha@example.com',
+      );
+      await user.type(
+        screen.getByRole('textbox', { name: 'Mobile number' }),
+        '+91 98765 43210',
+      );
+      await user.selectOptions(
+        screen.getByRole('combobox', { name: 'State' }),
+        'Rajasthan',
+      );
+      await user.type(screen.getByRole('textbox', { name: 'City' }), 'Jaipur');
+      await user.click(
+        screen.getByRole('checkbox', { name: /I agree to the/ }),
+      );
+      await user.click(screen.getByRole('button', { name: 'Pay ₹129' }));
+
+      expect(
+        await screen.findByText('Confirming your payment'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/We will email asha@example.com as soon as/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Payment received')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Your seat in the .* is confirmed/),
+      ).not.toBeInTheDocument();
     },
     JOURNEY_TEST_TIMEOUT_MS,
   );

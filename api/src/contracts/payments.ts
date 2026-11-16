@@ -9,7 +9,12 @@ export type SeatStatus = 'PENDING_PAYMENT' | 'CONFIRMED' | 'CANCELLED';
 
 export type CheckoutKind = 'ENROLMENT' | 'PRE_REGISTRATION';
 
-export type PaymentStatus = 'CREATED' | 'PAID';
+// CREATED: order made, nothing paid. AUTHORIZED: the provider signed the
+// payment but has not reported it captured yet. PAID: captured (only a
+// capture reported by the provider gets here). FAILED and EXPIRED: no money
+// was taken for this order.
+export type PaymentStatus =
+  'CREATED' | 'AUTHORIZED' | 'PAID' | 'FAILED' | 'EXPIRED';
 
 export type PaymentProvider = 'RAZORPAY' | 'TEST';
 

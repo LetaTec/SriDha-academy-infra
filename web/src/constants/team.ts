@@ -5,12 +5,18 @@ import type { StatusColor } from './status';
 
 export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
   CREATED: 'Not paid',
+  AUTHORIZED: 'Confirming',
   PAID: 'Paid',
+  FAILED: 'Failed',
+  EXPIRED: 'Expired',
 };
 
 export const PAYMENT_STATUS_COLOR: Record<PaymentStatus, StatusColor> = {
   CREATED: 'neutral',
+  AUTHORIZED: 'warning',
   PAID: 'positive',
+  FAILED: 'negative',
+  EXPIRED: 'neutral',
 };
 
 export const CHECKOUT_KIND_LABEL: Record<CheckoutKind, string> = {

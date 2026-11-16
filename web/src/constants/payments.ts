@@ -24,7 +24,10 @@ export type { PaymentProvider };
 
 export const PAYMENT_STATUS = {
   created: 'CREATED',
+  authorized: 'AUTHORIZED',
   paid: 'PAID',
+  failed: 'FAILED',
+  expired: 'EXPIRED',
 } as const satisfies Record<string, PaymentStatus>;
 
 export type { PaymentStatus };
@@ -174,6 +177,11 @@ export const CHECKOUT_TEXT = {
   paidEnrolment: (batch: string) => `Your seat in the ${batch} is confirmed`,
   paidPreRegistration:
     'Your pre-registration is confirmed. We will email you when the first batch opens',
+  // Razorpay has the payment but has not reported it captured yet: the seat
+  // is confirmed (and the email sent) only once it does
+  confirmingTitle: 'Confirming your payment',
+  confirmingMessage: (email: string) =>
+    `Razorpay has your payment and is confirming it. We will email ${email} as soon as your seat is confirmed`,
   pendingTitle: 'Seat saved',
   pendingMessage:
     'Online payment opens soon. Your seat is held and our team will contact you to complete the payment',

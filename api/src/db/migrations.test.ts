@@ -120,15 +120,20 @@ const RAY_OPTICS_BATCHES_SQL = `
   FROM batches WHERE topic_id = $1 ORDER BY position
 `;
 
-// A database migrated up to (not including) the given migration
+// A database migrated up to (not including) the given migration, chosen by
+// its position in the list (the order migrations run), not by comparing ids
 const migrateBefore = async (
   db: Awaited<ReturnType<typeof openDatabase>>,
   migrationId: string,
 ) => {
+  // The table first: closing an in-memory database that has never run a
+  // query does not settle, so a failed assertion must come after it
   await db.exec(
     'CREATE TABLE schema_migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL)',
   );
-  for (const migration of MIGRATIONS.filter(item => item.id < migrationId)) {
+  const position = MIGRATIONS.findIndex(item => item.id === migrationId);
+  assert.ok(position >= 0, `${migrationId} is a listed migration`);
+  for (const migration of MIGRATIONS.slice(0, position)) {
     await db.exec(migration.sql);
     await db.query(
       'INSERT INTO schema_migrations (id, applied_at) VALUES ($1, $2)',
@@ -269,6 +274,174 @@ describe('migration 010: tutors', () => {
         'SELECT COUNT(*)::int AS count FROM topics WHERE tutor_id IS NULL',
       )) ?? { count: -1 };
       assert.equal(count, 0);
+    } finally {
+      await db.close();
+    }
+  });
+});
+
+const PAYMENT_INTEGRITY_MIGRATION = '011_payment_integrity';
+
+type Db = Awaited<ReturnType<typeof openDatabase>>;
+
+const iso = (value: unknown) =>
+  value === null ? null : new Date(value as string).toISOString();
+
+// A buyer with a paid and an unpaid payment, written as the API did before
+// migration 011 (no paid_at, no item snapshot, no tax status)
+const insertLegacyPayments = async (db: Db) => {
+  await db.query(
+    `INSERT INTO users (id, email, password_hash, created_at, updated_at)
+     VALUES ('legacy-buyer', 'legacy.buyer@example.com', NULL, $1, $1)`,
+    ['2026-07-02T04:55:00Z'],
+  );
+  await db.query(
+    `INSERT INTO enrolments (id, user_id, batch_id, status, created_at, updated_at)
+     VALUES ('legacy-enrolment', 'legacy-buyer', 'batch_gst_class_11_december',
+       'CONFIRMED', $1, $1)`,
+    ['2026-07-02T05:00:00Z'],
+  );
+  const insert = `INSERT INTO payments (id, user_id, enrolment_id, amount_paise, currency,
+      provider, provider_order_id, provider_payment_id, status, billing_name,
+      billing_email, billing_mobile, billing_state, billing_city, created_at, updated_at)
+    VALUES ($1, 'legacy-buyer', 'legacy-enrolment', 12900, 'INR', 'RAZORPAY', $2, $3,
+      $4, 'Legacy Buyer', 'legacy.buyer@example.com', '9876543210', 'Rajasthan',
+      'Jaipur', $5, $6)`;
+  await db.query(insert, [
+    'legacy-paid',
+    'order_legacy_1',
+    'pay_legacy_1',
+    'PAID',
+    '2026-07-02T05:00:00Z',
+    '2026-07-02T05:03:00Z',
+  ]);
+  await db.query(insert, [
+    'legacy-unpaid',
+    'order_legacy_2',
+    null,
+    'CREATED',
+    '2026-07-03T06:00:00Z',
+    '2026-07-03T06:00:00Z',
+  ]);
+};
+
+describe('migration 011: payment integrity', () => {
+  it('keeps existing payments as they were, estimates paid_at and marks them for CA review', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      await migrateBefore(db, PAYMENT_INTEGRITY_MIGRATION);
+      await seedCatalogue(db);
+      await insertLegacyPayments(db);
+
+      await runMigrations(db);
+
+      const rows = await db.all<Record<string, unknown>>(
+        `SELECT id, status, amount_paise, created_at, paid_at, paid_at_estimated,
+                tax_status, item_description, item_topic_id, item_batch_id,
+                unit_price_paise, quantity
+         FROM payments ORDER BY id`,
+      );
+      assert.deepEqual(
+        rows.map(row => ({
+          ...row,
+          created_at: iso(row.created_at),
+          paid_at: iso(row.paid_at),
+        })),
+        [
+          {
+            id: 'legacy-paid',
+            status: 'PAID',
+            amount_paise: 12900,
+            created_at: '2026-07-02T05:00:00.000Z',
+            // The only time on record: the row's last update
+            paid_at: '2026-07-02T05:03:00.000Z',
+            paid_at_estimated: true,
+            tax_status: 'LEGACY_UNREVIEWED',
+            // Never filled in from today's catalogue
+            item_description: null,
+            item_topic_id: null,
+            item_batch_id: null,
+            unit_price_paise: null,
+            quantity: 1,
+          },
+          {
+            id: 'legacy-unpaid',
+            status: 'CREATED',
+            amount_paise: 12900,
+            created_at: '2026-07-03T06:00:00.000Z',
+            paid_at: null,
+            paid_at_estimated: false,
+            tax_status: 'LEGACY_UNREVIEWED',
+            item_description: null,
+            item_topic_id: null,
+            item_batch_id: null,
+            unit_price_paise: null,
+            quantity: 1,
+          },
+        ],
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
+  it('refuses to delete a customer who has payments, and still removes one who has none', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      await migrateBefore(db, PAYMENT_INTEGRITY_MIGRATION);
+      await seedCatalogue(db);
+      await insertLegacyPayments(db);
+      await runMigrations(db);
+
+      // Refused by a foreign key protecting the payments. PGlite reports the
+      // RESTRICT itself (23001); PostgreSQL 16 can report the generic
+      // foreign-key code (23503) when the cascade to enrolments meets the
+      // payment first. Either way nothing is deleted (checked below).
+      await assert.rejects(
+        () => db.query("DELETE FROM users WHERE id = 'legacy-buyer'"),
+        (error: { code?: string; message?: string }) =>
+          (error.code === '23001' || error.code === '23503') &&
+          /payments/.test(String(error.message)),
+      );
+      const { count } = (await db.get<{ count: number }>(
+        "SELECT COUNT(*)::int AS count FROM payments WHERE user_id = 'legacy-buyer'",
+      )) ?? { count: -1 };
+      assert.equal(count, 2);
+
+      await db.query(
+        `INSERT INTO users (id, email, password_hash, created_at, updated_at)
+         VALUES ('no-payments', 'no.payments@example.com', NULL, NOW(), NOW())`,
+      );
+      await db.query("DELETE FROM users WHERE id = 'no-payments'");
+      assert.ok(
+        !(await db.get("SELECT 1 FROM users WHERE id = 'no-payments'")),
+        'a customer without payments can still be removed',
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
+  it('accepts only known tax statuses and positive quantities and unit prices', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      await migrateBefore(db, PAYMENT_INTEGRITY_MIGRATION);
+      await seedCatalogue(db);
+      await insertLegacyPayments(db);
+      await runMigrations(db);
+
+      for (const change of [
+        "tax_status = 'GUESSED'",
+        'quantity = 0',
+        'unit_price_paise = 0',
+      ]) {
+        await assert.rejects(
+          () =>
+            db.query(`UPDATE payments SET ${change} WHERE id = 'legacy-paid'`),
+          (error: { code?: string }) => error.code === '23514',
+          change,
+        );
+      }
     } finally {
       await db.close();
     }

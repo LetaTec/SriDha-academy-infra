@@ -10,7 +10,7 @@ import type {
   PaymentStatus,
   VerifyPaymentRequest,
 } from '../../contracts/payments.js';
-import { transaction, type DatabaseClient } from '../../db/client.js';
+import { transaction } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { logger } from '../../logging/logger.js';
 import { findUserIdByEmail } from '../auth/auth.repository.js';
@@ -28,13 +28,17 @@ import {
 import {
   findEnrolmentForBatch,
   renewEnrolmentHold,
-  setEnrolmentStatus,
 } from '../enrolments/enrolments.repository.js';
 import {
   createEnrolment,
   ENROLMENT_STATUS,
 } from '../enrolments/enrolments.service.js';
 import type { PaymentGateway } from './gateway.js';
+import {
+  applyPaymentEvent,
+  EVENT_SOURCE,
+  PAYMENT_STATUS,
+} from './payments.lifecycle.js';
 import {
   findBatchForPurchase,
   findPaymentConfirmationRow,
@@ -44,7 +48,6 @@ import {
   insertBuyerIfNew,
   insertPayment,
   insertPreRegistration,
-  setPaymentPaid,
   setPreRegistrationStatus,
 } from './payments.repository.js';
 
@@ -53,10 +56,7 @@ export const CHECKOUT_KIND = {
   preRegistration: 'PRE_REGISTRATION',
 } as const satisfies Record<string, CheckoutKind>;
 
-export const PAYMENT_STATUS = {
-  created: 'CREATED',
-  paid: 'PAID',
-} as const satisfies Record<string, PaymentStatus>;
+export { PAYMENT_STATUS };
 
 export const PRE_REGISTRATION_STATUS = ENROLMENT_STATUS;
 
@@ -107,6 +107,13 @@ type Purchase = {
   topic: Checkout['topic'];
   batch: Checkout['batch'];
 };
+
+// What was sold, as recorded on the payment: reports and documents read
+// this snapshot, never the live catalogue, which can be renamed or repriced
+const describeItem = (purchase: Purchase) =>
+  purchase.batch
+    ? `${purchase.topic.title} — ${purchase.batch.name}`
+    : `${purchase.topic.title} — Pre-registration`;
 
 const toPurchaseTopic = (row: Row): Checkout['topic'] => ({
   id: String(row.t_id),
@@ -341,6 +348,10 @@ export const createCheckout = async (
     billingMobile: input.mobile,
     billingState: input.state,
     billingCity: input.city,
+    itemDescription: describeItem(purchase),
+    itemTopicId: purchase.topic.id,
+    itemBatchId: purchase.batch?.id ?? null,
+    unitPricePaise: purchase.amountPaise,
     timestamp,
   });
 
@@ -359,90 +370,93 @@ export const createCheckout = async (
   };
 };
 
-// Marks a payment as paid and confirms the seat it was for. Shared by the
-// browser's verification and Razorpay's webhook, inside their transaction.
-export const markPaymentPaid = async (
-  tx: DatabaseClient,
-  payment: Row,
-  providerPaymentId: string,
-  timestamp: string,
-) => {
-  await setPaymentPaid(
-    tx,
-    String(payment.id),
-    PAYMENT_STATUS.paid,
-    providerPaymentId,
-    timestamp,
-  );
-
-  if (payment.enrolment_id !== null) {
-    await setEnrolmentStatus(
-      tx,
-      String(payment.enrolment_id),
-      ENROLMENT_STATUS.confirmed,
-      timestamp,
-    );
-  } else {
-    await setPreRegistrationStatus(
-      tx,
-      String(payment.pre_registration_id),
-      PRE_REGISTRATION_STATUS.confirmed,
-      timestamp,
-    );
-  }
-};
-
-// Confirms the seat only when the provider's signature matches the order
-// created for this payment. Only the provider and this API know the key
-// that signs it, so no account is needed.
+// The browser's confirmation. A valid provider signature proves Razorpay
+// authorised this payment for this order, so the payment becomes
+// AUTHORIZED; it becomes PAID only when Razorpay's own record shows it
+// captured for the same order, amount and currency. If Razorpay cannot be
+// read, or has not captured yet, the payment stays AUTHORIZED and the
+// capture webhook completes it. No account is needed: only the provider
+// and this API know the key that signs payments.
 export const verifyPayment = async (
   context: AppContext,
   gateway: PaymentGateway,
   input: VerifyPaymentInput,
-) => {
-  const timestamp = context.now().toISOString();
+): Promise<{ paymentId: string; status: PaymentStatus }> => {
+  const payment = await findPaymentById(context.db, input.paymentId);
 
-  const result = await transaction(context.db, async tx => {
-    const payment = await findPaymentById(tx, input.paymentId);
-
-    if (!payment) {
-      throw new ApiError(
-        404,
-        ERROR_CODE.paymentNotFound,
-        'This payment does not exist',
-      );
-    }
-
-    if (payment.status === PAYMENT_STATUS.paid) {
-      return { confirmedNow: false };
-    }
-
-    const isValid =
-      String(payment.provider_order_id) === input.providerOrderId &&
-      gateway.verifySignature({
-        orderId: input.providerOrderId,
-        paymentId: input.providerPaymentId,
-        signature: input.signature,
-      });
-
-    if (!isValid) {
-      throw new ApiError(
-        400,
-        ERROR_CODE.paymentVerificationFailed,
-        'We could not confirm this payment. You have not been charged twice; please contact us if money was taken',
-      );
-    }
-
-    await markPaymentPaid(tx, payment, input.providerPaymentId, timestamp);
-
-    return { confirmedNow: true };
-  });
-
-  if (result.confirmedNow) {
-    await sendPaymentConfirmation(context, input.paymentId);
+  if (!payment) {
+    throw new ApiError(
+      404,
+      ERROR_CODE.paymentNotFound,
+      'This payment does not exist',
+    );
   }
 
-  return { paymentId: input.paymentId, status: PAYMENT_STATUS.paid };
+  if (payment.status === PAYMENT_STATUS.paid) {
+    return { paymentId: input.paymentId, status: PAYMENT_STATUS.paid };
+  }
+
+  const isValid =
+    String(payment.provider_order_id) === input.providerOrderId &&
+    gateway.verifySignature({
+      orderId: input.providerOrderId,
+      paymentId: input.providerPaymentId,
+      signature: input.signature,
+    });
+
+  if (!isValid) {
+    throw new ApiError(
+      400,
+      ERROR_CODE.paymentVerificationFailed,
+      'We could not confirm this payment. You have not been charged twice; please contact us if money was taken',
+    );
+  }
+
+  await applyPaymentEvent(context, {
+    provider: gateway.provider,
+    source: EVENT_SOURCE.signature,
+    eventId: `signature:${input.providerPaymentId}`,
+    eventType: 'payment.signature_verified',
+    providerPaymentId: input.providerPaymentId,
+    providerOrderId: input.providerOrderId,
+    amountPaise: null,
+    currency: null,
+    payload: {
+      payment_id: input.providerPaymentId,
+      order_id: input.providerOrderId,
+    },
+  });
+
+  const remote = await gateway.fetchPayment(input.providerPaymentId);
+  if (remote) {
+    const result = await applyPaymentEvent(context, {
+      provider: gateway.provider,
+      source: EVENT_SOURCE.fetch,
+      eventId: `fetch:${remote.id}:${remote.status}`,
+      eventType: `payment.${remote.status}`,
+      providerPaymentId: remote.id,
+      providerOrderId: remote.orderId,
+      amountPaise: remote.amountPaise,
+      currency: remote.currency,
+      payload: {
+        id: remote.id,
+        order_id: remote.orderId,
+        amount: remote.amountPaise,
+        currency: remote.currency,
+        status: remote.status,
+      },
+    });
+
+    if (result.confirmedPaymentId) {
+      await sendPaymentConfirmation(context, result.confirmedPaymentId);
+    }
+  }
+
+  const current = await findPaymentById(context.db, input.paymentId);
+  return {
+    paymentId: input.paymentId,
+    status: String(current?.status ?? payment.status) as PaymentStatus,
+  };
 };
 
 const formatRupees = (paise: number) =>

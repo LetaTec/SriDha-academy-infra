@@ -12,6 +12,16 @@ export const PAYMENT_PROVIDER = {
 
 export type { PaymentProvider };
 
+// A payment as the provider holds it. Status values are Razorpay's:
+// created, authorized, captured, refunded, failed.
+export type ProviderPayment = {
+  id: string;
+  orderId: string | null;
+  status: string;
+  amountPaise: number;
+  currency: string;
+};
+
 export type PaymentGateway = {
   provider: PaymentProvider;
   // Public key the browser needs to open the provider's checkout
@@ -27,9 +37,14 @@ export type PaymentGateway = {
     paymentId: string;
     signature: string;
   }) => boolean;
+  // The provider's own record of a payment, or null when it cannot be read
+  // (unknown payment, provider unreachable); callers then wait for the
+  // webhook instead of guessing
+  fetchPayment: (paymentId: string) => Promise<ProviderPayment | null>;
 };
 
 const RAZORPAY_ORDERS_URL = 'https://api.razorpay.com/v1/orders';
+const RAZORPAY_PAYMENTS_URL = 'https://api.razorpay.com/v1/payments';
 
 export const createRazorpayGateway = (
   keyId: string,
@@ -37,6 +52,39 @@ export const createRazorpayGateway = (
 ): PaymentGateway => ({
   provider: PAYMENT_PROVIDER.razorpay,
   keyId,
+  fetchPayment: async paymentId => {
+    const response = await fetch(
+      `${RAZORPAY_PAYMENTS_URL}/${encodeURIComponent(paymentId)}`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`,
+        },
+      },
+    ).catch(() => null);
+
+    if (!response?.ok) {
+      logger.warn('payments.provider_fetch_failed', {
+        provider: PAYMENT_PROVIDER.razorpay,
+        status: response?.status ?? 'network error',
+      });
+      return null;
+    }
+
+    const payment = (await response.json()) as {
+      id: string;
+      order_id: string | null;
+      status: string;
+      amount: number;
+      currency: string;
+    };
+    return {
+      id: payment.id,
+      orderId: payment.order_id,
+      status: payment.status,
+      amountPaise: payment.amount,
+      currency: payment.currency,
+    };
+  },
   createOrder: async ({ amountPaise, currency, receipt }) => {
     const response = await fetch(RAZORPAY_ORDERS_URL, {
       method: 'POST',
@@ -82,6 +130,7 @@ export const createTestGateway = (): PaymentGateway => ({
   keyId: null,
   createOrder: async () => ({ orderId: `order_test_${randomUUID()}` }),
   verifySignature: () => false,
+  fetchPayment: async () => null,
 });
 
 export const createPaymentGateway = (config: AppConfig): PaymentGateway =>

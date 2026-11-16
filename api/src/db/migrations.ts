@@ -348,4 +348,112 @@ export const MIGRATIONS: readonly Migration[] = [
         AND topics.tutor_id IS NULL;
     `,
   },
+  {
+    // Financial records must outlive the customer row: deleting a user who
+    // has payments is now refused instead of erasing their payment history.
+    // paid_at records when a payment was captured; payments that were
+    // already paid get their last update time, marked as an estimate,
+    // because no better time was ever stored. What was sold is snapshotted
+    // on the payment from now on; older payments keep NULL (never filled in
+    // from today's catalogue). tax_status starts every existing payment as
+    // LEGACY_UNREVIEWED: no automatic process acts on those until the CA has
+    // decided how they are treated. TEST-provider payments are left out of
+    // the reporting indexes, as they are of every business figure.
+    // To undo:
+    //   ALTER TABLE payments DROP CONSTRAINT payments_user_id_fkey,
+    //     ADD CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id)
+    //     REFERENCES users (id) ON DELETE CASCADE;
+    //   DROP INDEX payments_paid_at_real_idx, payments_created_at_real_idx;
+    //   ALTER TABLE payments DROP COLUMN paid_at, DROP COLUMN paid_at_estimated,
+    //     DROP COLUMN item_description, DROP COLUMN item_topic_id,
+    //     DROP COLUMN item_batch_id, DROP COLUMN unit_price_paise,
+    //     DROP COLUMN quantity, DROP COLUMN tax_status;
+    id: '011_payment_integrity',
+    sql: `
+      ALTER TABLE payments DROP CONSTRAINT payments_user_id_fkey;
+      ALTER TABLE payments
+        ADD CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES users (id) ON DELETE RESTRICT;
+
+      ALTER TABLE payments ADD COLUMN paid_at TIMESTAMPTZ;
+      ALTER TABLE payments
+        ADD COLUMN paid_at_estimated BOOLEAN NOT NULL DEFAULT false;
+      UPDATE payments SET paid_at = updated_at, paid_at_estimated = true
+      WHERE status = 'PAID';
+
+      ALTER TABLE payments ADD COLUMN item_description TEXT;
+      ALTER TABLE payments ADD COLUMN item_topic_id TEXT;
+      ALTER TABLE payments ADD COLUMN item_batch_id TEXT;
+      ALTER TABLE payments
+        ADD COLUMN unit_price_paise INTEGER CHECK (unit_price_paise > 0);
+      ALTER TABLE payments
+        ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0);
+
+      ALTER TABLE payments
+        ADD COLUMN tax_status TEXT NOT NULL DEFAULT 'PENDING_CONFIGURATION'
+        CHECK (tax_status IN
+          ('LEGACY_UNREVIEWED', 'PENDING_CONFIGURATION', 'QUOTED', 'NOT_APPLICABLE'));
+      UPDATE payments SET tax_status = 'LEGACY_UNREVIEWED';
+
+      CREATE INDEX payments_paid_at_real_idx ON payments (paid_at)
+        WHERE provider <> 'TEST' AND status = 'PAID';
+      CREATE INDEX payments_created_at_real_idx ON payments (created_at)
+        WHERE provider <> 'TEST';
+    `,
+  },
+  {
+    // The payment lifecycle: a provider signature makes a payment
+    // AUTHORIZED, only a capture reported by Razorpay makes it PAID, and
+    // failures and expiry are recorded instead of leaving payments CREATED
+    // forever. Existing values keep their meaning (PAID is captured).
+    // payment_events keeps every webhook, signature check and provider
+    // lookup, once each (Razorpay delivers at least once and out of order),
+    // with only the fields this system needs: no card, UPI, bank, email or
+    // phone details.
+    // To undo:
+    //   DROP TABLE payment_events;
+    //   ALTER TABLE payments DROP COLUMN authorized_at, DROP COLUMN failed_at,
+    //     DROP COLUMN expired_at, DROP COLUMN failure_code,
+    //     DROP COLUMN failure_reason;
+    //   (then, only once no row uses a new status)
+    //   ALTER TABLE payments DROP CONSTRAINT payments_status_check,
+    //     ADD CONSTRAINT payments_status_check CHECK (status IN ('CREATED', 'PAID'));
+    id: '012_payment_lifecycle',
+    sql: `
+      ALTER TABLE payments DROP CONSTRAINT payments_status_check;
+      ALTER TABLE payments ADD CONSTRAINT payments_status_check
+        CHECK (status IN ('CREATED', 'AUTHORIZED', 'PAID', 'FAILED', 'EXPIRED'));
+
+      ALTER TABLE payments ADD COLUMN authorized_at TIMESTAMPTZ;
+      ALTER TABLE payments ADD COLUMN failed_at TIMESTAMPTZ;
+      ALTER TABLE payments ADD COLUMN expired_at TIMESTAMPTZ;
+      ALTER TABLE payments ADD COLUMN failure_code TEXT;
+      ALTER TABLE payments ADD COLUMN failure_reason TEXT;
+
+      CREATE TABLE payment_events (
+        -- Increasing, so events received in the same instant keep their order
+        id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        provider TEXT NOT NULL CHECK (provider IN ('RAZORPAY', 'TEST')),
+        source TEXT NOT NULL
+          CHECK (source IN ('WEBHOOK', 'CHECKOUT_SIGNATURE', 'API_FETCH')),
+        event_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        provider_payment_id TEXT,
+        provider_order_id TEXT,
+        amount_paise INTEGER,
+        currency TEXT,
+        payload JSONB NOT NULL,
+        payment_id TEXT REFERENCES payments (id) ON DELETE RESTRICT,
+        outcome TEXT NOT NULL CHECK (outcome IN (
+          'APPLIED', 'IGNORED_STALE', 'REJECTED_MISMATCH', 'UNKNOWN_ORDER',
+          'RECORDED', 'CAPTURED_FOR_CONFIRMED_SEAT')),
+        received_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (provider, event_id)
+      );
+
+      CREATE INDEX payment_events_payment_id_idx ON payment_events (payment_id);
+      CREATE INDEX payment_events_provider_payment_id_idx
+        ON payment_events (provider_payment_id);
+    `,
+  },
 ];

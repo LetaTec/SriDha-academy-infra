@@ -102,15 +102,23 @@ export type NewPayment = {
   billingMobile: string;
   billingState: string;
   billingCity: string;
+  itemDescription: string;
+  itemTopicId: string;
+  itemBatchId: string | null;
+  unitPricePaise: number;
   timestamp: string;
 };
 
+// A new payment's tax treatment is PENDING_CONFIGURATION (the column's
+// default) until an approved tax rule exists
 export const insertPayment = (db: DatabaseClient, payment: NewPayment) =>
   db.query(
     `INSERT INTO payments (id, user_id, enrolment_id, pre_registration_id, amount_paise, currency,
        provider, provider_order_id, status, billing_name, billing_email, billing_mobile,
-       billing_state, billing_city, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15)`,
+       billing_state, billing_city, item_description, item_topic_id, item_batch_id,
+       unit_price_paise, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+       $18, $19, $19)`,
     [
       payment.id,
       payment.userId,
@@ -126,6 +134,10 @@ export const insertPayment = (db: DatabaseClient, payment: NewPayment) =>
       payment.billingMobile,
       payment.billingState,
       payment.billingCity,
+      payment.itemDescription,
+      payment.itemTopicId,
+      payment.itemBatchId,
+      payment.unitPricePaise,
       payment.timestamp,
     ],
   );
@@ -157,9 +169,135 @@ export const setPaymentPaid = (
   timestamp: string,
 ) =>
   db.query(
-    `UPDATE payments SET status = $1, provider_payment_id = $2, updated_at = $3
+    `UPDATE payments SET status = $1, provider_payment_id = $2, updated_at = $3,
+       paid_at = $3, paid_at_estimated = false
      WHERE id = $4`,
     [status, providerPaymentId, timestamp, paymentId],
+  );
+
+// The payment row locked for this transaction, so concurrent webhooks and
+// browser confirmations for the same payment are applied one at a time
+export const findPaymentByIdForUpdate = (
+  db: DatabaseClient,
+  paymentId: string,
+) =>
+  db.get<Row>('SELECT * FROM payments WHERE id = $1 FOR UPDATE', [paymentId]);
+
+export const findPaymentByOrderIdForUpdate = (
+  db: DatabaseClient,
+  orderId: string,
+) =>
+  db.get<Row>(
+    'SELECT * FROM payments WHERE provider_order_id = $1 FOR UPDATE',
+    [orderId],
+  );
+
+export const setPaymentAuthorized = (
+  db: DatabaseClient,
+  paymentId: string,
+  providerPaymentId: string | null,
+  timestamp: string,
+) =>
+  db.query(
+    `UPDATE payments SET status = 'AUTHORIZED',
+       provider_payment_id = COALESCE($2, provider_payment_id),
+       authorized_at = COALESCE(authorized_at, $3), updated_at = $3
+     WHERE id = $1`,
+    [paymentId, providerPaymentId, timestamp],
+  );
+
+export const setPaymentFailed = (
+  db: DatabaseClient,
+  payment: {
+    id: string;
+    providerPaymentId: string | null;
+    failureCode: string | null;
+    failureReason: string | null;
+  },
+  timestamp: string,
+) =>
+  db.query(
+    `UPDATE payments SET status = 'FAILED',
+       provider_payment_id = COALESCE($2, provider_payment_id),
+       failure_code = $3, failure_reason = $4, failed_at = $5, updated_at = $5
+     WHERE id = $1`,
+    [
+      payment.id,
+      payment.providerPaymentId,
+      payment.failureCode,
+      payment.failureReason,
+      timestamp,
+    ],
+  );
+
+// The seat a payment is for (an enrolment or a pre-registration)
+export const findSeatStatus = async (
+  db: DatabaseClient,
+  payment: { enrolmentId: string | null; preRegistrationId: string | null },
+) => {
+  const row = payment.enrolmentId
+    ? await db.get<{ status: string }>(
+        'SELECT status FROM enrolments WHERE id = $1',
+        [payment.enrolmentId],
+      )
+    : await db.get<{ status: string }>(
+        'SELECT status FROM pre_registrations WHERE id = $1',
+        [payment.preRegistrationId],
+      );
+  return row ? String(row.status) : null;
+};
+
+export type NewPaymentEvent = {
+  provider: string;
+  source: string;
+  eventId: string;
+  eventType: string;
+  providerPaymentId: string | null;
+  providerOrderId: string | null;
+  amountPaise: number | null;
+  currency: string | null;
+  payload: unknown;
+  receivedAt: string;
+};
+
+// Stores an event once. Returns the new row's id, or null when this
+// provider event id was already stored (a repeated delivery)
+export const insertPaymentEvent = async (
+  db: DatabaseClient,
+  event: NewPaymentEvent,
+) => {
+  const row = await db.get<{ id: string | number }>(
+    `INSERT INTO payment_events (provider, source, event_id, event_type,
+       provider_payment_id, provider_order_id, amount_paise, currency, payload,
+       outcome, received_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'RECORDED', $10)
+     ON CONFLICT (provider, event_id) DO NOTHING
+     RETURNING id`,
+    [
+      event.provider,
+      event.source,
+      event.eventId,
+      event.eventType,
+      event.providerPaymentId,
+      event.providerOrderId,
+      event.amountPaise,
+      event.currency,
+      JSON.stringify(event.payload),
+      event.receivedAt,
+    ],
+  );
+  return row ? String(row.id) : null;
+};
+
+export const setPaymentEventOutcome = (
+  db: DatabaseClient,
+  eventRowId: string,
+  outcome: string,
+  paymentId: string | null,
+) =>
+  db.query(
+    'UPDATE payment_events SET outcome = $2, payment_id = $3 WHERE id = $1',
+    [eventRowId, outcome, paymentId],
   );
 
 // What the confirmation email needs: who paid, how much and for what
