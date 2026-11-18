@@ -15,7 +15,7 @@ import {
   findPasswordResetToken,
   findSignInLink,
   findUserIdByEmail,
-  findUserIdByEmailAndRole,
+  findUserRole,
   insertStudent,
   insertToken,
   markPasswordResetTokenUsed,
@@ -29,7 +29,7 @@ import {
   verifyAgainstDummyHash,
   verifyPassword,
 } from './password.js';
-import { toUserRole, USER_ROLE } from './roles.js';
+import { isStaffRole, toUserRole } from './roles.js';
 import { deleteUserSessions } from './session.js';
 import { generateToken, hashToken } from './tokens.js';
 
@@ -91,9 +91,9 @@ export const getAuthUser = async (
 
   const role = toUserRole(row.role);
 
-  // A student account without its profile is incomplete; only super admins
-  // may exist without one.
-  if (row.student_id === null && role !== USER_ROLE.superAdmin) {
+  // A student account without its profile is incomplete; only staff may
+  // exist without one.
+  if (row.student_id === null && !isStaffRole(role)) {
     return null;
   }
 
@@ -267,8 +267,9 @@ const invalidSignInLink = () =>
     'This sign-in link is invalid or has expired. Request a new one.',
   );
 
-// Emails a one-time sign-in link to a super admin. Any other email gets the
-// same response and no email, so the endpoint cannot reveal who is an admin.
+// Emails a one-time sign-in link to a staff member (any staff role). Any
+// other email gets the same response and no email, so the endpoint cannot
+// reveal who is staff.
 export const requestAdminSignIn = async (
   context: AppContext,
   email: string,
@@ -277,13 +278,9 @@ export const requestAdminSignIn = async (
     throw signInLinkUnavailable();
   }
 
-  const userId = await findUserIdByEmailAndRole(
-    context.db,
-    email,
-    USER_ROLE.superAdmin,
-  );
+  const userId = await findUserIdByEmail(context.db, email);
 
-  if (!userId) {
+  if (!userId || !isStaffRole(await findUserRole(context.db, userId))) {
     return;
   }
 
@@ -300,7 +297,7 @@ export const requestAdminSignIn = async (
 };
 
 // Exchanges a sign-in link for the account it was issued to. Each link works
-// once, expires after 15 minutes and only while the account is a super admin.
+// once, expires after 15 minutes and only while the account is staff.
 export const confirmAdminSignIn = async (
   context: AppContext,
   token: string,
@@ -313,7 +310,7 @@ export const confirmAdminSignIn = async (
     !row ||
     row.used_at !== null ||
     new Date(String(row.expires_at)) <= now ||
-    toUserRole(row.role) !== USER_ROLE.superAdmin
+    !isStaffRole(row.role)
   ) {
     throw invalidSignInLink();
   }

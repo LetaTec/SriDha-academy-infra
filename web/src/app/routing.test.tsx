@@ -35,6 +35,27 @@ vi.mock('@services/payments/api', () => ({
 // Razorpay's own checkout window (an external script) is never loaded
 vi.mock('@services/payments/razorpay', () => ({ payWithRazorpay: vi.fn() }));
 vi.mock('@services/admin/api', () => ({ listTeamOrders: vi.fn() }));
+vi.mock('@services/finance/refunds', () => ({
+  listRefunds: vi.fn().mockResolvedValue({
+    refunds: [],
+    summary: {
+      totalCount: 0,
+      requiresReviewCount: 0,
+      requiresReviewPaise: 0,
+      pendingCount: 0,
+      pendingPaise: 0,
+      processedCount: 0,
+      processedPaise: 0,
+      failedCount: 0,
+      failedPaise: 0,
+    },
+    total: 0,
+    limit: 25,
+    offset: 0,
+  }),
+  getRefundDetail: vi.fn(),
+  resolveRefundException: vi.fn(),
+}));
 
 const student = {
   id: '6f0a3c1e-0000-4000-8000-000000000001',
@@ -295,7 +316,7 @@ describe('app routing', () => {
         screen.getByRole('textbox', { name: 'Mobile number' }),
         '+91 98765 43210',
       );
-      // Paying needs the state, the city and the terms ticked first
+      // Paying needs the state, the city, address, PIN and the terms ticked first
       await user.click(screen.getByRole('button', { name: 'Pay ₹129' }));
       expect(
         await screen.findByText('Tick the box to agree before paying'),
@@ -304,13 +325,27 @@ describe('app routing', () => {
         1,
       );
       expect(screen.getByText('Enter your city')).toBeInTheDocument();
+      expect(
+        screen.getByText('Enter your billing address'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Enter a valid 6-digit PIN code'),
+      ).toBeInTheDocument();
       expect(createCheckout).not.toHaveBeenCalled();
 
+      await user.type(
+        screen.getByRole('textbox', { name: 'Billing address' }),
+        '12 Civil Lines',
+      );
       await user.selectOptions(
         screen.getByRole('combobox', { name: 'State' }),
         'Rajasthan',
       );
       await user.type(screen.getByRole('textbox', { name: 'City' }), 'Jaipur');
+      await user.type(
+        screen.getByRole('textbox', { name: 'PIN code' }),
+        '302006',
+      );
       await user.click(
         screen.getByRole('checkbox', { name: /I agree to the/ }),
       );
@@ -319,11 +354,14 @@ describe('app routing', () => {
       expect(createCheckout).toHaveBeenCalledWith({
         kind: 'ENROLMENT',
         batchId: openBatch.id,
+        customerType: 'INDIVIDUAL',
         fullName: 'Asha Verma',
         email: 'asha@example.com',
         mobile: '+91 98765 43210',
+        addressLine1: '12 Civil Lines',
         state: 'Rajasthan',
         city: 'Jaipur',
+        pinCode: '302006',
       });
       // Without Razorpay keys the seat is held until payment is collected
       expect(await screen.findByText('Seat saved')).toBeInTheDocument();
@@ -397,11 +435,19 @@ describe('app routing', () => {
         screen.getByRole('textbox', { name: 'Mobile number' }),
         '+91 98765 43210',
       );
+      await user.type(
+        screen.getByRole('textbox', { name: 'Billing address' }),
+        '12 Civil Lines',
+      );
       await user.selectOptions(
         screen.getByRole('combobox', { name: 'State' }),
         'Rajasthan',
       );
       await user.type(screen.getByRole('textbox', { name: 'City' }), 'Jaipur');
+      await user.type(
+        screen.getByRole('textbox', { name: 'PIN code' }),
+        '302006',
+      );
       await user.click(
         screen.getByRole('checkbox', { name: /I agree to the/ }),
       );
@@ -658,12 +704,17 @@ describe('app routing', () => {
     expect(within(table).getByText('pay_1')).toBeInTheDocument();
     expect(within(table).getByText('Paid')).toBeInTheDocument();
     expect(screen.getByText('Paid orders')).toBeInTheDocument();
-    // The header takes the team back to orders from anywhere
+    // The header takes the team back to orders and refunds from anywhere
     expect(
       within(screen.getByRole('banner')).getAllByRole('link', {
         name: 'Orders',
       })[0],
     ).toHaveAttribute('href', '/team/orders');
+    expect(
+      within(screen.getByRole('banner')).getAllByRole('link', {
+        name: 'Refunds',
+      })[0],
+    ).toHaveAttribute('href', '/team/refunds');
   });
 
   it('shows AI test papers as in progress, with progress derived from the milestones', async () => {

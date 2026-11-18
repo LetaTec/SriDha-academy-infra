@@ -22,6 +22,9 @@ const BILLING = {
   mobile: '+91 98765 43210',
   state: 'Rajasthan',
   city: 'Jaipur',
+  customerType: 'INDIVIDUAL',
+  addressLine1: '12 Civil Lines',
+  pinCode: '302006',
 };
 
 const signPayment = (orderId: string, paymentId: string) =>
@@ -108,6 +111,10 @@ describe('payment confirmations, pre-registrations and team orders', () => {
   });
 
   it("lists the student's own pre-registrations", async () => {
+    // A minute after the enrolment, so "newest first" below is well defined
+    // (the test clock is otherwise fixed and the two would tie)
+    const later = new Date(server.clock.now().getTime() + 60_000);
+    server.clock.now = () => later;
     await student.request('POST', '/api/payments/checkout', {
       kind: 'PRE_REGISTRATION',
       topicId: PRE_REGISTER_TOPIC,

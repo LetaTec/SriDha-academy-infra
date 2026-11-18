@@ -16,10 +16,12 @@ import { Select } from '@components/ui/Select/Select';
 import { Spinner } from '@components/ui/Spinner/Spinner';
 import { StatusDot } from '@components/ui/StatusDot/StatusDot';
 import { Text } from '@components/ui/Text/Text';
+import type { BillingDetails, IndianState } from '@contracts/payments';
 import {
   CHECKOUT_KIND,
   CHECKOUT_QUERY_PARAM,
   CHECKOUT_TEXT,
+  CUSTOMER_TYPE,
   INDIAN_STATE_OPTIONS,
   INDIAN_STATES,
   PAYMENT_PROVIDER,
@@ -42,6 +44,7 @@ import {
 } from '@services/payments';
 import { formatPrice } from '@utils/currency';
 import { formatWallClockTime } from '@utils/date';
+import { checkGstin } from '@utils/gstin';
 
 import { CheckoutTopicCard } from './components/CheckoutTopicCard/CheckoutTopicCard';
 import { PriceSummary } from './components/PriceSummary/PriceSummary';
@@ -52,19 +55,69 @@ const cn = cx.bind(styles);
 const TITLE_ID = 'checkout-title';
 const FORM_ID = 'checkout-form';
 
-const billingSchema = z.object({
-  fullName: z.string().trim().min(2, CHECKOUT_TEXT.fullNameInvalid),
-  email: z.string().trim().pipe(z.email(CHECKOUT_TEXT.emailInvalid)),
-  mobile: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9][0-9\s-]{8,16}[0-9]$/, CHECKOUT_TEXT.mobileInvalid),
-  state: z
-    .union([z.enum(INDIAN_STATES), z.literal('')])
-    .refine(value => value !== '', CHECKOUT_TEXT.stateRequired),
-  city: z.string().trim().min(2, CHECKOUT_TEXT.cityRequired).max(80),
-  agreed: z.boolean().refine(Boolean, CHECKOUT_TEXT.agreeRequired),
-});
+const billingSchema = z
+  .object({
+    customerType: z.enum([CUSTOMER_TYPE.individual, CUSTOMER_TYPE.business]),
+    fullName: z.string().trim().min(2, CHECKOUT_TEXT.fullNameInvalid),
+    email: z.string().trim().pipe(z.email(CHECKOUT_TEXT.emailInvalid)),
+    mobile: z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9][0-9\s-]{8,16}[0-9]$/, CHECKOUT_TEXT.mobileInvalid),
+    addressLine1: z
+      .string()
+      .trim()
+      .min(3, CHECKOUT_TEXT.addressLine1Invalid)
+      .max(200),
+    addressLine2: z.string().trim().max(200).optional(),
+    state: z
+      .union([z.enum(INDIAN_STATES), z.literal('')])
+      .refine(value => value !== '', CHECKOUT_TEXT.stateRequired),
+    city: z.string().trim().min(2, CHECKOUT_TEXT.cityRequired).max(80),
+    pinCode: z
+      .string()
+      .trim()
+      .regex(/^[1-9][0-9]{5}$/, CHECKOUT_TEXT.pinCodeInvalid),
+    businessLegalName: z.string().trim().max(200).optional(),
+    gstin: z.string().trim().max(30).optional(),
+    purchaseOrderReference: z.string().trim().max(60).optional(),
+    agreed: z.boolean().refine(Boolean, CHECKOUT_TEXT.agreeRequired),
+  })
+  .superRefine((data, ctx) => {
+    if (data.customerType === CUSTOMER_TYPE.business) {
+      if (!data.businessLegalName || data.businessLegalName.trim().length < 2) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['businessLegalName'],
+          message: CHECKOUT_TEXT.businessLegalNameInvalid,
+        });
+      }
+      if (!data.gstin || !data.gstin.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['gstin'],
+          message: CHECKOUT_TEXT.gstinRequired,
+        });
+      } else {
+        const check = checkGstin(data.gstin);
+        if (!check.valid) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['gstin'],
+            message:
+              CHECKOUT_TEXT.gstinProblemMessage[check.problem] ??
+              CHECKOUT_TEXT.gstinInvalid,
+          });
+        } else if (data.state && check.state !== data.state) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['gstin'],
+            message: CHECKOUT_TEXT.gstinStateMismatch(check.state),
+          });
+        }
+      }
+    }
+  });
 
 // The state starts empty, so the form holds more than it submits
 type BillingFormInput = z.input<typeof billingSchema>;
@@ -199,6 +252,7 @@ const CheckoutDetails = ({
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
     formError,
     clearFormError,
@@ -206,27 +260,66 @@ const CheckoutDetails = ({
   } = useApiForm<BillingFormInput, BillingFormValues>({
     resolver: zodResolver(billingSchema),
     defaultValues: {
+      customerType: CUSTOMER_TYPE.individual,
       fullName: '',
       email: '',
       mobile: '',
+      addressLine1: '',
+      addressLine2: '',
       state: '',
       city: '',
+      pinCode: '',
+      businessLegalName: '',
+      gstin: '',
+      purchaseOrderReference: '',
       agreed: false,
     },
   });
+
+  const customerType = watch('customerType');
+  const isBusiness = customerType === CUSTOMER_TYPE.business;
 
   const onSubmit = handleSubmit(async ({ agreed: _agreed, ...billing }) => {
     clearFormError();
     setPaymentError(null);
 
+    const billingPayload: BillingDetails = {
+      customerType: billing.customerType,
+      fullName: billing.fullName,
+      email: billing.email,
+      mobile: billing.mobile,
+      addressLine1: billing.addressLine1,
+      ...(billing.addressLine2?.trim()
+        ? { addressLine2: billing.addressLine2.trim() }
+        : {}),
+      state: billing.state as IndianState,
+      city: billing.city,
+      pinCode: billing.pinCode,
+      ...(billing.customerType === CUSTOMER_TYPE.business
+        ? {
+            businessLegalName: billing.businessLegalName?.trim(),
+            gstin: billing.gstin?.trim().toUpperCase(),
+            ...(billing.purchaseOrderReference?.trim()
+              ? {
+                  purchaseOrderReference: billing.purchaseOrderReference.trim(),
+                }
+              : {}),
+          }
+        : {}),
+    };
+
     try {
       const checkout = await createCheckout(
         isEnrolment && batch
-          ? { kind: CHECKOUT_KIND.enrolment, batchId: batch.id, ...billing }
+          ? {
+              kind: CHECKOUT_KIND.enrolment,
+              batchId: batch.id,
+              ...billingPayload,
+            }
           : {
               kind: CHECKOUT_KIND.preRegistration,
               topicId: topic.id,
-              ...billing,
+              ...billingPayload,
             },
       );
 
@@ -236,10 +329,12 @@ const CheckoutDetails = ({
         return;
       }
 
-      const result = await payWithRazorpay(checkout, billing).catch(() => {
-        setPaymentError(CHECKOUT_TEXT.loadFailed);
-        return null;
-      });
+      const result = await payWithRazorpay(checkout, billingPayload).catch(
+        () => {
+          setPaymentError(CHECKOUT_TEXT.loadFailed);
+          return null;
+        },
+      );
 
       if (!result || result.status === 'closed') {
         // Closed after a declined attempt: say why, so they can try again
@@ -423,8 +518,63 @@ const CheckoutDetails = ({
             </Text>
           </div>
           <FieldForm id={FORM_ID} onSubmit={onSubmit}>
+            {/* Customer Type Selector */}
+            <fieldset className={cn('customerTypes')}>
+              <legend className={cn('legend')}>
+                <Text as="span" variant="strong">
+                  {CHECKOUT_TEXT.customerTypeLegend}
+                </Text>
+              </legend>
+              <div className={cn('customerTypeOptions')}>
+                <label
+                  className={cn('customerTypeOption', {
+                    customerTypeSelected:
+                      customerType === CUSTOMER_TYPE.individual,
+                  })}
+                >
+                  <input
+                    type="radio"
+                    value={CUSTOMER_TYPE.individual}
+                    {...register('customerType')}
+                  />
+                  <div className={cn('customerTypeLabel')}>
+                    <Text as="span" variant="small">
+                      {CHECKOUT_TEXT.customerTypeIndividual}
+                    </Text>
+                    <Text as="span" variant="caption" tone="muted">
+                      {CHECKOUT_TEXT.customerTypeIndividualDesc}
+                    </Text>
+                  </div>
+                </label>
+                <label
+                  className={cn('customerTypeOption', {
+                    customerTypeSelected:
+                      customerType === CUSTOMER_TYPE.business,
+                  })}
+                >
+                  <input
+                    type="radio"
+                    value={CUSTOMER_TYPE.business}
+                    {...register('customerType')}
+                  />
+                  <div className={cn('customerTypeLabel')}>
+                    <Text as="span" variant="small">
+                      {CHECKOUT_TEXT.customerTypeBusiness}
+                    </Text>
+                    <Text as="span" variant="caption" tone="muted">
+                      {CHECKOUT_TEXT.customerTypeBusinessDesc}
+                    </Text>
+                  </div>
+                </label>
+              </div>
+            </fieldset>
+
             <Input
-              label={CHECKOUT_TEXT.fullNameLabel}
+              label={
+                isBusiness
+                  ? CHECKOUT_TEXT.fullNameContactLabel
+                  : CHECKOUT_TEXT.fullNameLabel
+              }
               autoComplete="name"
               error={errors.fullName?.message}
               {...register('fullName')}
@@ -445,7 +595,22 @@ const CheckoutDetails = ({
                 {...register('mobile')}
               />
             </div>
-            {/* Where the student lives, for the tax invoice */}
+
+            <Input
+              label={CHECKOUT_TEXT.addressLine1Label}
+              placeholder={CHECKOUT_TEXT.addressLine1Placeholder}
+              autoComplete="street-address"
+              error={errors.addressLine1?.message}
+              {...register('addressLine1')}
+            />
+            <Input
+              label={CHECKOUT_TEXT.addressLine2Label}
+              placeholder={CHECKOUT_TEXT.addressLine2Placeholder}
+              error={errors.addressLine2?.message}
+              {...register('addressLine2')}
+            />
+
+            {/* Where the student/business lives, for billing and tax records */}
             <div className={cn('fieldPair')}>
               <Select
                 label={CHECKOUT_TEXT.stateLabel}
@@ -463,6 +628,46 @@ const CheckoutDetails = ({
                 {...register('city')}
               />
             </div>
+            <Input
+              label={CHECKOUT_TEXT.pinCodeLabel}
+              placeholder={CHECKOUT_TEXT.pinCodePlaceholder}
+              autoComplete="postal-code"
+              error={errors.pinCode?.message}
+              {...register('pinCode')}
+            />
+
+            {/* Business Details (rendered when customerType is Business) */}
+            {isBusiness ? (
+              <div className={cn('businessFields')}>
+                <div className={cn('cardHead')}>
+                  <Heading level={3} variant="item">
+                    {CHECKOUT_TEXT.businessSectionTitle}
+                  </Heading>
+                  <Text as="p" variant="small" tone="muted">
+                    {CHECKOUT_TEXT.businessSectionNote}
+                  </Text>
+                </div>
+                <Input
+                  label={CHECKOUT_TEXT.businessLegalNameLabel}
+                  placeholder={CHECKOUT_TEXT.businessLegalNamePlaceholder}
+                  autoComplete="organization"
+                  error={errors.businessLegalName?.message}
+                  {...register('businessLegalName')}
+                />
+                <Input
+                  label={CHECKOUT_TEXT.gstinLabel}
+                  placeholder={CHECKOUT_TEXT.gstinPlaceholder}
+                  error={errors.gstin?.message}
+                  {...register('gstin')}
+                />
+                <Input
+                  label={CHECKOUT_TEXT.purchaseOrderLabel}
+                  placeholder={CHECKOUT_TEXT.purchaseOrderPlaceholder}
+                  error={errors.purchaseOrderReference?.message}
+                  {...register('purchaseOrderReference')}
+                />
+              </div>
+            ) : null}
           </FieldForm>
         </section>
       </div>

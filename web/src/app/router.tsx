@@ -28,6 +28,7 @@ const AdminSignInPage = lazy(
 const NotFoundPage = lazy(() => import('@pages/not-found/NotFoundPage'));
 const PolicyPage = lazy(() => import('@pages/policy/PolicyPage'));
 const TeamOrdersPage = lazy(() => import('@pages/team-orders/TeamOrdersPage'));
+const RefundsPage = lazy(() => import('@pages/refunds/RefundsPage'));
 const CheckoutPage = lazy(() => import('@pages/checkout/CheckoutPage'));
 
 const SuspendedOutlet = () => (
@@ -94,6 +95,7 @@ export const routes: RouteObject[] = [
             element: <ProtectedRoute />,
             children: [
               { path: APP_ROUTES.TEAM_ORDERS, element: <TeamOrdersPage /> },
+              { path: APP_ROUTES.TEAM_REFUNDS, element: <RefundsPage /> },
             ],
           },
           { path: '*', element: <NotFoundPage /> },

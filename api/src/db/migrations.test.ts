@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { describe, it } from 'node:test';
 
 import { seedCatalogue } from './catalogueSeed.js';
@@ -442,6 +443,186 @@ describe('migration 011: payment integrity', () => {
           change,
         );
       }
+    } finally {
+      await db.close();
+    }
+  });
+});
+
+describe('migration 022: payment refunds provider id uniqueness', () => {
+  it('enforces uniqueness on non-null provider_refund_id while allowing multiple nulls', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      await runMigrations(db);
+      await seedCatalogue(db);
+
+      // Create a customer, pre-registration and payment
+      await db.query(`
+        INSERT INTO users (id, email, password_hash, role, created_at, updated_at)
+        VALUES ('user-m22', 'm22@example.com', NULL, 'STUDENT', NOW(), NOW())
+      `);
+      await db.query(`
+        INSERT INTO pre_registrations (id, user_id, topic_id, status, created_at, updated_at)
+        VALUES ('prereg-m22', 'user-m22', 'topic_accounts_gst_class_11', 'CONFIRMED', NOW(), NOW())
+      `);
+      await db.query(`
+        INSERT INTO payments (
+          id, user_id, amount_paise, currency, status, provider,
+          provider_order_id, provider_payment_id, billing_name, billing_email,
+          billing_mobile, billing_state, billing_city, customer_type, address_line1, pin_code,
+          billing_state_code, item_description, item_topic_id, unit_price_paise,
+          pre_registration_id, created_at, updated_at, paid_at
+        ) VALUES (
+          'pay-m22', 'user-m22', 100000, 'INR', 'PAID', 'RAZORPAY',
+          'order_m22', 'pay_rzp_m22', 'Buyer M22', 'm22@example.com',
+          '+91 98765 43210', 'Rajasthan', 'Jaipur', 'INDIVIDUAL', '12 Civil Lines', '302006',
+          '08', 'Topic GST', 'topic_accounts_gst_class_11', 100000,
+          'prereg-m22', NOW(), NOW(), NOW()
+        )
+      `);
+
+      // 1. Two refunds with NULL provider_refund_id can coexist
+      await db.query(`
+        INSERT INTO payment_refunds (id, payment_id, amount_paise, currency, status, provider, source, created_at, updated_at)
+        VALUES ('rfnd-null-1', 'pay-m22', 10000, 'INR', 'PENDING', 'RAZORPAY', 'FINANCE_ADMIN', NOW(), NOW()),
+               ('rfnd-null-2', 'pay-m22', 10000, 'INR', 'PENDING', 'RAZORPAY', 'FINANCE_ADMIN', NOW(), NOW())
+      `);
+
+      // 2. Insert refund with a real provider_refund_id
+      await db.query(`
+        INSERT INTO payment_refunds (id, payment_id, amount_paise, currency, status, provider, provider_refund_id, source, created_at, updated_at)
+        VALUES ('rfnd-uniq-1', 'pay-m22', 10000, 'INR', 'PROCESSED', 'RAZORPAY', 'rfnd_rzp_unique_123', 'FINANCE_ADMIN', NOW(), NOW())
+      `);
+
+      // 3. Inserting a second refund with the same provider_refund_id must be rejected by unique index (23505)
+      await assert.rejects(
+        () =>
+          db.query(`
+            INSERT INTO payment_refunds (id, payment_id, amount_paise, currency, status, provider, provider_refund_id, source, created_at, updated_at)
+            VALUES ('rfnd-uniq-2', 'pay-m22', 10000, 'INR', 'PROCESSED', 'RAZORPAY', 'rfnd_rzp_unique_123', 'FINANCE_ADMIN', NOW(), NOW())
+          `),
+        (err: { code?: string }) => err.code === '23505',
+      );
+    } finally {
+      await db.close();
+    }
+  });
+});
+
+describe('migration 023: provider refund ids are never blank or padded', () => {
+  const PAYMENT = `
+    INSERT INTO users (id, email, password_hash, role, created_at, updated_at)
+    VALUES ('user-m23', 'm23@example.com', NULL, 'STUDENT', NOW(), NOW());
+    INSERT INTO pre_registrations (id, user_id, topic_id, status, created_at, updated_at)
+    VALUES ('prereg-m23', 'user-m23', 'topic_accounts_gst_class_11', 'CONFIRMED', NOW(), NOW());
+    INSERT INTO payments (
+      id, user_id, amount_paise, currency, status, provider,
+      provider_order_id, provider_payment_id, billing_name, billing_email,
+      billing_mobile, billing_state, billing_city, customer_type, address_line1, pin_code,
+      billing_state_code, item_description, item_topic_id, unit_price_paise,
+      pre_registration_id, created_at, updated_at, paid_at
+    ) VALUES (
+      'pay-m23', 'user-m23', 100000, 'INR', 'PAID', 'RAZORPAY',
+      'order_m23', 'pay_rzp_m23', 'Buyer M23', 'm23@example.com',
+      '+91 98765 43210', 'Rajasthan', 'Jaipur', 'INDIVIDUAL', '12 Civil Lines', '302006',
+      '08', 'Topic GST', 'topic_accounts_gst_class_11', 100000,
+      'prereg-m23', NOW(), NOW(), NOW()
+    );`;
+  const refund = (id: string, providerRefundId: string | null) =>
+    `INSERT INTO payment_refunds (id, payment_id, amount_paise, currency, status, provider, provider_refund_id, source, created_at, updated_at)
+     VALUES ('${id}', 'pay-m23', 1000, 'INR', 'PENDING', 'RAZORPAY', ${
+       providerRefundId === null ? 'NULL' : `'${providerRefundId}'`
+     }, 'FINANCE_ADMIN', NOW(), NOW())`;
+
+  it('refuses a blank or padded provider refund id and accepts a clean one or none', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      await runMigrations(db);
+      await seedCatalogue(db);
+      await db.exec(PAYMENT);
+
+      await db.query(refund('r-none', null));
+      await db.query(refund('r-clean', 'rfnd_clean_1'));
+      for (const [id, value] of [
+        ['r-empty', ''],
+        ['r-spaces', '   '],
+        ['r-padded', ' rfnd_padded '],
+      ]) {
+        await assert.rejects(
+          () => db.query(refund(id, value)),
+          (error: { code?: string; constraint?: string }) =>
+            error.code === '23514',
+          `provider refund id ${JSON.stringify(value)}`,
+        );
+      }
+      // btrim() only strips spaces; tabs and newlines are refused too
+      for (const value of ['rfnd_x\n', '\trfnd_x']) {
+        await assert.rejects(
+          () =>
+            db.query(
+              `INSERT INTO payment_refunds (id, payment_id, amount_paise, currency, status, provider, provider_refund_id, source, created_at, updated_at)
+               VALUES ($1, 'pay-m23', 1000, 'INR', 'PENDING', 'RAZORPAY', $2, 'FINANCE_ADMIN', NOW(), NOW())`,
+              [`r-ws-${randomUUID()}`, value],
+            ),
+          (error: { code?: string }) => error.code === '23514',
+          `provider refund id ${JSON.stringify(value)}`,
+        );
+      }
+    } finally {
+      await db.close();
+    }
+  });
+
+  it('upgrades a populated database that already holds a blank id: old row kept, new ones guarded', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      const before = MIGRATIONS.filter(
+        migration => migration.id < '023_payment_refunds_provider_id_clean',
+      );
+      await db.exec(
+        'CREATE TABLE schema_migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL)',
+      );
+      for (const migration of before) {
+        await db.exec(migration.sql);
+        await db.query(
+          'INSERT INTO schema_migrations (id, applied_at) VALUES ($1, $2)',
+          [migration.id, new Date().toISOString()],
+        );
+      }
+      await seedCatalogue(db);
+      await db.exec(PAYMENT);
+      // What the R3.1 audit reproduced: a blank id stored by a webhook
+      await db.query(refund('r-legacy-blank', '   '));
+
+      await runMigrations(db);
+
+      const kept = await db.get<{ provider_refund_id: string }>(
+        `SELECT provider_refund_id FROM payment_refunds WHERE id = 'r-legacy-blank'`,
+      );
+      assert.equal(kept?.provider_refund_id, '   ');
+      const constraint = await db.get<{ convalidated: boolean }>(
+        `SELECT convalidated FROM pg_constraint
+         WHERE conname = 'payment_refunds_provider_refund_id_clean'`,
+      );
+      assert.equal(constraint?.convalidated, false);
+      await assert.rejects(
+        () => db.query(refund('r-new-blank', '')),
+        (error: { code?: string }) => error.code === '23514',
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
+  it('validates the constraint when no existing row breaks it', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      await runMigrations(db);
+      const constraint = await db.get<{ convalidated: boolean }>(
+        `SELECT convalidated FROM pg_constraint
+         WHERE conname = 'payment_refunds_provider_refund_id_clean'`,
+      );
+      assert.equal(constraint?.convalidated, true);
     } finally {
       await db.close();
     }

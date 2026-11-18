@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { z } from 'zod';
 
+import type { DatabaseTls } from '../db/connection.js';
 import { LOG_LEVEL, type LogLevel } from '../logging/logger.js';
 
 export const MAIL_TRANSPORT = {
@@ -19,6 +20,16 @@ const envSchema = z.object({
   // under tests
   LOG_LEVEL: z.enum(Object.values(LOG_LEVEL)).optional(),
   DATABASE_URL: z.string().min(1).optional(),
+  // A separate, privileged role for migrations (owner of the tables). When
+  // set, DATABASE_URL should be a restricted role: see
+  // docs/database-roles.md. Unset, DATABASE_URL does both (local default).
+  MIGRATION_DATABASE_URL: z.string().min(1).optional(),
+  // verify (production default): TLS with certificate verification.
+  // disable (local default): no TLS; refused in production.
+  DATABASE_SSL: z.enum(['verify', 'disable']).optional(),
+  // PEM CA certificate for the database (\n escapes allowed), when the
+  // provider's certificate is not signed by a public CA
+  DATABASE_SSL_CA: z.string().min(1).optional(),
   WEB_ORIGIN: z.string().url().optional(),
   ALLOWED_ORIGINS: z.string().optional(),
   SESSION_TTL_DAYS: z.coerce.number().positive().default(1),
@@ -42,8 +53,13 @@ const envSchema = z.object({
     .transform(value => value === 'true'),
   COOKIE_SAMESITE: z.enum(['lax', 'none', 'strict']).optional(),
   COOKIE_DOMAIN: z.string().min(1).optional(),
-  // Comma-separated emails that are super admins (password-free sign-in)
+  // Comma-separated emails per staff role (password-free sign-in). An email
+  // may hold one staff role only.
   SUPER_ADMIN_EMAILS: z.string().optional(),
+  FINANCE_ADMIN_EMAILS: z.string().optional(),
+  OPERATIONS_ADMIN_EMAILS: z.string().optional(),
+  // Comma-separated emails to receive internal copies of payment confirmations
+  FINANCE_NOTIFICATION_EMAILS: z.string().optional(),
   // Razorpay API keys. Without them checkout runs in test mode: orders are
   // saved as payment pending and nothing is charged.
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
@@ -54,6 +70,13 @@ const envSchema = z.object({
   // Set in Razorpay's dashboard (Settings → Webhooks). Lets Razorpay confirm
   // payments even when the student closes the page before we can.
   RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
+  // GST tax invoices. Off unless exactly "true". Even when on, nothing is
+  // issued until an approved tax configuration is recorded in the database
+  // (tax_configuration_approvals) and the payment collected the quoted GST.
+  INVOICING_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform(value => value === 'true'),
 });
 
 export type AppConfig = {
@@ -61,6 +84,8 @@ export type AppConfig = {
   port: number;
   logLevel: LogLevel;
   databaseUrl: string | null;
+  migrationDatabaseUrl: string | null;
+  databaseTls: DatabaseTls;
   webOrigin: string;
   allowedOrigins: string[];
   sessionTtlMs: number;
@@ -75,9 +100,13 @@ export type AppConfig = {
   cookieSameSite: 'lax' | 'none' | 'strict';
   cookieDomain?: string;
   superAdminEmails: string[];
+  financeAdminEmails: string[];
+  operationsAdminEmails: string[];
+  financeNotificationEmails: string[];
   razorpay: { keyId: string; keySecret: string } | null;
   razorpayWebhookSecret: string | null;
   sentryDsn: string | null;
+  invoicingEnabled: boolean;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -91,6 +120,18 @@ const isHttpOrigin = (value: string) => {
       (url.protocol === 'https:' || url.protocol === 'http:') &&
       url.origin === value
     );
+  } catch {
+    return false;
+  }
+};
+
+// Both URLs sign in as the same named role (the start-up check also
+// compares the roles PostgreSQL actually resolves)
+const sameUrlRole = (first: string, second: string) => {
+  try {
+    const a = decodeURIComponent(new URL(first).username);
+    const b = decodeURIComponent(new URL(second).username);
+    return a !== '' && a === b;
   } catch {
     return false;
   }
@@ -128,6 +169,35 @@ export const loadConfig = (
   if (isProduction && !env.DATABASE_URL) {
     throw new Error(
       'Invalid API configuration — DATABASE_URL is required in production',
+    );
+  }
+
+  if (isProduction && env.DATABASE_SSL === 'disable') {
+    throw new Error(
+      'Invalid API configuration — DATABASE_SSL=disable is not allowed in production: the database connection must verify its TLS certificate',
+    );
+  }
+
+  if (env.MIGRATION_DATABASE_URL && !env.DATABASE_URL) {
+    throw new Error(
+      'Invalid API configuration — MIGRATION_DATABASE_URL needs DATABASE_URL (the application role)',
+    );
+  }
+
+  if (isProduction && !env.MIGRATION_DATABASE_URL) {
+    throw new Error(
+      'Invalid API configuration — MIGRATION_DATABASE_URL is required in production: migrations run as the owner role and the API as a restricted DATABASE_URL role (docs/database-roles.md)',
+    );
+  }
+
+  if (
+    env.MIGRATION_DATABASE_URL &&
+    env.DATABASE_URL &&
+    (env.MIGRATION_DATABASE_URL === env.DATABASE_URL ||
+      sameUrlRole(env.MIGRATION_DATABASE_URL, env.DATABASE_URL))
+  ) {
+    throw new Error(
+      'Invalid API configuration — MIGRATION_DATABASE_URL must use a different role from DATABASE_URL',
     );
   }
 
@@ -183,16 +253,53 @@ export const loadConfig = (
     );
   }
 
-  const superAdminEmails = (env.SUPER_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map(email => email.trim().toLowerCase())
-    .filter(Boolean);
-  const invalidEmails = superAdminEmails.filter(
-    email => !z.email().safeParse(email).success,
+  const parseEmailList = (name: string, value: string | undefined) => {
+    const emails = (value ?? '')
+      .split(',')
+      .map(email => email.trim().toLowerCase())
+      .filter(Boolean);
+    const invalid = emails.filter(email => !z.email().safeParse(email).success);
+    if (invalid.length > 0) {
+      throw new Error(
+        `Invalid API configuration — ${name} has entries that are not email addresses: ${invalid.join(', ')}`,
+      );
+    }
+    return emails;
+  };
+
+  const superAdminEmails = parseEmailList(
+    'SUPER_ADMIN_EMAILS',
+    env.SUPER_ADMIN_EMAILS,
   );
-  if (invalidEmails.length > 0) {
+  const financeAdminEmails = parseEmailList(
+    'FINANCE_ADMIN_EMAILS',
+    env.FINANCE_ADMIN_EMAILS,
+  );
+  const operationsAdminEmails = parseEmailList(
+    'OPERATIONS_ADMIN_EMAILS',
+    env.OPERATIONS_ADMIN_EMAILS,
+  );
+  const financeNotificationEmails = parseEmailList(
+    'FINANCE_NOTIFICATION_EMAILS',
+    env.FINANCE_NOTIFICATION_EMAILS,
+  );
+
+  // One staff role per person, so access is never ambiguous
+  const staffEmails = [
+    ...new Set(superAdminEmails),
+    ...new Set(financeAdminEmails),
+    ...new Set(operationsAdminEmails),
+  ];
+  const doubled = [
+    ...new Set(
+      staffEmails.filter(
+        (email, index) => staffEmails.indexOf(email) !== index,
+      ),
+    ),
+  ];
+  if (doubled.length > 0) {
     throw new Error(
-      `Invalid API configuration — SUPER_ADMIN_EMAILS has entries that are not email addresses: ${invalidEmails.join(', ')}`,
+      `Invalid API configuration — these emails are listed under more than one staff role: ${doubled.join(', ')}`,
     );
   }
 
@@ -222,6 +329,13 @@ export const loadConfig = (
       env.LOG_LEVEL ??
       (env.NODE_ENV === 'test' ? LOG_LEVEL.silent : LOG_LEVEL.info),
     databaseUrl: env.DATABASE_URL ?? null,
+    migrationDatabaseUrl: env.MIGRATION_DATABASE_URL ?? null,
+    databaseTls: {
+      mode: env.DATABASE_SSL ?? (isProduction ? 'verify' : 'disable'),
+      ca: env.DATABASE_SSL_CA
+        ? env.DATABASE_SSL_CA.replaceAll('\\n', '\n')
+        : null,
+    },
     webOrigin: primaryOrigin,
     allowedOrigins,
     sessionTtlMs: env.SESSION_TTL_DAYS * DAY_MS,
@@ -236,12 +350,16 @@ export const loadConfig = (
     cookieSameSite,
     cookieDomain: env.COOKIE_DOMAIN,
     superAdminEmails,
+    financeAdminEmails,
+    operationsAdminEmails,
+    financeNotificationEmails,
     razorpay:
       env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
         ? { keyId: env.RAZORPAY_KEY_ID, keySecret: env.RAZORPAY_KEY_SECRET }
         : null,
     razorpayWebhookSecret: env.RAZORPAY_WEBHOOK_SECRET ?? null,
     sentryDsn: env.SENTRY_DSN ?? null,
+    invoicingEnabled: env.INVOICING_ENABLED,
   };
 };
 

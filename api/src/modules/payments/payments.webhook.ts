@@ -33,7 +33,34 @@ const webhookEventSchema = z.object({
         })
         .optional(),
       refund: z
-        .object({ entity: z.object({ payment_id: z.string().optional() }) })
+        .object({
+          // Deliberately loose: a refund event that is incomplete or the
+          // wrong type is still stored and judged by refundEvidence.ts, which
+          // records an exception for finance. Rejecting it here would only
+          // make Razorpay retry it for ever and leave no record.
+          entity: z.object({
+            id: z.unknown().optional(),
+            payment_id: z.unknown().optional(),
+            amount: z.unknown().optional(),
+            currency: z.unknown().optional(),
+            receipt: z.unknown().optional(),
+            status: z.unknown().optional(),
+          }),
+        })
+        .optional(),
+      dispute: z
+        .object({
+          entity: z.object({
+            id: z.string(),
+            payment_id: z.string(),
+            amount: z.number(),
+            amount_deducted: z.number().optional(),
+            currency: z.string().optional(),
+            status: z.string(),
+            phase: z.string().nullable().optional(),
+            reason_code: z.string().nullable().optional(),
+          }),
+        })
         .optional(),
     })
     .optional(),
@@ -97,18 +124,51 @@ export const createRazorpayWebhookHandler =
     }
 
     const payment = event.payload?.payment?.entity;
+    const refund = event.payload?.refund?.entity;
+    const dispute = event.payload?.dispute?.entity;
     const result = await applyPaymentEvent(context, {
       provider: PAYMENT_PROVIDER.razorpay,
       source: EVENT_SOURCE.webhook,
       eventId: eventIdOf(req.get('x-razorpay-event-id'), body),
       eventType: event.event,
       providerPaymentId:
-        payment?.id ?? event.payload?.refund?.entity.payment_id ?? null,
+        payment?.id ??
+        (typeof refund?.payment_id === 'string' ? refund.payment_id : null) ??
+        dispute?.payment_id ??
+        null,
       providerOrderId: payment?.order_id ?? null,
       amountPaise: payment?.amount ?? null,
       currency: payment?.currency ?? null,
       failureCode: payment?.error_code ?? null,
       failureReason: payment?.error_description ?? null,
+      // A dispute event can also carry the payment entity; the dispute
+      // itself is what is being reported
+      ...(refund && event.event.startsWith('refund.')
+        ? {
+            refund: {
+              id: refund.id,
+              paymentId: refund.payment_id,
+              amountPaise: refund.amount,
+              currency: refund.currency,
+              receipt: refund.receipt,
+              status: refund.status,
+            },
+          }
+        : {}),
+      ...(dispute && event.event.startsWith('payment.dispute.')
+        ? {
+            dispute: {
+              id: dispute.id,
+              paymentId: dispute.payment_id,
+              amountPaise: dispute.amount,
+              amountDeductedPaise: dispute.amount_deducted ?? 0,
+              currency: dispute.currency ?? null,
+              status: dispute.status,
+              phase: dispute.phase ?? null,
+              reasonCode: dispute.reason_code ?? null,
+            },
+          }
+        : {}),
       payload: sanitizeWebhookBody(
         raw as { event: string; created_at?: unknown; payload?: unknown },
       ),

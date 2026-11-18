@@ -9,6 +9,8 @@ export const AUTH_QUERY_PARAM = {
 export const USER_ROLE = {
   student: 'STUDENT',
   superAdmin: 'SUPER_ADMIN',
+  financeAdmin: 'FINANCE_ADMIN',
+  operationsAdmin: 'OPERATIONS_ADMIN',
 } as const satisfies Record<string, UserRole>;
 
 export type { UserRole };

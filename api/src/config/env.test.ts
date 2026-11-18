@@ -6,7 +6,8 @@ import { loadConfig } from './env.js';
 const PRODUCTION = {
   NODE_ENV: 'production',
   WEB_ORIGIN: 'https://sridhaacademy.com',
-  DATABASE_URL: 'postgres://localhost/test',
+  DATABASE_URL: 'postgres://sridha_app@localhost/test',
+  MIGRATION_DATABASE_URL: 'postgres://owner@localhost/test',
   RAZORPAY_KEY_ID: 'rzp_live_example',
   RAZORPAY_KEY_SECRET: 'secret',
   RAZORPAY_WEBHOOK_SECRET: 'webhook-secret',
@@ -81,5 +82,77 @@ describe('config', () => {
     });
 
     assert.deepEqual(config.superAdminEmails, ['team@sridhaacademy.com']);
+  });
+
+  it('verifies the database TLS certificate in production by default', () => {
+    const config = loadConfig(PRODUCTION);
+    assert.deepEqual(config.databaseTls, { mode: 'verify', ca: null });
+  });
+
+  it('refuses to run production without database TLS', () => {
+    assert.throws(
+      () => loadConfig({ ...PRODUCTION, DATABASE_SSL: 'disable' }),
+      /DATABASE_SSL=disable is not allowed in production/,
+    );
+  });
+
+  it('keeps local development on a plain local connection', () => {
+    const config = loadConfig({ DATABASE_URL: 'postgres://localhost/dev' });
+    assert.deepEqual(config.databaseTls, { mode: 'disable', ca: null });
+    assert.equal(config.migrationDatabaseUrl, null);
+  });
+
+  it('reads a CA certificate given with escaped newlines', () => {
+    const config = loadConfig({
+      ...PRODUCTION,
+      DATABASE_SSL_CA:
+        '-----BEGIN CERTIFICATE-----\\nABC\\n-----END CERTIFICATE-----',
+    });
+    assert.equal(
+      config.databaseTls.ca,
+      '-----BEGIN CERTIFICATE-----\nABC\n-----END CERTIFICATE-----',
+    );
+  });
+
+  it('takes a separate migration connection, which must differ from the application one', () => {
+    const config = loadConfig({
+      ...PRODUCTION,
+      MIGRATION_DATABASE_URL: 'postgres://owner@localhost/test',
+    });
+    assert.equal(
+      config.migrationDatabaseUrl,
+      'postgres://owner@localhost/test',
+    );
+    assert.throws(
+      () =>
+        loadConfig({
+          ...PRODUCTION,
+          MIGRATION_DATABASE_URL: PRODUCTION.DATABASE_URL,
+        }),
+      /MIGRATION_DATABASE_URL must use a different role/,
+    );
+    // The same role behind two different URLs
+    assert.throws(
+      () =>
+        loadConfig({
+          ...PRODUCTION,
+          DATABASE_URL: 'postgres://owner@localhost/test?application_name=api',
+        }),
+      /MIGRATION_DATABASE_URL must use a different role/,
+    );
+    assert.throws(
+      () =>
+        loadConfig({
+          MIGRATION_DATABASE_URL: 'postgres://owner@localhost/test',
+        }),
+      /MIGRATION_DATABASE_URL needs DATABASE_URL/,
+    );
+  });
+
+  it('refuses production without a separate migration role', () => {
+    assert.throws(
+      () => loadConfig(without('MIGRATION_DATABASE_URL')),
+      /MIGRATION_DATABASE_URL is required in production/,
+    );
   });
 });

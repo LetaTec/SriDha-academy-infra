@@ -17,6 +17,9 @@ const BILLING = {
   mobile: '+91 98765 43210',
   state: 'Rajasthan',
   city: 'Jaipur',
+  customerType: 'INDIVIDUAL',
+  addressLine1: '12 Civil Lines',
+  pinCode: '302006',
 };
 
 // The body Razorpay posts when a payment is captured

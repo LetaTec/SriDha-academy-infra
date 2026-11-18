@@ -2,29 +2,14 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
-import { startTestServer, type TestClient } from '../../test/testServer.js';
 import {
-  createRazorpayGateway,
-  type PaymentGateway,
-  type ProviderPayment,
-} from './gateway.js';
+  createScriptedRazorpay,
+  FAKE_RAZORPAY_KEY_SECRET as KEY_SECRET,
+} from '../../test/fakeRazorpay.js';
+import { startTestServer, type TestClient } from '../../test/testServer.js';
 
-const KEY_SECRET = 'rzp_test_secret';
 const WEBHOOK_SECRET = 'whsec_test';
 const PRE_REGISTER_TOPIC = 'topic_physics_wave_optics_class_12';
-
-// Razorpay's real signature checks, with orders made locally and payment
-// lookups answered from what each test says Razorpay holds
-const createFakeRazorpay = () => {
-  let orderNumber = 0;
-  const remote = new Map<string, ProviderPayment>();
-  const gateway: PaymentGateway = {
-    ...createRazorpayGateway('rzp_test_key', KEY_SECRET),
-    createOrder: async () => ({ orderId: `order_${(orderNumber += 1)}` }),
-    fetchPayment: async paymentId => remote.get(paymentId) ?? null,
-  };
-  return { gateway, remote };
-};
 
 const sign = (orderId: string, paymentId: string) =>
   createHmac('sha256', KEY_SECRET)
@@ -48,11 +33,11 @@ const paymentEvent = (
 describe('payment lifecycle', () => {
   let server: Awaited<ReturnType<typeof startTestServer>>;
   let razorpay: TestClient;
-  let fake: ReturnType<typeof createFakeRazorpay>;
+  let fake: ReturnType<typeof createScriptedRazorpay>;
   let buyer = 0;
 
   before(async () => {
-    fake = createFakeRazorpay();
+    fake = createScriptedRazorpay();
     server = await startTestServer({
       paymentGateway: fake.gateway,
       razorpayWebhookSecret: WEBHOOK_SECRET,
@@ -65,7 +50,7 @@ describe('payment lifecycle', () => {
   });
 
   beforeEach(() => {
-    fake.remote.clear();
+    fake.payments.clear();
   });
 
   // A fresh guest checkout for a pre-registration (each buyer has their own
@@ -82,6 +67,9 @@ describe('payment lifecycle', () => {
         mobile: '+91 98765 43210',
         state: 'Rajasthan',
         city: 'Jaipur',
+        customerType: 'INDIVIDUAL',
+        addressLine1: '12 Civil Lines',
+        pinCode: '302006',
       });
     assert.equal(response.status, 201);
     const { paymentId, provider, amount } = response.body.checkout;
@@ -133,7 +121,7 @@ describe('payment lifecycle', () => {
     const order = await checkout();
 
     // Signed by Razorpay but not yet captured: authorised, seat still held
-    fake.remote.set('pay_auth_1', {
+    fake.payments.set('pay_auth_1', {
       id: 'pay_auth_1',
       orderId: order.orderId,
       status: 'authorized',
@@ -169,7 +157,7 @@ describe('payment lifecycle', () => {
 
   it('confirms at once when the payment fetched from Razorpay is already captured', async () => {
     const order = await checkout();
-    fake.remote.set('pay_fast_1', {
+    fake.payments.set('pay_fast_1', {
       id: 'pay_fast_1',
       orderId: order.orderId,
       status: 'captured',
@@ -194,7 +182,7 @@ describe('payment lifecycle', () => {
     ].entries()) {
       const order = await checkout();
       const providerPaymentId = `pay_mismatch_${index}`;
-      fake.remote.set(providerPaymentId, {
+      fake.payments.set(providerPaymentId, {
         id: providerPaymentId,
         orderId: order.orderId,
         status: 'captured',
@@ -353,7 +341,7 @@ describe('payment lifecycle', () => {
     );
   });
 
-  it('stores events for unknown orders and refund or dispute events without acting on them yet', async () => {
+  it('stores events for an unknown order and a refund of an unknown payment, without acting on them', async () => {
     const unknown = await deliver(
       paymentEvent('payment.captured', {
         id: 'pay_unknown_1',
@@ -390,7 +378,11 @@ describe('payment lifecycle', () => {
        WHERE event_id IN ('evt_unknown_order', 'evt_refund_1') ORDER BY event_id`,
     );
     assert.deepEqual(stored, [
-      { event_id: 'evt_refund_1', outcome: 'RECORDED', payment_id: null },
+      {
+        event_id: 'evt_refund_1',
+        outcome: 'UNKNOWN_PAYMENT',
+        payment_id: null,
+      },
       {
         event_id: 'evt_unknown_order',
         outcome: 'UNKNOWN_ORDER',
@@ -450,6 +442,9 @@ describe('payment lifecycle', () => {
           mobile: '+91 98765 43210',
           state: 'Rajasthan',
           city: 'Jaipur',
+          customerType: 'INDIVIDUAL',
+          addressLine1: '12 Civil Lines',
+          pinCode: '302006',
         });
       assert.equal(response.status, 201);
       return response.body.checkout;

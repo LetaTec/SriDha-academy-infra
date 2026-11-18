@@ -58,21 +58,36 @@ export type IndianState =
   | 'Lakshadweep'
   | 'Puducherry';
 
+// INDIVIDUAL: a person (B2C). BUSINESS: a registered business (B2B), which
+// also gives its legal name and GSTIN for its tax invoice.
+export type CustomerType = 'INDIVIDUAL' | 'BUSINESS';
+
 export type BillingDetails = {
+  customerType: CustomerType;
+  // The person paying (for a business, its contact person)
   fullName: string;
   email: string;
   mobile: string;
-  // Where the student lives, for the payment's tax invoice
-  state: IndianState;
+  // The billing address printed on the tax invoice
+  addressLine1: string;
+  addressLine2?: string;
   city: string;
+  state: IndianState;
+  // A 6-digit Indian PIN code
+  pinCode: string;
+  // BUSINESS only
+  businessLegalName?: string;
+  gstin?: string;
+  purchaseOrderReference?: string;
 };
 
-// The amount is never sent: the API prices the batch or topic itself
-export type CreateCheckoutRequest = BillingDetails &
-  (
-    | { kind: 'ENROLMENT'; batchId: string }
-    | { kind: 'PRE_REGISTRATION'; topicId: string }
-  );
+// The amount is never sent: the API prices the batch (ENROLMENT, with
+// batchId) or the topic (PRE_REGISTRATION, with topicId) itself
+export type CreateCheckoutRequest = BillingDetails & {
+  kind: CheckoutKind;
+  batchId?: string;
+  topicId?: string;
+};
 
 export type Checkout = {
   paymentId: string;

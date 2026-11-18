@@ -1,6 +1,8 @@
 import { loadConfigFromEnvironment } from '../config/env.js';
 import { seedCatalogue } from './catalogueSeed.js';
+import { grantApplicationPrivileges } from './applicationRole.js';
 import { isInMemoryDatabase, openDatabase, runMigrations } from './client.js';
+import { roleOfDatabaseUrl } from './connection.js';
 
 const config = loadConfigFromEnvironment();
 
@@ -11,10 +13,19 @@ if (isInMemoryDatabase(config.databaseUrl)) {
     '[db] no DATABASE_URL - nothing to seed; the in-memory API seeds its own catalogue on startup',
   );
 } else {
-  const db = await openDatabase(config.databaseUrl);
+  // Seeding is an operator task: it runs as the migration role when one is
+  // configured (the application role may not create tables)
+  const db = await openDatabase(
+    config.migrationDatabaseUrl ?? config.databaseUrl,
+    1,
+    config.databaseTls,
+  );
 
   await runMigrations(db);
   await seedCatalogue(db);
+  if (config.migrationDatabaseUrl && config.databaseUrl) {
+    await grantApplicationPrivileges(db, roleOfDatabaseUrl(config.databaseUrl));
+  }
   await db.close();
 
   console.log('[db] catalogue seeded - PostgreSQL');
