@@ -484,6 +484,41 @@ describe('app routing', () => {
     JOURNEY_TEST_TIMEOUT_MS,
   );
 
+  it(
+    'shows the Terms and Conditions the team wrote',
+    async () => {
+      vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
+      renderApp('/terms');
+
+      expect(
+        await screen.findByRole(
+          'heading',
+          { level: 1, name: /terms and\s*conditions/i },
+          { timeout: LAZY_PAGE_TIMEOUT_MS },
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Effective date: 13 November 2026'),
+      ).toBeInTheDocument();
+      // All 17 numbered sections, in order
+      const headings = screen
+        .getAllByRole('heading', { level: 2 })
+        .map(heading => heading.textContent);
+      expect(headings[0]).toBe('1. Introduction');
+      expect(headings[16]).toBe('17. Contact and Grievance Redressal');
+      // A paragraph that follows a list is kept
+      expect(
+        screen.getByText(/^The availability and nature of services may vary/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /^Legal Entity: LETATEC AI technologies Private Limited/,
+        ),
+      ).toBeInTheDocument();
+    },
+    JOURNEY_TEST_TIMEOUT_MS,
+  );
+
   it('shows the policy pages to signed-out visitors', async () => {
     vi.mocked(getCurrentSession).mockRejectedValue(unauthenticated());
     renderApp('/contact');
