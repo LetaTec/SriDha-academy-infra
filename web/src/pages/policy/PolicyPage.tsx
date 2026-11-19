@@ -36,9 +36,11 @@ const PolicyPage = ({ policy }: PolicyPageProps) => {
           <Text as="p" variant="small" tone="muted" className={cn('updated')}>
             {content.updated}
           </Text>
-          <Text as="p" variant="lead" className={cn('intro')}>
-            {content.intro}
-          </Text>
+          {content.intro ? (
+            <Text as="p" variant="lead" className={cn('intro')}>
+              {content.intro}
+            </Text>
+          ) : null}
         </header>
 
         {content.sections.map(section => (
@@ -70,6 +72,11 @@ const PolicyPage = ({ policy }: PolicyPageProps) => {
                 ))}
               </ul>
             ) : null}
+            {section.after?.map(paragraph => (
+              <Text key={paragraph} as="p">
+                {paragraph}
+              </Text>
+            ))}
           </section>
         ))}
       </article>
