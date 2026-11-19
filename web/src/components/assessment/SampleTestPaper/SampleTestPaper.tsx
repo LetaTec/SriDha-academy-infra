@@ -1,4 +1,4 @@
-import { useCallback, useId, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import cx from 'classnames/bind';
 
 import { Button } from '@components/ui/Button/Button';
@@ -7,10 +7,10 @@ import { Confetti } from '@components/ui/Confetti/Confetti';
 import { Text } from '@components/ui/Text/Text';
 import {
   SAMPLE_TEST_DURATION_SECONDS,
-  SAMPLE_TEST_PAPERS,
+  SAMPLE_TEST_QUESTION_COUNT as TOTAL,
+  SAMPLE_TEST_TRACKS,
   SAMPLE_TEST_TEXT as TEXT,
 } from '@constants/assessment';
-import { SUBJECT, SUBJECT_LABEL, type SubjectKey } from '@constants/topics';
 import { useCountdown } from '@hooks/useCountdown';
 import { formatCountdown } from '@utils/date';
 
@@ -18,10 +18,8 @@ import styles from './SampleTestPaper.module.css';
 
 const cn = cx.bind(styles);
 
-const SUBJECTS = Object.values(SUBJECT);
-// Every paper has the same number of questions
-const TOTAL = SAMPLE_TEST_PAPERS[SUBJECTS[0]].length;
-const GOOD_SCORE = TOTAL - 2;
+// Four in five right counts as nearly there
+const GOOD_SCORE = Math.ceil(TOTAL * 0.8);
 
 const resultMessage = (score: number) => {
   if (score === TOTAL) return TEXT.resultFull;
@@ -29,14 +27,22 @@ const resultMessage = (score: number) => {
   return TEXT.resultStart;
 };
 
-// A five-question sample test on a paper sheet, one paper per subject,
-// chosen with the subject links under the heading. The clock starts with the
-// first answer; submitting (or running out of time) marks the paper, shows
-// the right answers and a score out of five, with confetti for full marks.
+// A 20-question sample test on a paper sheet. The student picks a class or
+// exam (Class 11, JEE, CA / CPT, …), then a subject in it. The clock starts
+// with the first answer; submitting (or running out of time) marks the
+// paper, shows the right answers and a score out of 20, with confetti for
+// full marks.
 export const SampleTestPaper = () => {
   const paperId = useId();
-  const [subject, setSubject] = useState<SubjectKey>(SUBJECTS[0]);
-  const questions = SAMPLE_TEST_PAPERS[subject];
+  const questionsRef = useRef<HTMLOListElement>(null);
+  const [trackKey, setTrackKey] = useState(SAMPLE_TEST_TRACKS[0].key);
+  const track =
+    SAMPLE_TEST_TRACKS.find(item => item.key === trackKey) ??
+    SAMPLE_TEST_TRACKS[0];
+  const [subjectKey, setSubjectKey] = useState(track.subjects[0].key);
+  const subject =
+    track.subjects.find(item => item.key === subjectKey) ?? track.subjects[0];
+  const questions = subject.questions;
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isMarked, setIsMarked] = useState(false);
   const [hasTimedOut, setHasTimedOut] = useState(false);
@@ -74,11 +80,18 @@ export const SampleTestPaper = () => {
     setAttempt(current => current + 1);
   };
 
-  // A new subject is a new paper: fresh answers and a fresh clock
-  const handleSubject = (next: SubjectKey) => {
-    if (next === subject) return;
-    setSubject(next);
+  // A new paper: fresh answers, a fresh clock, back to question 1
+  const openPaper = (nextTrack: string, nextSubject: string) => {
+    if (nextTrack === track.key && nextSubject === subject.key) return;
+    setTrackKey(nextTrack);
+    setSubjectKey(nextSubject);
     handleTryAgain();
+    if (questionsRef.current) questionsRef.current.scrollTop = 0;
+  };
+
+  const handleTrack = (nextTrack: string) => {
+    const next = SAMPLE_TEST_TRACKS.find(item => item.key === nextTrack);
+    if (next) openPaper(next.key, next.subjects[0].key);
   };
 
   return (
@@ -96,10 +109,26 @@ export const SampleTestPaper = () => {
         {TEXT.titleEnd}
       </div>
       <div className={cn('meta')}>
-        {TEXT.meta(SUBJECT_LABEL[subject], TOTAL).map(item => (
+        {TEXT.meta(track.label, subject.label, TOTAL).map(item => (
           <Text key={item} variant="label" tone="muted">
             {item}
           </Text>
+        ))}
+      </div>
+      <div
+        className={cn('subjects', 'tracks')}
+        role="group"
+        aria-label={TEXT.tracksLabel}
+      >
+        {SAMPLE_TEST_TRACKS.map(item => (
+          <ButtonBase
+            key={item.key}
+            className={cn('subject', { subjectActive: item.key === track.key })}
+            aria-pressed={item.key === track.key}
+            onClick={() => handleTrack(item.key)}
+          >
+            {item.label}
+          </ButtonBase>
         ))}
       </div>
       <div
@@ -107,14 +136,16 @@ export const SampleTestPaper = () => {
         role="group"
         aria-label={TEXT.subjectsLabel}
       >
-        {SUBJECTS.map(item => (
+        {track.subjects.map(item => (
           <ButtonBase
-            key={item}
-            className={cn('subject', { subjectActive: item === subject })}
-            aria-pressed={item === subject}
-            onClick={() => handleSubject(item)}
+            key={item.key}
+            className={cn('subject', {
+              subjectActive: item.key === subject.key,
+            })}
+            aria-pressed={item.key === subject.key}
+            onClick={() => openPaper(track.key, item.key)}
           >
-            {SUBJECT_LABEL[item]}
+            {item.label}
           </ButtonBase>
         ))}
       </div>
@@ -122,7 +153,7 @@ export const SampleTestPaper = () => {
         {TEXT.instruction}
       </Text>
 
-      <ol className={cn('questions')}>
+      <ol ref={questionsRef} className={cn('questions')}>
         {questions.map((question, index) => {
           const promptId = `${paperId}-${question.id}`;
           const chosen = answers[question.id];

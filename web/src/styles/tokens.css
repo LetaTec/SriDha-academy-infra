@@ -115,6 +115,7 @@
   --size-tutor-portrait-sm: 88px;
   --width-checkout-summary: 360px;
   --height-search-results: 480px;
+  --height-test-questions: 560px;
   --width-about-photo: 440px;
   /* The site header is the "Now enrolling" ticker above the menu bar; pages
      offset their content by the whole header */
@@ -194,8 +195,6 @@
   --radius-full: 9999px;
   --size-dot: 6px;
   --size-option-bubble: 20px;
-  --tilt-test-sheet: 2deg;
-  --tilt-test-sheet-sm: 1deg;
   --size-visually-hidden: 1px;
   --size-progress: 2px;
   --height-progress-ruler: 24px;

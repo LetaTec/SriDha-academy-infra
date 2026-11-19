@@ -2,19 +2,31 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
 import {
   SAMPLE_TEST_DURATION_SECONDS,
-  SAMPLE_TEST_PAPERS,
+  SAMPLE_TEST_QUESTION_COUNT,
+  SAMPLE_TEST_TRACKS,
+  type SampleTestQuestion,
 } from '@constants/assessment';
 
 import { SampleTestPaper } from './SampleTestPaper';
 
-// The paper opens on the first subject, Accountancy
-const SAMPLE_TEST_QUESTIONS = SAMPLE_TEST_PAPERS.accountancy;
+const trackPaper = (trackKey: string, subjectKey: string) =>
+  SAMPLE_TEST_TRACKS.find(track => track.key === trackKey)!.subjects.find(
+    subject => subject.key === subjectKey,
+  )!.questions;
+
+// The paper opens on Class 11 Accountancy
+const CLASS_11_ACCOUNTANCY = trackPaper('class11', 'accountancy');
 
 const escapeRegExp = (text: string) =>
   text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const answerQuestion = (index: number, optionKey: string) => {
-  const question = SAMPLE_TEST_QUESTIONS[index];
+const answerQuestion = (
+  questions: readonly SampleTestQuestion[],
+  index: number,
+  optionKey: string,
+) => {
+  const question = questions[index];
+  // Two papers can share a prompt; the open paper's group is the only one
   const group = screen.getByRole('radiogroup', { name: question.prompt });
   const option = question.options.find(item => item.key === optionKey);
   fireEvent.click(
@@ -24,109 +36,153 @@ const answerQuestion = (index: number, optionKey: string) => {
   );
 };
 
-const answerAll = (pick: (index: number) => string) =>
-  SAMPLE_TEST_QUESTIONS.forEach((_, index) =>
-    answerQuestion(index, pick(index)),
-  );
+const optionLabel = (question: SampleTestQuestion, key: string) =>
+  question.options.find(option => option.key === key)!.label;
 
 describe('SampleTestPaper', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('switches to another subject paper with fresh answers', () => {
+  it('has a 20-question paper with one right answer for every subject of every class and exam', () => {
+    expect(SAMPLE_TEST_TRACKS.map(track => track.label)).toEqual([
+      'Class 11',
+      'Class 12',
+      'JEE',
+      'NEET',
+      'Reasoning & aptitude',
+      'CA / CPT',
+    ]);
+    SAMPLE_TEST_TRACKS.forEach(track =>
+      track.subjects.forEach(subject => {
+        expect(subject.questions).toHaveLength(SAMPLE_TEST_QUESTION_COUNT);
+        subject.questions.forEach(question => {
+          expect(question.options).toHaveLength(4);
+          expect(
+            question.options.filter(option => option.key === question.answer),
+          ).toHaveLength(1);
+          // No option repeats within a question
+          expect(
+            new Set(question.options.map(option => option.label)).size,
+          ).toBe(4);
+        });
+        // The right answer is not always in the same place
+        expect(
+          new Set(subject.questions.map(question => question.answer)).size,
+        ).toBeGreaterThan(1);
+      }),
+    );
+  });
+
+  it('picks a class or exam, then a subject, each with a fresh paper', () => {
     render(<SampleTestPaper />);
-    answerQuestion(0, SAMPLE_TEST_QUESTIONS[0].answer);
-    expect(screen.getByText('Answered 1 of 5')).toBeInTheDocument();
+    answerQuestion(CLASS_11_ACCOUNTANCY, 0, CLASS_11_ACCOUNTANCY[0].answer);
+    expect(screen.getByText('Answered 1 of 20')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Physics' }));
+    // JEE offers only its own subjects and opens on the first
+    fireEvent.click(screen.getByRole('button', { name: 'JEE' }));
+    const subjects = screen.getByRole('group', { name: 'Choose a subject' });
+    expect(
+      within(subjects)
+        .getAllByRole('button')
+        .map(button => button.textContent),
+    ).toEqual(['Physics', 'Chemistry', 'Mathematics']);
+    expect(
+      within(subjects).getByRole('button', { name: 'Physics' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByRole('radiogroup', {
+        name: trackPaper('jee', 'physics')[0].prompt,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Answered 0 of 20')).toBeInTheDocument();
 
-    expect(screen.getByRole('button', { name: 'Physics' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
+    fireEvent.click(
+      within(subjects).getByRole('button', { name: 'Mathematics' }),
     );
     expect(
       screen.getByRole('radiogroup', {
-        name: SAMPLE_TEST_PAPERS.physics[0].prompt,
+        name: trackPaper('jee', 'mathematics')[0].prompt,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText('Answered 0 of 5')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'CA / CPT' }));
+    expect(
+      within(screen.getByRole('group', { name: 'Choose a subject' })).getByRole(
+        'button',
+        { name: 'Business law' },
+      ),
+    ).toBeInTheDocument();
   });
 
-  it('has a five-question paper for every subject', () => {
-    Object.values(SAMPLE_TEST_PAPERS).forEach(paper => {
-      expect(paper).toHaveLength(5);
-      paper.forEach(question =>
-        expect(
-          question.options.some(option => option.key === question.answer),
-        ).toBe(true),
-      );
-    });
-  });
-
-  it('marks a full-marks paper 5 / 5 and congratulates the student', () => {
+  it('marks a full-marks paper 20 / 20 and congratulates the student', () => {
     render(<SampleTestPaper />);
     expect(
       screen.getByRole('button', { name: 'Submit answers' }),
     ).toBeDisabled();
 
-    answerAll(index => SAMPLE_TEST_QUESTIONS[index].answer);
-    expect(screen.getByText('Answered 5 of 5')).toBeInTheDocument();
+    CLASS_11_ACCOUNTANCY.forEach((question, index) =>
+      answerQuestion(CLASS_11_ACCOUNTANCY, index, question.answer),
+    );
+    expect(screen.getByText('Answered 20 of 20')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
 
     const result = screen.getByRole('status');
     expect(within(result).getByText('Congratulations!')).toBeInTheDocument();
-    expect(within(result).getByText('Score 5 / 5')).toBeInTheDocument();
-    expect(screen.getAllByText('Correct')).toHaveLength(5);
+    expect(within(result).getByText('Score 20 / 20')).toBeInTheDocument();
+    expect(screen.getAllByText('Correct')).toHaveLength(20);
   });
 
   it('shows the right answer for wrong and unanswered questions, then resets', () => {
     render(<SampleTestPaper />);
-    const wrongKey = SAMPLE_TEST_QUESTIONS[0].options.find(
-      option => option.key !== SAMPLE_TEST_QUESTIONS[0].answer,
+    const first = CLASS_11_ACCOUNTANCY[0];
+    const wrongKey = first.options.find(
+      option => option.key !== first.answer,
     )!.key;
 
-    answerQuestion(0, wrongKey);
-    answerQuestion(1, SAMPLE_TEST_QUESTIONS[1].answer);
+    answerQuestion(CLASS_11_ACCOUNTANCY, 0, wrongKey);
+    answerQuestion(CLASS_11_ACCOUNTANCY, 1, CLASS_11_ACCOUNTANCY[1].answer);
     fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
 
     expect(
-      within(screen.getByRole('status')).getByText('Score 1 / 5'),
+      within(screen.getByRole('status')).getByText('Score 1 / 20'),
     ).toBeInTheDocument();
     expect(screen.queryByText('Congratulations!')).not.toBeInTheDocument();
     expect(
-      screen.getByText(/^Correct answer: \(b\) CGST and SGST$/),
+      screen.getByText(
+        `Correct answer: (${first.answer}) ${optionLabel(first, first.answer)}`,
+      ),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/^Not answered · Correct answer/)).toHaveLength(
-      3,
+      18,
     );
     screen.getAllByRole('radio').forEach(radio => expect(radio).toBeDisabled());
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(screen.getByText('Answered 0 of 5')).toBeInTheDocument();
-    expect(screen.getByText('Time left 05:00')).toBeInTheDocument();
+    expect(screen.getByText('Answered 0 of 20')).toBeInTheDocument();
+    expect(screen.getByText('Time left 20:00')).toBeInTheDocument();
     screen
       .getAllByRole('radio')
       .forEach(radio => expect(radio).not.toBeChecked());
   });
 
-  it('starts the five-minute clock on the first answer and marks the paper when time runs out', () => {
+  it('starts the 20-minute clock on the first answer and marks the paper when time runs out', () => {
     vi.useFakeTimers();
     render(<SampleTestPaper />);
-    expect(screen.getByText('Time left 05:00')).toBeInTheDocument();
+    expect(screen.getByText('Time left 20:00')).toBeInTheDocument();
 
-    answerQuestion(0, SAMPLE_TEST_QUESTIONS[0].answer);
+    answerQuestion(CLASS_11_ACCOUNTANCY, 0, CLASS_11_ACCOUNTANCY[0].answer);
     act(() => {
       vi.advanceTimersByTime(60_000);
     });
-    expect(screen.getByText('Time left 04:00')).toBeInTheDocument();
+    expect(screen.getByText('Time left 19:00')).toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(SAMPLE_TEST_DURATION_SECONDS * 1000);
     });
     expect(screen.getByText("Time's up")).toBeInTheDocument();
     expect(
-      within(screen.getByRole('status')).getByText('Score 1 / 5'),
+      within(screen.getByRole('status')).getByText('Score 1 / 20'),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Try again' }),

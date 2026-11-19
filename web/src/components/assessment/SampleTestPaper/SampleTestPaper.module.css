@@ -6,7 +6,6 @@
   background: var(--color-bg-page);
   color: var(--color-text-primary);
   box-shadow: var(--shadow-offset-accent-lg);
-  rotate: var(--tilt-test-sheet);
 }
 
 .sheet::before {
@@ -41,7 +40,7 @@
   border-bottom: var(--border-width-base) solid var(--color-border-base);
 }
 
-/* One paper per subject, picked with text links */
+/* A class or exam first, then a subject in it, picked with text links */
 .subjects {
   display: flex;
   flex-wrap: wrap;
@@ -72,13 +71,27 @@
   color: var(--color-text-accent);
 }
 
+/* The class or exam row reads first */
+.tracks .subject {
+  color: var(--color-text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.tracks .subjectActive {
+  color: var(--color-text-accent);
+}
+
 .instruction {
   margin: var(--space-1) 0 var(--space-0-5);
   font-size: var(--text-xs);
   font-style: italic;
 }
 
+/* Twenty questions scroll inside the paper, so the page stays short */
 .questions {
+  max-height: var(--height-test-questions);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   list-style: none;
 }
 
@@ -224,7 +237,6 @@
 @media (--viewport-sm) {
   .sheet {
     padding: var(--space-4) var(--space-3);
-    rotate: var(--tilt-test-sheet-sm);
   }
 
   .options,
