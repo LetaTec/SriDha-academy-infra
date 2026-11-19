@@ -90,6 +90,12 @@ test.describe('homepage', () => {
       0,
     );
 
+    // The assessment section comes straight after the search
+    const sectionIds = await page.evaluate(() =>
+      [...document.querySelectorAll('section[id]')].map(section => section.id),
+    );
+    expect(sectionIds.slice(0, 2)).toEqual(['home', 'ai-test']);
+
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     );
