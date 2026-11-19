@@ -93,7 +93,7 @@ export const CONCEPT_MAP_TEXT = {
 } as const;
 
 export const LEARNING_JOURNEY_TEXT = {
-  eyebrow: '03 / The SriDha Learning Model',
+  eyebrow: '04 / The SriDha Learning Model',
   title: 'How true mastery happens.',
   titleEmphasis: 'Step by step.',
   description:
@@ -137,7 +137,7 @@ export const MODEL_PAPER_DISCOVERY_TEXT = {
 } as const;
 
 export const AI_TEST_TEXT = {
-  eyebrow: '04 / Assessment Experience',
+  eyebrow: '02 / Assessment Experience',
   title: 'Test your understanding.',
   titleEmphasis: 'Without repetition.',
   description:

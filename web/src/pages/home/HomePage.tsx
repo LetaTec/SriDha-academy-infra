@@ -64,18 +64,18 @@ const HomePage = () => {
         onSelectBatch={openCheckout}
         onBrowseTopics={browseTopics}
       />
-      {/* 2. Real Subject Discovery */}
+      {/* 2. AI Assessment Experience, right under the search */}
+      <AiTestSection />
+
+      {/* 3. Real Subject Discovery */}
       <TopicsSection
         catalogue={catalogue}
         onOpenTopic={openTopic}
         onSelectBatch={handleSelectBatch}
       />
 
-      {/* 3. Interactive Learning Journey */}
+      {/* 4. Interactive Learning Journey */}
       <LearningJourneySection />
-
-      {/* 4. AI Assessment Experience */}
-      <AiTestSection />
 
       {/* 5. Previous-Year and Model-Paper Discovery */}
       <ModelPaperDiscoverySection
