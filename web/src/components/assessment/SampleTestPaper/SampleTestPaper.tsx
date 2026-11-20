@@ -1,6 +1,7 @@
 import { useCallback, useId, useRef, useState } from 'react';
 import cx from 'classnames/bind';
 
+import { QuestionFigure } from '@components/assessment/QuestionFigure/QuestionFigure';
 import { Button } from '@components/ui/Button/Button';
 import { ButtonBase } from '@components/ui/ButtonBase/ButtonBase';
 import { Confetti } from '@components/ui/Confetti/Confetti';
@@ -27,15 +28,25 @@ const resultMessage = (score: number) => {
   return TEXT.resultStart;
 };
 
+export type SampleTestPaperProps = {
+  // The class or exam the paper opens on; the first one by default.
+  initialTrack?: string;
+  // Wide papers fill a page and let it scroll; compact ones scroll inside.
+  layout?: 'compact' | 'wide';
+};
+
 // A 20-question sample test on a paper sheet. The student picks a class or
 // exam (Class 11, JEE, CA / CPT, …), then a subject in it. The clock starts
 // with the first answer; submitting (or running out of time) marks the
 // paper, shows the right answers and a score out of 20, with confetti for
 // full marks.
-export const SampleTestPaper = () => {
+export const SampleTestPaper = ({
+  initialTrack = SAMPLE_TEST_TRACKS[0].key,
+  layout = 'compact',
+}: SampleTestPaperProps) => {
   const paperId = useId();
   const questionsRef = useRef<HTMLOListElement>(null);
-  const [trackKey, setTrackKey] = useState(SAMPLE_TEST_TRACKS[0].key);
+  const [trackKey, setTrackKey] = useState(initialTrack);
   const track =
     SAMPLE_TEST_TRACKS.find(item => item.key === trackKey) ??
     SAMPLE_TEST_TRACKS[0];
@@ -96,7 +107,7 @@ export const SampleTestPaper = () => {
 
   return (
     <section
-      className={cn('sheet', { celebrating: isFullMarks })}
+      className={cn('sheet', layout, { celebrating: isFullMarks })}
       aria-label={TEXT.paperLabel}
     >
       <div className={cn('sheetTop')}>
@@ -174,6 +185,9 @@ export const SampleTestPaper = () => {
                   {TEXT.marksLabel}
                 </Text>
               </div>
+              {question.figure ? (
+                <QuestionFigure figure={question.figure} />
+              ) : null}
 
               <div
                 role="radiogroup"
