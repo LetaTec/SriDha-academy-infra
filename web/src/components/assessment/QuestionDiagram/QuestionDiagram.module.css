@@ -1,0 +1,80 @@
+.diagram {
+  display: block;
+  width: 100%;
+  max-width: var(--width-question-figure);
+  height: auto;
+  color: var(--color-text-primary);
+}
+
+.line,
+.thin,
+.plateLine {
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.line {
+  stroke-width: 1.5;
+}
+
+.thin {
+  stroke-width: 1;
+}
+
+.dashed {
+  stroke-dasharray: 4 4;
+}
+
+/* Conducting plates and electrodes */
+.plate {
+  fill: var(--color-accent);
+}
+
+.plateLine {
+  stroke: var(--color-accent);
+  stroke-width: 3;
+}
+
+.ball {
+  fill: var(--color-accent-soft);
+  stroke: currentcolor;
+  stroke-width: 1;
+}
+
+.chromosomeDark {
+  fill: var(--color-accent);
+}
+
+.chromosomeLight {
+  fill: var(--color-bg-page);
+  stroke: currentcolor;
+  stroke-width: 1.2;
+}
+
+.arrowHead {
+  fill: currentcolor;
+}
+
+.label,
+.small {
+  fill: currentcolor;
+  font-family: var(--font-sans);
+}
+
+.label {
+  font-size: var(--text-sm);
+}
+
+.small {
+  font-size: var(--text-xs);
+}
+
+.middle {
+  text-anchor: middle;
+}
+
+.end {
+  text-anchor: end;
+}

@@ -1,4 +1,4 @@
-import type { SampleTestQuestion } from './assessment';
+import type { SampleTestFigure, SampleTestQuestion } from './assessment';
 
 // The sample test papers: 20 questions for each subject of each class or
 // exam. Each row is written with the right answer first, then three wrong
@@ -11,6 +11,8 @@ type Row = readonly [
   wrong1: string,
   wrong2: string,
   wrong3: string,
+  // Shown under the prompt, when the question needs one
+  figure?: SampleTestFigure,
 ];
 
 const OPTION_KEYS = ['a', 'b', 'c', 'd'] as const;
@@ -20,22 +22,41 @@ const answerSlot = (prompt: string) =>
   [...prompt].reduce((sum, char) => sum + char.charCodeAt(0), 0) %
   OPTION_KEYS.length;
 
+const ASKS = /^(which|what|who|whom|whose|how|why|where|when)\b/i;
+const INSTRUCTS =
+  /^(identify|select|choose|match|pick|arrange|find|name|read|classify)\b/i;
+
+// Papers write many stems to be finished by the options ("Cytokinins").
+// On screen they get an ending so they never look cut off: a question mark
+// for questions, a colon for instructions, a blank to fill otherwise.
+export const finishPrompt = (prompt: string) => {
+  const text = prompt.trimEnd();
+  // Already ended, or already has its blank to fill (“₹ ______ crore”)
+  if (/[?.:!…)\]”’"]$/.test(text) || /_{3,}/.test(text)) return text;
+  const lastSentence = text.split(/(?<=[.?!])\s+(?=[A-Z“‘(])/).pop() ?? text;
+  if (ASKS.test(lastSentence)) return `${text}?`;
+  if (INSTRUCTS.test(lastSentence)) return `${text}:`;
+  return `${text} ______`;
+};
+
 const toPaper = (
   paperId: string,
   rows: readonly Row[],
 ): readonly SampleTestQuestion[] =>
-  rows.map(([prompt, answer, ...wrong], index) => {
+  rows.map(([prompt, answer, wrong1, wrong2, wrong3, figure], index) => {
+    // Placed from the prompt as written, so answers never move
     const slot = answerSlot(prompt);
-    const labels = [...wrong];
+    const labels = [wrong1, wrong2, wrong3];
     labels.splice(slot, 0, answer);
     return {
       id: `${paperId}-${index + 1}`,
-      prompt,
+      prompt: finishPrompt(prompt),
       options: labels.map((label, position) => ({
         key: OPTION_KEYS[position],
         label,
       })),
       answer: OPTION_KEYS[slot],
+      ...(figure ? { figure } : {}),
     };
   });
 
@@ -1102,11 +1123,33 @@ const CLASS_12_BUSINESS_STUDIES: readonly Row[] = [
   ],
   // CBSE 2025-26 (66/1/1), Q16
   [
-    'Match each principle of management with its explanation. Principles: (a) Discipline, (b) Unity of direction, (c) Order, (d) Unity of command. Explanations: (i) There should be one and only one boss for every individual employee in the organisation. (ii) There should be a place for everything (everyone) and everything (everyone) should be in its (his/her) place. (iii) There should be obedience to organisational rules and employment agreement which is necessary for the working of the organisation. (iv) Each group of activities having the same objective must have one head and one plan.',
+    'Match each principle of management in Column I with its explanation in Column II',
     '(a)–(iii), (b)–(iv), (c)–(ii), (d)–(i)',
     '(a)–(iii), (b)–(iv), (c)–(i), (d)–(ii)',
     '(a)–(iv), (b)–(iii), (c)–(ii), (d)–(i)',
     '(a)–(iv), (b)–(iii), (c)–(i), (d)–(ii)',
+    {
+      kind: 'table',
+      head: ['Column I', 'Column II'],
+      rows: [
+        [
+          '(a) Discipline',
+          '(i) There should be one and only one boss for every individual employee in the organisation',
+        ],
+        [
+          '(b) Unity of direction',
+          '(ii) There should be a place for everything (everyone) and everything (everyone) should be in its (his/her) place',
+        ],
+        [
+          '(c) Order',
+          '(iii) There should be obedience to organisational rules and employment agreement which is necessary for the working of the organisation',
+        ],
+        [
+          '(d) Unity of command',
+          '(iv) Each group of activities having the same objective must have one head and one plan',
+        ],
+      ],
+    },
   ],
   // CBSE 2025-26 (66/1/1), Q17
   [
@@ -1692,19 +1735,55 @@ const CLASS_12_MATHEMATICS: readonly Row[] = [
   ],
   // CBSE 2025-26 (65/1/1), Q4
   [
-    'Δ₁ is the determinant with rows (1, 0, 0), (0, 2, 0), (0, 0, 3) and Δ₂ is the determinant with rows (0, 2, 0), (1, 0, 0), (0, 0, 6). Then',
+    'If Δ₁ and Δ₂ are the determinants shown, then',
     'Δ₂ = −2Δ₁',
     'Δ₁ = 2Δ₂',
     'Δ₁ = Δ₂',
     'Δ₂ = −Δ₁',
+    {
+      kind: 'matrices',
+      items: [
+        {
+          name: 'Δ₁',
+          determinant: true,
+          rows: [
+            ['1', '0', '0'],
+            ['0', '2', '0'],
+            ['0', '0', '3'],
+          ],
+        },
+        {
+          name: 'Δ₂',
+          determinant: true,
+          rows: [
+            ['0', '2', '0'],
+            ['1', '0', '0'],
+            ['0', '0', '6'],
+          ],
+        },
+      ],
+    },
   ],
   // CBSE 2025-26 (65/1/1), Q5
   [
-    'One of the values of x for which the determinant with rows (cos x, sin x) and (−cos x, sin x) equals 1 is',
+    'One of the values of x for which the determinant shown equals 1 is',
     'π/4',
     '0',
     'π/3',
     'π/2',
+    {
+      kind: 'matrices',
+      items: [
+        {
+          name: 'Δ',
+          determinant: true,
+          rows: [
+            ['cos x', 'sin x'],
+            ['−cos x', 'sin x'],
+          ],
+        },
+      ],
+    },
   ],
   // CBSE 2025-26 (65/1/1), Q6
   [
@@ -1790,11 +1869,22 @@ const CLASS_12_MATHEMATICS: readonly Row[] = [
   ],
   // CBSE 2025-26 (65/1/1), Q17
   [
-    'The feasible region of a linear programming problem with objective function Z = 5x + 7y has corner points (0, 0), (0, 2), (3, 4) and (7, 0). The maximum value of Z − minimum value of Z is',
+    'The feasible region of a linear programming problem with objective function Z = 5x + 7y is shown. The maximum value of Z − minimum value of Z is',
     '43',
     '8',
     '29',
     '35',
+    {
+      kind: 'region',
+      corners: [
+        [0, 0],
+        [0, 2],
+        [3, 4],
+        [7, 0],
+      ],
+      xMax: 8,
+      yMax: 5,
+    },
   ],
   // CBSE 2025-26 (65/1/1), Q18
   [
@@ -1881,19 +1971,31 @@ const CLASS_12_BIOLOGY: readonly Row[] = [
   ],
   // CBSE 2025-26 (57/1/1), Q8
   [
-    'Two homologous pairs of chromosomes can line up in two equally probable arrangements at Metaphase I, which give rise to different chromosome combinations in the gametes. Which of the following phenomena is expressed?',
+    'The figure shows two ways in which two homologous pairs of chromosomes can line up at Metaphase I. Which of the following phenomena is expressed?',
     'Independent assortment of genes',
     'Linkage of genes',
     'Multiple alleles',
     'Incomplete dominance',
+    { kind: 'diagram', name: 'metaphase' },
   ],
   // CBSE 2025-26 (57/1/1), Q9
   [
-    'Match Column-I with Column-II. Column-I: a. Biolistic gun, b. Chitinase, c. Ti, d. Ca⁺⁺. Column-II: i. Bacterial cell, ii. Tumour inducing, iii. Animal cell, iv. Fungal cell, v. Plant cell',
+    'Match Column-I with Column-II and choose the correct option',
     'a–v, b–iv, c–ii, d–i',
     'a–i, b–ii, c–iii, d–iv',
     'a–ii, b–v, c–i, d–iii',
     'a–v, b–i, c–iv, d–ii',
+    {
+      kind: 'table',
+      head: ['Column-I', 'Column-II'],
+      rows: [
+        ['a. Biolistic gun', 'i. Bacterial cell'],
+        ['b. Chitinase', 'ii. Tumour inducing'],
+        ['c. Ti', 'iii. Animal cell'],
+        ['d. Ca⁺⁺', 'iv. Fungal cell'],
+        ['', 'v. Plant cell'],
+      ],
+    },
   ],
   // CBSE 2025-26 (57/1/1), Q10
   [
@@ -1990,19 +2092,29 @@ const CLASS_12_BIOLOGY: readonly Row[] = [
 const JEE_PHYSICS: readonly Row[] = [
   // JEE (Advanced) 2016 Paper 1, Q1
   [
-    'In a historical experiment to determine Planck’s constant, a metal surface was irradiated with light of different wavelengths. The emitted photoelectron energies were measured by applying a stopping potential. For incident light of wavelength λ = 0.3 μm, 0.4 μm and 0.5 μm, the stopping potential V₀ was 2.0 V, 1.0 V and 0.4 V respectively. Given that c = 3 × 10⁸ m s⁻¹ and e = 1.6 × 10⁻¹⁹ C, Planck’s constant (in units of J s) found from such an experiment is',
+    'In a historical experiment to determine Planck’s constant, a metal surface was irradiated with light of different wavelengths. The emitted photoelectron energies were measured by applying a stopping potential. The relevant data for the wavelength (λ) of incident light and the corresponding stopping potential (V₀) are given in the table. Given that c = 3 × 10⁸ m s⁻¹ and e = 1.6 × 10⁻¹⁹ C, Planck’s constant (in units of J s) found from such an experiment is',
     '6.4 × 10⁻³⁴',
     '6.0 × 10⁻³⁴',
     '6.6 × 10⁻³⁴',
     '6.8 × 10⁻³⁴',
+    {
+      kind: 'table',
+      head: ['λ (μm)', 'V₀ (volt)'],
+      rows: [
+        ['0.3', '2.0'],
+        ['0.4', '1.0'],
+        ['0.5', '0.4'],
+      ],
+    },
   ],
   // JEE (Advanced) 2016 Paper 1, Q3
   [
-    'A water cooler of storage capacity 120 litres can cool water at a constant rate of P watts. In a closed circulation system, the water from the cooler is used to cool an external device that generates constantly 3 kW of heat (thermal load). The temperature of water fed into the device cannot exceed 30 °C and the entire stored 120 litres of water is initially cooled to 10 °C. The entire system is thermally insulated. The minimum value of P (in watts) for which the device can be operated for 3 hours is (specific heat of water is 4.2 kJ kg⁻¹ K⁻¹ and the density of water is 1000 kg m⁻³)',
+    'A water cooler of storage capacity 120 litres can cool water at a constant rate of P watts. In a closed circulation system (as shown in the figure), the water from the cooler is used to cool an external device that generates constantly 3 kW of heat (thermal load). The temperature of water fed into the device cannot exceed 30 °C and the entire stored 120 litres of water is initially cooled to 10 °C. The entire system is thermally insulated. The minimum value of P (in watts) for which the device can be operated for 3 hours is (specific heat of water is 4.2 kJ kg⁻¹ K⁻¹ and the density of water is 1000 kg m⁻³)',
     '2067',
     '1600',
     '2533',
     '3933',
+    { kind: 'diagram', name: 'waterCooler' },
   ],
   // JEE (Advanced) 2016 Paper 2, Q1
   [
@@ -2038,27 +2150,30 @@ const JEE_PHYSICS: readonly Row[] = [
   ],
   // JEE (Advanced) 2016 Paper 2, Q8
   [
-    'Light of wavelength λ_ph falls on a cathode plate inside a vacuum tube. The work function of the cathode surface is φ and the anode is a wire mesh of conducting material kept at a distance d from the cathode. A potential difference V is maintained between the electrodes. If the minimum de Broglie wavelength of the electrons passing through the anode is λₑ, which of the following statements is true?',
+    'Light of wavelength λₚₕ falls on a cathode plate inside a vacuum tube as shown in the figure. The work function of the cathode surface is φ and the anode is a wire mesh of conducting material kept at a distance d from the cathode. A potential difference V is maintained between the electrodes. If the minimum de Broglie wavelength of the electrons passing through the anode is λₑ, which of the following statements is true?',
     'For large potential difference (V ≫ φ/e), λₑ is approximately halved if V is made four times',
-    'λₑ decreases with increase in φ and λ_ph',
+    'λₑ decreases with increase in φ and λₚₕ',
     'λₑ is approximately halved, if d is doubled',
-    'λₑ increases at the same rate as λ_ph for λ_ph < hc/φ',
+    'λₑ increases at the same rate as λₚₕ for λₚₕ < hc/φ',
+    { kind: 'diagram', name: 'photocell' },
   ],
   // JEE (Advanced) 2016 Paper 2, Q17 (Paragraph 2)
   [
-    'Consider an evacuated cylindrical chamber of height h having rigid conducting plates at the ends and an insulating curved surface. A number of spherical balls made of a light weight and soft material and coated with a conducting material are placed on the bottom plate. The balls have a radius r ≪ h. Now a high voltage source is connected across the conducting plates such that the bottom plate is at +V₀ and the top plate at −V₀. Due to their conducting surface, the balls will get charged, will become equipotential with the plate and are repelled by it. The balls will eventually collide with the top plate, where the coefficient of restitution can be taken to be zero due to the soft nature of the material of the balls. The electric field in the chamber can be considered to be that of a parallel plate capacitor. Assume that there are no collisions between the balls and the interaction between them is negligible (ignore gravity). Which one of the following statements is correct?',
+    'Consider an evacuated cylindrical chamber of height h having rigid conducting plates at the ends and an insulating curved surface as shown in the figure. A number of spherical balls made of a light weight and soft material and coated with a conducting material are placed on the bottom plate. The balls have a radius r ≪ h. Now a high voltage source (HV) is connected across the conducting plates such that the bottom plate is at +V₀ and the top plate at −V₀. Due to their conducting surface, the balls will get charged, will become equipotential with the plate and are repelled by it. The balls will eventually collide with the top plate, where the coefficient of restitution can be taken to be zero due to the soft nature of the material of the balls. The electric field in the chamber can be considered to be that of a parallel plate capacitor. Assume that there are no collisions between the balls and the interaction between them is negligible (ignore gravity). Which one of the following statements is correct?',
     'The balls will bounce back to the bottom plate carrying the opposite charge they went up with',
     'The balls will stick to the top plate and remain there',
     'The balls will bounce back to the bottom plate carrying the same charge they went up with',
     'The balls will execute simple harmonic motion between the two plates',
+    { kind: 'diagram', name: 'chargedBalls' },
   ],
   // JEE (Advanced) 2016 Paper 2, Q18 (Paragraph 2)
   [
-    'In an evacuated cylindrical chamber of height h, light conducting balls of radius r ≪ h rest on the bottom plate. The bottom plate is held at +V₀ and the top plate at −V₀, so the balls pick up charge, are repelled to the top plate (where the collision is perfectly inelastic), and keep carrying charge between the plates. Treating the field as that of a parallel plate capacitor and ignoring gravity, the average current in the steady state registered by an ammeter in the circuit will be',
+    'In the evacuated cylindrical chamber shown, light conducting balls of radius r ≪ h rest on the bottom plate. The bottom plate is held at +V₀ and the top plate at −V₀, so the balls pick up charge, are repelled to the top plate (where the collision is perfectly inelastic), and keep carrying charge between the plates. Treating the field as that of a parallel plate capacitor and ignoring gravity, the average current in the steady state registered by the ammeter in the circuit will be',
     'proportional to V₀²',
     'zero',
     'proportional to the potential V₀',
     'proportional to V₀^(1/2)',
+    { kind: 'diagram', name: 'chargedBalls' },
   ],
   // JEE (Advanced) 2017 Paper 2, Q1
   [
@@ -2126,32 +2241,90 @@ const JEE_PHYSICS: readonly Row[] = [
   ],
   // JEE (Advanced) 2018 Paper 2, Q15
   [
-    'The electric field E is measured at a point P(0, 0, d) generated due to various charge distributions, and the dependence of E on d is found to be different for different charge distributions. Match List-I with List-II. List-I: P. E is independent of d; Q. E ∝ 1/d; R. E ∝ 1/d²; S. E ∝ 1/d³. List-II: 1. A point charge Q at the origin; 2. A small dipole with point charges Q at (0, 0, l) and −Q at (0, 0, −l), with 2l ≪ d; 3. An infinite line charge coincident with the x-axis, with uniform linear charge density λ; 4. Two infinite wires carrying uniform linear charge density parallel to the x-axis, the one along (y = 0, z = l) with charge density +λ and the one along (y = 0, z = −l) with charge density −λ, with 2l ≪ d; 5. Infinite plane charge coincident with the xy-plane with uniform surface charge density',
+    'The electric field E is measured at a point P(0, 0, d) generated due to various charge distributions, and the dependence of E on d is found to be different for different charge distributions. List-I contains different relations between E and d. List-II describes different electric charge distributions, along with their locations. Match the functions in List-I with the related charge distributions in List-II',
     'P → 5; Q → 3; R → 1, 4; S → 2',
     'P → 5; Q → 3, 4; R → 1; S → 2',
     'P → 5; Q → 3; R → 1, 2; S → 4',
     'P → 4; Q → 2, 3; R → 1; S → 5',
+    {
+      kind: 'table',
+      head: ['List-I', 'List-II'],
+      rows: [
+        ['P. E is independent of d', '1. A point charge Q at the origin'],
+        [
+          'Q. E ∝ 1/d',
+          '2. A small dipole with point charges Q at (0, 0, l) and −Q at (0, 0, −l). Take 2l ≪ d',
+        ],
+        [
+          'R. E ∝ 1/d²',
+          '3. An infinite line charge coincident with the x-axis, with uniform linear charge density λ',
+        ],
+        [
+          'S. E ∝ 1/d³',
+          '4. Two infinite wires carrying uniform linear charge density parallel to the x-axis. The one along (y = 0, z = l) has a charge density +λ and the one along (y = 0, z = −l) has a charge density −λ. Take 2l ≪ d',
+        ],
+        [
+          '',
+          '5. Infinite plane charge coincident with the xy-plane with uniform surface charge density',
+        ],
+      ],
+    },
   ],
   // JEE (Advanced) 2018 Paper 2, Q16
   [
-    'A planet of mass M has two natural satellites with masses m₁ and m₂. The radii of their circular orbits are R₁ and R₂ respectively. Ignore the gravitational force between the satellites. Define v₁, L₁, K₁ and T₁ to be, respectively, the orbital speed, angular momentum, kinetic energy and time period of revolution of satellite 1; and v₂, L₂, K₂ and T₂ to be the corresponding quantities of satellite 2. Given m₁/m₂ = 2 and R₁/R₂ = 1/4, match the ratios in List-I to the numbers in List-II. List-I: P. v₁/v₂; Q. L₁/L₂; R. K₁/K₂; S. T₁/T₂. List-II: 1. 1/8; 2. 1; 3. 2; 4. 8',
+    'A planet of mass M has two natural satellites with masses m₁ and m₂. The radii of their circular orbits are R₁ and R₂ respectively. Ignore the gravitational force between the satellites. Define v₁, L₁, K₁ and T₁ to be, respectively, the orbital speed, angular momentum, kinetic energy and time period of revolution of satellite 1; and v₂, L₂, K₂ and T₂ to be the corresponding quantities of satellite 2. Given m₁/m₂ = 2 and R₁/R₂ = 1/4, match the ratios in List-I to the numbers in List-II',
     'P → 3; Q → 2; R → 4; S → 1',
     'P → 4; Q → 2; R → 1; S → 3',
     'P → 2; Q → 3; R → 1; S → 4',
     'P → 2; Q → 3; R → 4; S → 1',
+    {
+      kind: 'table',
+      head: ['List-I', 'List-II'],
+      rows: [
+        ['P. v₁/v₂', '1. 1/8'],
+        ['Q. L₁/L₂', '2. 1'],
+        ['R. K₁/K₂', '3. 2'],
+        ['S. T₁/T₂', '4. 8'],
+      ],
+    },
   ],
   // JEE (Advanced) 2018 Paper 2, Q18
   [
-    'Four different paths of a particle are given as functions of time, where α and β are positive constants of appropriate dimensions and α ≠ β. In each case, the force acting on the particle is either zero or conservative. Match each path in List-I with the quantities in List-II which are conserved for that path. List-I: P. r(t) = αt î + βt ĵ; Q. r(t) = α cos ωt î + β sin ωt ĵ; R. r(t) = α(cos ωt î + sin ωt ĵ); S. r(t) = αt î + (β/2)t² ĵ. List-II: 1. linear momentum p; 2. angular momentum L about the origin; 3. kinetic energy K; 4. potential energy U; 5. total energy E',
+    'In List-I, four different paths of a particle are given as functions of time. In these functions, α and β are positive constants of appropriate dimensions and α ≠ β. In each case, the force acting on the particle is either zero or conservative. In List-II, five physical quantities of the particle are mentioned. Match each path in List-I with those quantities in List-II, which are conserved for that path',
     'P → 1, 2, 3, 4, 5; Q → 2, 5; R → 2, 3, 4, 5; S → 5',
     'P → 1, 2, 3, 4, 5; Q → 3, 5; R → 2, 3, 4, 5; S → 2, 5',
     'P → 2, 3, 4; Q → 5; R → 1, 2, 4; S → 2, 5',
     'P → 1, 2, 3, 5; Q → 2, 5; R → 2, 3, 4, 5; S → 2, 5',
+    {
+      kind: 'table',
+      head: ['List-I', 'List-II'],
+      rows: [
+        ['P. r(t) = αt î + βt ĵ', '1. linear momentum p'],
+        [
+          'Q. r(t) = α cos ωt î + β sin ωt ĵ',
+          '2. angular momentum L about the origin',
+        ],
+        ['R. r(t) = α(cos ωt î + sin ωt ĵ)', '3. kinetic energy K'],
+        ['S. r(t) = αt î + (β/2)t² ĵ', '4. potential energy U'],
+        ['', '5. total energy E'],
+      ],
+    },
   ],
 ];
 
 const JEE_CHEMISTRY_TABLE =
-  'Column 1 (starting materials): (I) Toluene, (II) Acetophenone, (III) Benzaldehyde, (IV) Phenol. Column 2 (reaction conditions): (i) NaOH/Br₂, (ii) Br₂/hν, (iii) (CH₃CO)₂O/CH₃COOK, (iv) NaOH/CO₂. Column 3 (type of reaction): (P) Condensation, (Q) Carboxylation, (R) Substitution, (S) Haloform.';
+  'Columns 1, 2 and 3 of the table contain starting materials, reaction conditions and type of reactions, respectively.';
+
+const JEE_CHEMISTRY_TABLE_FIGURE: SampleTestFigure = {
+  kind: 'table',
+  head: ['Column 1', 'Column 2', 'Column 3'],
+  rows: [
+    ['(I) Toluene', '(i) NaOH/Br₂', '(P) Condensation'],
+    ['(II) Acetophenone', '(ii) Br₂/hν', '(Q) Carboxylation'],
+    ['(III) Benzaldehyde', '(iii) (CH₃CO)₂O/CH₃COOK', '(R) Substitution'],
+    ['(IV) Phenol', '(iv) NaOH/CO₂', '(S) Haloform'],
+  ],
+};
 
 const JEE_CHEMISTRY_KCLO3 =
   'Upon heating KClO₃ in the presence of catalytic amount of MnO₂, a gas W is formed. Excess amount of W reacts with white phosphorus to give X. The reaction of X with pure HNO₃ gives Y and Z.';
@@ -2247,6 +2420,7 @@ const JEE_CHEMISTRY: readonly Row[] = [
     '(IV) (ii) (P)',
     '(I) (iv) (Q)',
     '(III) (iv) (R)',
+    JEE_CHEMISTRY_TABLE_FIGURE,
   ],
   // JEE (Advanced) 2017 Paper 1, Q35
   [
@@ -2255,6 +2429,7 @@ const JEE_CHEMISTRY: readonly Row[] = [
     '(II) (iv) (R)',
     '(IV) (iii) (Q)',
     '(I) (i) (S)',
+    JEE_CHEMISTRY_TABLE_FIGURE,
   ],
   // JEE (Advanced) 2017 Paper 1, Q36
   [
@@ -2263,6 +2438,7 @@ const JEE_CHEMISTRY: readonly Row[] = [
     '(III) (ii) (P)',
     '(IV) (i) (Q)',
     '(II) (iii) (R)',
+    JEE_CHEMISTRY_TABLE_FIGURE,
   ],
   // JEE (Advanced) 2017 Paper 2, Q20
   [
@@ -2314,11 +2490,23 @@ const JEE_CHEMISTRY: readonly Row[] = [
   ],
   // JEE (Advanced) 2018 Paper 2, Q15
   [
-    'Match each set of hybrid orbitals from List-I with complex(es) given in List-II. List-I: P. dsp²; Q. sp³; R. sp³d²; S. d²sp³. List-II: 1. [FeF₆]⁴⁻; 2. [Ti(H₂O)₃Cl₃]; 3. [Cr(NH₃)₆]³⁺; 4. [FeCl₄]²⁻; 5. Ni(CO)₄; 6. [Ni(CN)₄]²⁻',
+    'Match each set of hybrid orbitals from List-I with complex(es) given in List-II',
     'P → 6; Q → 4, 5; R → 1; S → 2, 3',
     'P → 5; Q → 4, 6; R → 2, 3; S → 1',
     'P → 5, 6; Q → 4; R → 3; S → 1, 2',
     'P → 4, 6; Q → 5, 6; R → 1, 2; S → 3',
+    {
+      kind: 'table',
+      head: ['List-I', 'List-II'],
+      rows: [
+        ['P. dsp²', '1. [FeF₆]⁴⁻'],
+        ['Q. sp³', '2. [Ti(H₂O)₃Cl₃]'],
+        ['R. sp³d²', '3. [Cr(NH₃)₆]³⁺'],
+        ['S. d²sp³', '4. [FeCl₄]²⁻'],
+        ['', '5. Ni(CO)₄'],
+        ['', '6. [Ni(CN)₄]²⁻'],
+      ],
+    },
   ],
 ];
 
@@ -2328,11 +2516,24 @@ const JEE_MATHEMATICS_SEQUENCE =
 const JEE_MATHEMATICS: readonly Row[] = [
   // JEE (Advanced) 2016 Paper 2, Q37
   [
-    'Let P be the 3 × 3 matrix with rows (1, 0, 0), (4, 1, 0) and (16, 4, 1), and let I be the identity matrix of order 3. If Q = [qᵢⱼ] is a matrix such that P⁵⁰ − Q = I, then (q₃₁ + q₃₂)/q₂₁ equals',
+    'Let P be the matrix shown and let I be the identity matrix of order 3. If Q = [qᵢⱼ] is a matrix such that P⁵⁰ − Q = I, then (q₃₁ + q₃₂)/q₂₁ equals',
     '103',
     '52',
     '201',
     '205',
+    {
+      kind: 'matrices',
+      items: [
+        {
+          name: 'P',
+          rows: [
+            ['1', '0', '0'],
+            ['4', '1', '0'],
+            ['16', '4', '1'],
+          ],
+        },
+      ],
+    },
   ],
   // JEE (Advanced) 2016 Paper 2, Q38
   [

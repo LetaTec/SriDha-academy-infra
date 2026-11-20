@@ -1,6 +1,7 @@
 import { useCallback, useId, useRef, useState } from 'react';
 import cx from 'classnames/bind';
 
+import { QuestionFigure } from '@components/assessment/QuestionFigure/QuestionFigure';
 import { Button } from '@components/ui/Button/Button';
 import { ButtonBase } from '@components/ui/ButtonBase/ButtonBase';
 import { Confetti } from '@components/ui/Confetti/Confetti';
@@ -184,6 +185,9 @@ export const SampleTestPaper = ({
                   {TEXT.marksLabel}
                 </Text>
               </div>
+              {question.figure ? (
+                <QuestionFigure figure={question.figure} />
+              ) : null}
 
               <div
                 role="radiogroup"
