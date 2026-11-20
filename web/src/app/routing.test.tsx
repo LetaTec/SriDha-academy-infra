@@ -630,6 +630,12 @@ describe('app routing', () => {
       within(paper).getByRole('button', { name: 'Class 12' }),
     ).toHaveAttribute('aria-pressed', 'true');
     expect(within(paper).getAllByRole('radiogroup')).toHaveLength(20);
+    // The header names the page after what is on it
+    expect(
+      within(screen.getByRole('banner')).getAllByRole('link', {
+        name: 'PYQ Test Paper',
+      })[0],
+    ).toHaveAttribute('href', '/ai-test');
     // Real papers, not a feature in the workshop
     expect(screen.queryByText('In progress')).not.toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
