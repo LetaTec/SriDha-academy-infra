@@ -146,6 +146,18 @@ export const SAMPLE_TEST_QUESTION_COUNT = 20;
 // A minute a question
 export const SAMPLE_TEST_DURATION_SECONDS = 20 * 60;
 
+// The AI Test page (from the header): the paper leads the page
+export const AI_TEST_PAGE_TEXT = {
+  eyebrow: 'AI Test / Past papers',
+  title: 'Practise with',
+  titleEmphasis: 'real past papers.',
+  lead: 'Twenty questions from real Class 12 board, JEE Advanced and NEET papers. Pick a class or exam, beat the 20-minute clock and see your score straight away',
+  note: 'AI papers made for each student are on the way',
+  // The paper opens on the board and entrance exam questions
+  initialTrack: 'class12',
+  action: 'Browse topics',
+} as const;
+
 export const SAMPLE_TEST_TEXT = {
   brand: 'SriDha Academy / AI Assessment',
   count: (total: number) => `Q 01–${String(total).padStart(2, '0')}`,

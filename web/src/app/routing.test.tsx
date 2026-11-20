@@ -614,19 +614,25 @@ describe('app routing', () => {
     ).toHaveAttribute('href', '/team/orders');
   });
 
-  it('shows AI test papers as in progress, with progress derived from the milestones', async () => {
+  it('leads the AI test page with a past paper to take, opened on Class 12', async () => {
     vi.mocked(getCurrentSession).mockResolvedValue(student);
     renderApp('/ai-test');
 
-    const progress = await screen.findByRole(
-      'progressbar',
-      { name: 'Built so far' },
-      { timeout: LAZY_PAGE_TIMEOUT_MS },
-    );
-    // 2 written + 2 half-written of 6 chapters.
-    expect(progress).toHaveAttribute('aria-valuenow', '50');
-    expect(screen.getByText('2 of 6 chapters written')).toBeInTheDocument();
-    expect(screen.getAllByText('Being written')).toHaveLength(2);
+    expect(
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: /real past papers/ },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    const paper = screen.getByRole('region', { name: 'Sample test paper' });
+    expect(
+      within(paper).getByRole('button', { name: 'Class 12' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(within(paper).getAllByRole('radiogroup')).toHaveLength(20);
+    // Real papers, not a feature in the workshop
+    expect(screen.queryByText('In progress')).not.toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
   it('opens the model paper waitlist from the model paper page', async () => {
