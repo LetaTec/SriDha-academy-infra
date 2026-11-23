@@ -6,6 +6,7 @@ import { QueryClient } from '@tanstack/react-query';
 export const QUERY_KEY = {
   catalogue: ['catalogue'],
   teamOrders: ['team-orders'],
+  refunds: ['refunds'],
 } as const;
 
 const MINUTE_MS = 60 * 1000;

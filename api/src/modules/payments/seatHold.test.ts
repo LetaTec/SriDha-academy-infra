@@ -3,14 +3,16 @@ import { createHmac } from 'node:crypto';
 import { after, before, describe, it } from 'node:test';
 
 import {
+  createFakeRazorpay,
+  FAKE_RAZORPAY_KEY_SECRET as KEY_SECRET,
+} from '../../test/fakeRazorpay.js';
+import {
   startTestServer,
   validRegistration,
   type TestClient,
 } from '../../test/testServer.js';
 import { SEAT_HOLD_MINUTES } from '../catalogue/catalogue.repository.js';
-import { createRazorpayGateway, type PaymentGateway } from './gateway.js';
 
-const KEY_SECRET = 'rzp_test_secret';
 const BATCH = 'batch_gst_class_11_december';
 const START = new Date('2026-10-10T09:00:00Z');
 const BILLING = {
@@ -19,14 +21,9 @@ const BILLING = {
   mobile: '+91 98765 43210',
   state: 'Rajasthan',
   city: 'Jaipur',
-};
-
-const createFakeRazorpay = (): PaymentGateway => {
-  let orderNumber = 0;
-  return {
-    ...createRazorpayGateway('rzp_test_key', KEY_SECRET),
-    createOrder: async () => ({ orderId: `order_${(orderNumber += 1)}` }),
-  };
+  customerType: 'INDIVIDUAL',
+  addressLine1: '12 Civil Lines',
+  pinCode: '302006',
 };
 
 const minutesLater = (minutes: number) =>

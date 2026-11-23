@@ -38,6 +38,11 @@ export const createPaymentsRouter = (context: AppContext) => {
   const gateway =
     context.paymentGateway ?? createPaymentGateway(context.config);
 
+  // There is deliberately no tax-quote route yet. A quote is only safe to
+  // offer once checkout charges it (redeemTaxQuote) and invoicing is
+  // activated; until then a public quote would show GST that is never
+  // collected. See DECISION.md (finance audit remediation).
+
   // Paying needs no account: the order is filed under the billing email,
   // and the provider's signature is what proves a payment
   router.post('/checkout', async (req, res) => {

@@ -7,16 +7,19 @@ import type {
   Checkout,
   CheckoutKind,
   CreateCheckoutRequest,
+  CustomerType,
   PaymentStatus,
   VerifyPaymentRequest,
 } from '../../contracts/payments.js';
-import { transaction, type DatabaseClient } from '../../db/client.js';
+import { transaction } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { logger } from '../../logging/logger.js';
 import { findUserIdByEmail } from '../auth/auth.repository.js';
 import { emailSchema, mobileSchema } from '../auth/auth.schema.js';
 import { USER_ROLE } from '../auth/roles.js';
-import { INDIAN_STATES } from './indianStates.js';
+import { checkGstin } from '../finance/gstin.js';
+import { processEmailOutbox } from '../outbox/outbox.service.js';
+import { GST_STATE_CODE, INDIAN_STATES } from './indianStates.js';
 import {
   BATCH_AVAILABILITY,
   countActiveEnrolmentsForBatch,
@@ -28,7 +31,6 @@ import {
 import {
   findEnrolmentForBatch,
   renewEnrolmentHold,
-  setEnrolmentStatus,
 } from '../enrolments/enrolments.repository.js';
 import {
   createEnrolment,
@@ -36,15 +38,18 @@ import {
 } from '../enrolments/enrolments.service.js';
 import type { PaymentGateway } from './gateway.js';
 import {
+  applyPaymentEvent,
+  EVENT_SOURCE,
+  PAYMENT_STATUS,
+} from './payments.lifecycle.js';
+import {
   findBatchForPurchase,
-  findPaymentConfirmationRow,
   findPaymentById,
   findPreRegistration,
   findTopicForPreRegistration,
   insertBuyerIfNew,
   insertPayment,
   insertPreRegistration,
-  setPaymentPaid,
   setPreRegistrationStatus,
 } from './payments.repository.js';
 
@@ -53,41 +58,148 @@ export const CHECKOUT_KIND = {
   preRegistration: 'PRE_REGISTRATION',
 } as const satisfies Record<string, CheckoutKind>;
 
-export const PAYMENT_STATUS = {
-  created: 'CREATED',
-  paid: 'PAID',
-} as const satisfies Record<string, PaymentStatus>;
+export { PAYMENT_STATUS };
 
 export const PRE_REGISTRATION_STATUS = ENROLMENT_STATUS;
 
 const PAYMENT_CURRENCY = 'INR';
 
-// Who the receipt is for. Card and UPI details are entered in the
-// provider's own checkout and never reach this API.
-const billingFields = {
-  fullName: z.string().trim().min(2, 'Enter your full name').max(120),
-  email: emailSchema,
-  mobile: mobileSchema,
-  state: z.enum(INDIAN_STATES, 'Select your state'),
-  city: z.string().trim().min(2, 'Enter your city').max(80),
+export const CUSTOMER_TYPE = {
+  individual: 'INDIVIDUAL',
+  business: 'BUSINESS',
+} as const satisfies Record<string, CustomerType>;
+
+const GSTIN_PROBLEM_MESSAGE: Record<string, string> = {
+  length: 'A GSTIN has 15 characters. Please check the GSTIN',
+  format: 'This is not in the GSTIN format. Please check the GSTIN',
+  state:
+    'The first two digits are not a GST state code. Please check the GSTIN',
+  checksum:
+    'The last character does not match the rest. Please check the GSTIN',
 };
 
 // The client names a batch or a topic; the amount always comes from the
-// catalogue, and the seat is filed under the billing email.
-export const createCheckoutSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal(CHECKOUT_KIND.enrolment),
-    batchId: z.string().trim().min(1, 'Select a batch').max(100),
-    ...billingFields,
-  }),
-  z.strictObject({
-    kind: z.literal(CHECKOUT_KIND.preRegistration),
-    topicId: z.string().trim().min(1, 'Select a topic').max(150),
-    ...billingFields,
-  }),
-]) satisfies z.ZodType<CreateCheckoutRequest>;
+// catalogue, and the seat is filed under the billing email. Who the tax
+// invoice is for comes with it: an individual's billing address, or a
+// business's legal name, GSTIN and address. Card and UPI details are
+// entered in the provider's own checkout and never reach this API.
+export const createCheckoutSchema = z
+  .strictObject({
+    kind: z.enum([CHECKOUT_KIND.enrolment, CHECKOUT_KIND.preRegistration]),
+    batchId: z.string().trim().max(100).optional(),
+    topicId: z.string().trim().max(150).optional(),
+    customerType: z.enum(
+      [CUSTOMER_TYPE.individual, CUSTOMER_TYPE.business],
+      'Choose individual or business',
+    ),
+    fullName: z.string().trim().min(2, 'Enter your full name').max(120),
+    email: emailSchema,
+    mobile: mobileSchema,
+    addressLine1: z
+      .string()
+      .trim()
+      .min(3, 'Enter the billing address')
+      .max(200),
+    addressLine2: z.string().trim().max(200).optional(),
+    state: z.enum(INDIAN_STATES, 'Select your state'),
+    city: z.string().trim().min(2, 'Enter your city').max(80),
+    pinCode: z
+      .string()
+      .trim()
+      .regex(/^[1-9][0-9]{5}$/, 'Enter the 6-digit PIN code'),
+    businessLegalName: z.string().trim().max(200).optional(),
+    gstin: z.string().max(30).optional(),
+    purchaseOrderReference: z.string().trim().max(60).optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (input.kind === CHECKOUT_KIND.enrolment && !input.batchId) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['batchId'],
+        message: 'Select a batch',
+      });
+    }
+    if (input.kind === CHECKOUT_KIND.preRegistration && !input.topicId) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['topicId'],
+        message: 'Select a topic',
+      });
+    }
+
+    if (input.customerType === CUSTOMER_TYPE.individual) {
+      for (const field of [
+        'businessLegalName',
+        'gstin',
+        'purchaseOrderReference',
+      ] as const) {
+        if (input[field] !== undefined) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [field],
+            message: 'Only a business purchase has this',
+          });
+        }
+      }
+      return;
+    }
+
+    if (!input.businessLegalName || input.businessLegalName.length < 2) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['businessLegalName'],
+        message: "Enter the business's legal name",
+      });
+    }
+
+    if (!input.gstin?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['gstin'],
+        message: 'Enter the GSTIN',
+      });
+      return;
+    }
+    const gstin = checkGstin(input.gstin);
+    if (!gstin.valid) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['gstin'],
+        message: GSTIN_PROBLEM_MESSAGE[gstin.problem],
+      });
+    } else if (gstin.state !== input.state) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['gstin'],
+        message: `This GSTIN is registered in ${gstin.state}. Choose ${gstin.state} as the billing state, or check the GSTIN`,
+      });
+    }
+  }) satisfies z.ZodType<CreateCheckoutRequest>;
 
 export type CreateCheckoutInput = z.infer<typeof createCheckoutSchema>;
+
+// The billing details as they are kept on the payment: GSTIN normalised,
+// both states as GST state codes, business fields only for a business
+const toBillingSnapshot = (input: CreateCheckoutInput) => {
+  const gstin =
+    input.customerType === CUSTOMER_TYPE.business && input.gstin
+      ? checkGstin(input.gstin)
+      : null;
+  return {
+    customerType: input.customerType,
+    addressLine1: input.addressLine1,
+    addressLine2: input.addressLine2?.trim() || null,
+    pinCode: input.pinCode,
+    billingStateCode: GST_STATE_CODE[input.state],
+    businessLegalName: gstin ? (input.businessLegalName ?? null) : null,
+    gstin: gstin?.valid ? gstin.gstin : null,
+    gstinStateCode: gstin?.valid ? gstin.stateCode : null,
+    gstinCheck: gstin?.valid ? 'FORMAT_VALID' : null,
+    purchaseOrderReference: gstin
+      ? input.purchaseOrderReference?.trim() || null
+      : null,
+  };
+};
 
 export const verifyPaymentSchema = z.strictObject({
   paymentId: z.string().trim().min(1).max(100),
@@ -107,6 +219,13 @@ type Purchase = {
   topic: Checkout['topic'];
   batch: Checkout['batch'];
 };
+
+// What was sold, as recorded on the payment: reports and documents read
+// this snapshot, never the live catalogue, which can be renamed or repriced
+const describeItem = (purchase: Purchase) =>
+  purchase.batch
+    ? `${purchase.topic.title} — ${purchase.batch.name}`
+    : `${purchase.topic.title} — Pre-registration`;
 
 const toPurchaseTopic = (row: Row): Checkout['topic'] => ({
   id: String(row.t_id),
@@ -313,10 +432,11 @@ export const createCheckout = async (
   input: CreateCheckoutInput,
 ): Promise<Checkout> => {
   const userId = await findOrCreateBuyer(context, input.email);
+  // The schema guarantees the id that matches the kind
   const purchase =
     input.kind === CHECKOUT_KIND.enrolment
-      ? await prepareEnrolment(context, userId, input.batchId)
-      : await preparePreRegistration(context, userId, input.topicId);
+      ? await prepareEnrolment(context, userId, String(input.batchId))
+      : await preparePreRegistration(context, userId, String(input.topicId));
 
   const paymentId = randomUUID();
   const { orderId } = await gateway.createOrder({
@@ -341,6 +461,11 @@ export const createCheckout = async (
     billingMobile: input.mobile,
     billingState: input.state,
     billingCity: input.city,
+    ...toBillingSnapshot(input),
+    itemDescription: describeItem(purchase),
+    itemTopicId: purchase.topic.id,
+    itemBatchId: purchase.batch?.id ?? null,
+    unitPricePaise: purchase.amountPaise,
     timestamp,
   });
 
@@ -359,116 +484,107 @@ export const createCheckout = async (
   };
 };
 
-// Marks a payment as paid and confirms the seat it was for. Shared by the
-// browser's verification and Razorpay's webhook, inside their transaction.
-export const markPaymentPaid = async (
-  tx: DatabaseClient,
-  payment: Row,
-  providerPaymentId: string,
-  timestamp: string,
-) => {
-  await setPaymentPaid(
-    tx,
-    String(payment.id),
-    PAYMENT_STATUS.paid,
-    providerPaymentId,
-    timestamp,
-  );
-
-  if (payment.enrolment_id !== null) {
-    await setEnrolmentStatus(
-      tx,
-      String(payment.enrolment_id),
-      ENROLMENT_STATUS.confirmed,
-      timestamp,
-    );
-  } else {
-    await setPreRegistrationStatus(
-      tx,
-      String(payment.pre_registration_id),
-      PRE_REGISTRATION_STATUS.confirmed,
-      timestamp,
-    );
-  }
-};
-
-// Confirms the seat only when the provider's signature matches the order
-// created for this payment. Only the provider and this API know the key
-// that signs it, so no account is needed.
+// The browser's confirmation. A valid provider signature proves Razorpay
+// authorised this payment for this order, so the payment becomes
+// AUTHORIZED; it becomes PAID only when Razorpay's own record shows it
+// captured for the same order, amount and currency. If Razorpay cannot be
+// read, or has not captured yet, the payment stays AUTHORIZED and the
+// capture webhook completes it. No account is needed: only the provider
+// and this API know the key that signs payments.
 export const verifyPayment = async (
   context: AppContext,
   gateway: PaymentGateway,
   input: VerifyPaymentInput,
-) => {
-  const timestamp = context.now().toISOString();
+): Promise<{ paymentId: string; status: PaymentStatus }> => {
+  const payment = await findPaymentById(context.db, input.paymentId);
 
-  const result = await transaction(context.db, async tx => {
-    const payment = await findPaymentById(tx, input.paymentId);
-
-    if (!payment) {
-      throw new ApiError(
-        404,
-        ERROR_CODE.paymentNotFound,
-        'This payment does not exist',
-      );
-    }
-
-    if (payment.status === PAYMENT_STATUS.paid) {
-      return { confirmedNow: false };
-    }
-
-    const isValid =
-      String(payment.provider_order_id) === input.providerOrderId &&
-      gateway.verifySignature({
-        orderId: input.providerOrderId,
-        paymentId: input.providerPaymentId,
-        signature: input.signature,
-      });
-
-    if (!isValid) {
-      throw new ApiError(
-        400,
-        ERROR_CODE.paymentVerificationFailed,
-        'We could not confirm this payment. You have not been charged twice; please contact us if money was taken',
-      );
-    }
-
-    await markPaymentPaid(tx, payment, input.providerPaymentId, timestamp);
-
-    return { confirmedNow: true };
-  });
-
-  if (result.confirmedNow) {
-    await sendPaymentConfirmation(context, input.paymentId);
+  if (!payment) {
+    throw new ApiError(
+      404,
+      ERROR_CODE.paymentNotFound,
+      'This payment does not exist',
+    );
   }
 
-  return { paymentId: input.paymentId, status: PAYMENT_STATUS.paid };
+  if (payment.status === PAYMENT_STATUS.paid) {
+    return { paymentId: input.paymentId, status: PAYMENT_STATUS.paid };
+  }
+
+  const isValid =
+    String(payment.provider_order_id) === input.providerOrderId &&
+    gateway.verifySignature({
+      orderId: input.providerOrderId,
+      paymentId: input.providerPaymentId,
+      signature: input.signature,
+    });
+
+  if (!isValid) {
+    throw new ApiError(
+      400,
+      ERROR_CODE.paymentVerificationFailed,
+      'We could not confirm this payment. You have not been charged twice; please contact us if money was taken',
+    );
+  }
+
+  await applyPaymentEvent(context, {
+    provider: gateway.provider,
+    source: EVENT_SOURCE.signature,
+    eventId: `signature:${input.providerPaymentId}`,
+    eventType: 'payment.signature_verified',
+    providerPaymentId: input.providerPaymentId,
+    providerOrderId: input.providerOrderId,
+    amountPaise: null,
+    currency: null,
+    payload: {
+      payment_id: input.providerPaymentId,
+      order_id: input.providerOrderId,
+    },
+  });
+
+  const remote = await gateway.fetchPayment(input.providerPaymentId);
+  if (remote) {
+    const result = await applyPaymentEvent(context, {
+      provider: gateway.provider,
+      source: EVENT_SOURCE.fetch,
+      eventId: `fetch:${remote.id}:${remote.status}`,
+      eventType: `payment.${remote.status}`,
+      providerPaymentId: remote.id,
+      providerOrderId: remote.orderId,
+      amountPaise: remote.amountPaise,
+      currency: remote.currency,
+      payload: {
+        id: remote.id,
+        order_id: remote.orderId,
+        amount: remote.amountPaise,
+        currency: remote.currency,
+        status: remote.status,
+      },
+    });
+
+    if (result.confirmedPaymentId) {
+      await sendPaymentConfirmation(context, result.confirmedPaymentId);
+    }
+  }
+
+  const current = await findPaymentById(context.db, input.paymentId);
+  return {
+    paymentId: input.paymentId,
+    status: String(current?.status ?? payment.status) as PaymentStatus,
+  };
 };
 
-const formatRupees = (paise: number) =>
-  `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-
-// Emails the student once their payment is confirmed, by the browser or by
-// Razorpay's webhook. A failed email is logged and never undoes the payment.
+// Dispatches outbox emails immediately so that on happy paths the confirmation
+// email is sent with zero delay. If dispatch fails, the row remains in the
+// email_outbox table for the background worker to retry with exponential backoff.
 export const sendPaymentConfirmation = async (
   context: AppContext,
-  paymentId: string,
+  _paymentId: string,
 ) => {
   if (!context.mailer) return;
 
   try {
-    const row = await findPaymentConfirmationRow(context.db, paymentId);
-    if (!row) return;
-
-    await context.mailer.sendPaymentConfirmation(String(row.billing_email), {
-      fullName: String(row.billing_name),
-      topic: String(row.topic_title),
-      batch: row.batch_name === null ? null : String(row.batch_name),
-      amount: formatRupees(Number(row.amount_paise)),
-      paymentReference: String(row.provider_payment_id ?? row.id),
-      topicsUrl: `${context.config.webOrigin}/topics`,
-    });
+    await processEmailOutbox(context);
   } catch (error) {
-    logger.error('payments.confirmation_email_failed', { paymentId, error });
+    logger.error('payments.outbox_process_failed', { error });
   }
 };

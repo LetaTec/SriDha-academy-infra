@@ -72,6 +72,60 @@
   border: 0;
 }
 
+.customerTypes {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.customerTypeOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1-5);
+}
+
+.customerTypeOption {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-1-5);
+  padding: var(--space-1-5) var(--space-2);
+  border: var(--border-width-base) solid var(--color-border-base);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.customerTypeOption:hover,
+.customerTypeOption:focus-within {
+  border-color: var(--color-border-strong);
+}
+
+.customerTypeSelected {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-subtle);
+}
+
+.customerTypeOption input {
+  margin-top: var(--space-0-25);
+  accent-color: var(--color-bg-inverse);
+}
+
+.customerTypeLabel {
+  display: grid;
+  gap: var(--space-0-25);
+}
+
+.businessFields {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--border-width-base) solid var(--color-border-base);
+}
+
 .legend {
   margin-bottom: var(--space-1);
   padding: 0;
@@ -146,10 +200,15 @@
   .fieldPair {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .customerTypeOptions {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (--reduced-motion) {
-  .batch {
+  .batch,
+  .customerTypeOption {
     transition: none;
   }
 }

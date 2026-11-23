@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import cx from 'classnames/bind';
 
-import { canViewTeamOrders } from '@/access/team';
+import { canViewRefunds, canViewTeamOrders } from '@/access/team';
 import { BrandLogo } from '@components/brand/BrandLogo/BrandLogo';
 import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Container } from '@components/ui/Container/Container';
@@ -73,6 +73,15 @@ export const SiteHeader = () => {
             onClick={() => setIsMenuOpen(false)}
           >
             {HEADER_TEXT.teamOrders}
+          </ButtonRouteLink>
+        ) : null}
+        {canViewRefunds(auth) ? (
+          <ButtonRouteLink
+            variant="plain"
+            to={APP_ROUTES.TEAM_REFUNDS}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            {HEADER_TEXT.teamRefunds}
           </ButtonRouteLink>
         ) : null}
         <Button

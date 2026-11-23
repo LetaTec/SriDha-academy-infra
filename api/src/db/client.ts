@@ -2,6 +2,8 @@
 import { PGlite } from '@electric-sql/pglite';
 import pg from 'pg';
 
+import { logger } from '../logging/logger.js';
+import { toPoolConnection, type DatabaseTls } from './connection.js';
 import { MIGRATIONS } from './migrations.js';
 
 const { Pool } = pg;
@@ -48,16 +50,25 @@ export const isInMemoryDatabase = (
 ): databaseUrl is typeof IN_MEMORY_DATABASE | '' | null | undefined =>
   !databaseUrl || databaseUrl === IN_MEMORY_DATABASE;
 
+// TLS defaults to verifying the server certificate; local plain
+// connections pass { mode: 'disable' } (config.databaseTls does this)
 export const openDatabase = async (
   databaseUrl?: string | null,
   maxConnections = 10,
+  tls: DatabaseTls = { mode: 'verify', ca: null },
 ): Promise<Database> => {
   if (!isInMemoryDatabase(databaseUrl)) {
-    const isProduction = process.env.NODE_ENV === 'production';
+    const connection = toPoolConnection(databaseUrl, tls);
+    if (connection.ignoredUrlParameters.length > 0) {
+      logger.warn('db.url_tls_parameters_ignored', {
+        parameters: connection.ignoredUrlParameters,
+        effect: 'DATABASE_SSL decides TLS',
+      });
+    }
     const pool = new Pool({
-      connectionString: databaseUrl,
+      connectionString: connection.connectionString,
       max: maxConnections,
-      ssl: isProduction ? { rejectUnauthorized: false } : undefined,
+      ssl: connection.ssl,
     });
 
     const clientWrapper: DatabaseClient = {

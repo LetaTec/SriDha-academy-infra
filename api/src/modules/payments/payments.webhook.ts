@@ -1,26 +1,23 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 
 import type { AppContext } from '../../app/context.js';
-import { transaction } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
-import { logger } from '../../logging/logger.js';
-import { findPaymentByOrderId } from './payments.repository.js';
+import { PAYMENT_PROVIDER } from './gateway.js';
 import {
-  markPaymentPaid,
-  PAYMENT_STATUS,
-  sendPaymentConfirmation,
-} from './payments.service.js';
-
-// Events that mean the money has been captured
-const PAID_EVENTS = new Set(['payment.captured', 'order.paid']);
+  applyPaymentEvent,
+  EVENT_SOURCE,
+  sanitizeWebhookBody,
+} from './payments.lifecycle.js';
+import { sendPaymentConfirmation } from './payments.service.js';
 
 // Only the fields we use. Razorpay sends many more and adds new ones, so
 // this schema is not strict; the signature proves the body came from them.
 const webhookEventSchema = z.object({
   event: z.string(),
+  created_at: z.number().optional(),
   payload: z
     .object({
       payment: z
@@ -29,6 +26,39 @@ const webhookEventSchema = z.object({
             id: z.string(),
             order_id: z.string().nullable().optional(),
             amount: z.number(),
+            currency: z.string().optional(),
+            error_code: z.string().nullable().optional(),
+            error_description: z.string().nullable().optional(),
+          }),
+        })
+        .optional(),
+      refund: z
+        .object({
+          // Deliberately loose: a refund event that is incomplete or the
+          // wrong type is still stored and judged by refundEvidence.ts, which
+          // records an exception for finance. Rejecting it here would only
+          // make Razorpay retry it for ever and leave no record.
+          entity: z.object({
+            id: z.unknown().optional(),
+            payment_id: z.unknown().optional(),
+            amount: z.unknown().optional(),
+            currency: z.unknown().optional(),
+            receipt: z.unknown().optional(),
+            status: z.unknown().optional(),
+          }),
+        })
+        .optional(),
+      dispute: z
+        .object({
+          entity: z.object({
+            id: z.string(),
+            payment_id: z.string(),
+            amount: z.number(),
+            amount_deducted: z.number().optional(),
+            currency: z.string().optional(),
+            status: z.string(),
+            phase: z.string().nullable().optional(),
+            reason_code: z.string().nullable().optional(),
           }),
         })
         .optional(),
@@ -48,39 +78,16 @@ const isSignatureValid = (body: Buffer, signature: string, secret: string) => {
   );
 };
 
-// Confirms the seat for a captured payment and returns its id, or null when
-// nothing changed. Unknown orders, payments that are already confirmed and
-// other events are acknowledged and ignored, so Razorpay stops retrying.
-const confirmCapturedPayment = async (
-  context: AppContext,
-  orderId: string,
-  providerPaymentId: string,
-  amountPaise: number,
-) =>
-  transaction(context.db, async tx => {
-    const payment = await findPaymentByOrderId(tx, orderId);
+// Razorpay delivers at least once and names each event in
+// x-razorpay-event-id. Without that header, the body's own hash stands in,
+// so an identical redelivery is still recognised.
+const eventIdOf = (header: string | undefined, body: Buffer) =>
+  header?.trim() ||
+  `body-sha256:${createHash('sha256').update(body).digest('hex')}`;
 
-    if (!payment || payment.status === PAYMENT_STATUS.paid) return null;
-
-    if (Number(payment.amount_paise) !== amountPaise) {
-      logger.error('payments.webhook_amount_mismatch', {
-        orderId,
-        paymentId: String(payment.id),
-        webhookAmountPaise: amountPaise,
-        orderAmountPaise: Number(payment.amount_paise),
-      });
-      return null;
-    }
-
-    await markPaymentPaid(
-      tx,
-      payment,
-      providerPaymentId,
-      context.now().toISOString(),
-    );
-    return String(payment.id);
-  });
-
+// Every verified event is stored once and acknowledged. Payment events move
+// the payment (see payments.lifecycle.ts); refund, dispute and other events
+// are kept for the finance records. Razorpay stops retrying on any 2xx.
 export const createRazorpayWebhookHandler =
   (context: AppContext): RequestHandler =>
   async (req, res) => {
@@ -103,9 +110,11 @@ export const createRazorpayWebhookHandler =
       );
     }
 
+    let raw: unknown;
     let event: z.infer<typeof webhookEventSchema>;
     try {
-      event = webhookEventSchema.parse(JSON.parse(body.toString('utf8')));
+      raw = JSON.parse(body.toString('utf8'));
+      event = webhookEventSchema.parse(raw);
     } catch {
       throw new ApiError(
         400,
@@ -114,17 +123,59 @@ export const createRazorpayWebhookHandler =
       );
     }
 
-    const entity = event.payload?.payment?.entity;
-    if (PAID_EVENTS.has(event.event) && entity?.order_id) {
-      const confirmedPaymentId = await confirmCapturedPayment(
-        context,
-        entity.order_id,
-        entity.id,
-        entity.amount,
-      );
-      if (confirmedPaymentId) {
-        await sendPaymentConfirmation(context, confirmedPaymentId);
-      }
+    const payment = event.payload?.payment?.entity;
+    const refund = event.payload?.refund?.entity;
+    const dispute = event.payload?.dispute?.entity;
+    const result = await applyPaymentEvent(context, {
+      provider: PAYMENT_PROVIDER.razorpay,
+      source: EVENT_SOURCE.webhook,
+      eventId: eventIdOf(req.get('x-razorpay-event-id'), body),
+      eventType: event.event,
+      providerPaymentId:
+        payment?.id ??
+        (typeof refund?.payment_id === 'string' ? refund.payment_id : null) ??
+        dispute?.payment_id ??
+        null,
+      providerOrderId: payment?.order_id ?? null,
+      amountPaise: payment?.amount ?? null,
+      currency: payment?.currency ?? null,
+      failureCode: payment?.error_code ?? null,
+      failureReason: payment?.error_description ?? null,
+      // A dispute event can also carry the payment entity; the dispute
+      // itself is what is being reported
+      ...(refund && event.event.startsWith('refund.')
+        ? {
+            refund: {
+              id: refund.id,
+              paymentId: refund.payment_id,
+              amountPaise: refund.amount,
+              currency: refund.currency,
+              receipt: refund.receipt,
+              status: refund.status,
+            },
+          }
+        : {}),
+      ...(dispute && event.event.startsWith('payment.dispute.')
+        ? {
+            dispute: {
+              id: dispute.id,
+              paymentId: dispute.payment_id,
+              amountPaise: dispute.amount,
+              amountDeductedPaise: dispute.amount_deducted ?? 0,
+              currency: dispute.currency ?? null,
+              status: dispute.status,
+              phase: dispute.phase ?? null,
+              reasonCode: dispute.reason_code ?? null,
+            },
+          }
+        : {}),
+      payload: sanitizeWebhookBody(
+        raw as { event: string; created_at?: unknown; payload?: unknown },
+      ),
+    });
+
+    if (result.confirmedPaymentId) {
+      await sendPaymentConfirmation(context, result.confirmedPaymentId);
     }
 
     res.json({ received: true });

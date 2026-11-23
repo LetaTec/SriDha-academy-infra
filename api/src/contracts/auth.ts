@@ -1,7 +1,11 @@
 // Accounts, sign-in and registration. See catalogue.ts for what this folder
 // is.
 
-export type UserRole = 'STUDENT' | 'SUPER_ADMIN';
+// Staff roles sign in with an emailed one-time link and have no student
+// profile. FINANCE_ADMIN works with payments, refunds, invoices and
+// reports; OPERATIONS_ADMIN with operational views only.
+export type UserRole =
+  'STUDENT' | 'SUPER_ADMIN' | 'FINANCE_ADMIN' | 'OPERATIONS_ADMIN';
 
 export type StudentStandard =
   | 'CLASS_10'

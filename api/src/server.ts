@@ -1,16 +1,16 @@
 import { createApp } from './app/app.js';
 import { loadConfigFromEnvironment } from './config/env.js';
 import { seedCatalogue } from './db/catalogueSeed.js';
-import {
-  isInMemoryDatabase,
-  openDatabase,
-  runMigrations,
-} from './db/client.js';
+import { isInMemoryDatabase } from './db/client.js';
+import { openApplicationDatabase } from './db/startup.js';
 import { startCleanupJobs } from './jobs/cleanup.js';
 import { initErrorReporting } from './logging/errorReporting.js';
 import { configureLogger, logger } from './logging/logger.js';
 import { createMailer } from './mail/mailer.js';
-import { syncSuperAdmins } from './modules/auth/roles.js';
+import { syncStaffRoles } from './modules/auth/roles.js';
+import { createPaymentGateway } from './modules/payments/gateway.js';
+import { startFinanceJobs } from './jobs/finance.js';
+import { startOutboxJobs } from './jobs/outbox.js';
 
 const config = loadConfigFromEnvironment();
 configureLogger({
@@ -27,16 +27,15 @@ process.on('unhandledRejection', reason => {
   logger.error('process.unhandled_rejection', { error: reason });
 });
 
-const db = await openDatabase(config.databaseUrl, config.pgMaxConnections);
-await runMigrations(db);
+// Two roles in production: the owner migrates and grants, the API serves
+// as a restricted role (checked; any problem stops start-up). Locally,
+// DATABASE_URL may do both. See docs/database-roles.md.
+const db = await openApplicationDatabase(config);
 
-// SUPER_ADMIN_EMAILS is the source of truth for who is a super admin.
-const superAdminCount = await syncSuperAdmins(
-  db,
-  config.superAdminEmails,
-  new Date(),
-);
-logger.info('auth.super_admins_synced', { count: superAdminCount });
+// The staff email lists are the source of truth for staff roles; every
+// change is recorded in the finance audit log.
+const staffCount = await syncStaffRoles(db, config, new Date());
+logger.info('auth.staff_roles_synced', { count: staffCount });
 
 // An in-memory database starts empty on every run and no other process can
 // reach it, so the server loads the catalogue itself. The seed is idempotent.
@@ -55,8 +54,13 @@ if (!mailer) {
 }
 
 const now = () => new Date();
-const app = createApp({ db, config, mailer, now });
+// One gateway for the routes and the jobs (Razorpay with keys, otherwise
+// test mode)
+const paymentGateway = createPaymentGateway(config);
+const app = createApp({ db, config, mailer, now, paymentGateway });
 const stopCleanupJobs = startCleanupJobs({ db, now });
+const stopFinanceJobs = startFinanceJobs({ db, now, config }, paymentGateway);
+const stopOutboxJobs = startOutboxJobs({ db, mailer, now });
 
 const server = app.listen(config.port, () => {
   logger.info('api.listening', {
@@ -68,6 +72,8 @@ const server = app.listen(config.port, () => {
 
 const shutdown = () => {
   stopCleanupJobs();
+  stopFinanceJobs();
+  stopOutboxJobs();
   server.close(async () => {
     await db.close();
     await flushErrorReports?.();

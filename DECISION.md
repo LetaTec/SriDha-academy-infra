@@ -924,3 +924,451 @@ A structural review found gaps that cause real bugs as the platform and team gro
 
 - Upgrade the Render PostgreSQL instance before its free-tier expiry (November 18, 2026, see DEC-014) and set up backups.
 - Teacher accounts, once class delivery is decided.
+
+## DEC-021: Finance Audit Remediation — Invoicing Off Until GST Is Collected and Approved
+
+- **Decision ID**: `DEC-021`
+- **Date**: `2026-11-17`
+- **Decision Title**: Tax invoices are issued only for GST actually collected, behind a recorded CA approval, outside the payment-capture transaction
+- **Status**: Implemented & Locally Verified (not committed, not deployed)
+
+### 1. Context / Problem
+
+An independent audit of `feat/finance-platform` (November 2026) proved by execution that:
+
+- an invoice was issued for every captured payment with 18% GST added **on top of** the amount collected (₹129.00 captured, invoice ₹152.22);
+- it was issued while the tax configuration was still pending CA approval (`tax_status = PENDING_CONFIGURATION`);
+- invoice reconciliation wrote the number, invoice and snapshot as separate commits, leaving a permanent invoice with no snapshot when the last step failed;
+- an invoicing error inside the capture transaction aborted it, so Razorpay's capture webhook returned 500 and the payment stayed `CREATED`;
+- issued invoices could be edited or deleted, the financial year was computed in UTC, missing addresses were replaced with placeholders (including the supplier's own PIN), and a public quote endpoint produced GST figures that checkout never charged.
+
+### 2. Decision(s)
+
+1. **Two switches activate invoicing**: `INVOICING_ENABLED=true` and an `APPROVED`, effective row in the new append-only `tax_configuration_approvals` table matching the exact configuration in code (supplier GSTIN, SAC, rate, pricing mode, calculation version, rounding policy). A later `REVOKED` row, a changed configuration, an approval dated before GST registration (1 July 2026 IST) or not yet effective all switch it off.
+2. **Only GST that was collected is invoiced.** A payment is invoiceable only when `tax_status = 'QUOTED'` with its redeemed quote (`payments.tax_quote_id`, new), the quote's total equals the captured amount, and the payment was made on or after the approval took effect. Today's checkout charges the catalogue price and never sets `QUOTED`, so **no invoice is issued for any payment taken now**, and no historical invoice can be backdated.
+3. **Capture never depends on invoicing.** Issuance was removed from `applyPaymentEvent`; the hourly finance job issues invoices afterwards.
+4. **One transaction per invoice**: the payment row is locked, then number allocation, invoice and snapshot commit or roll back together.
+5. **Database guards (migration `018_invoicing_safeguards`)**: invoices immutable; the sequence starts at 1 and only advances by one; an invoice must take the number just allocated; an invoice cannot commit without its snapshot (deferred constraint trigger); a snapshot must equal the amount collected on a paid, `QUOTED` payment.
+6. **No invented details**: incomplete billing details stop issuance with `INCOMPLETE_BILLING_DETAILS`.
+7. **Financial year from the Indian calendar date** (UTC+05:30).
+8. **The public `POST /api/payments/tax-quotes` route is removed** until checkout charges quotes. `redeemTaxQuote` (locked; ownership, expiry, single use, item, price, billing and configuration checks) is ready for that integration but not wired in.
+
+### 3. Alternatives Considered
+
+- Back-calculating GST out of the amount already collected (treating prices as GST-inclusive): rejected, as it changes the commercial terms and is a CA and owner decision.
+- A SAVEPOINT around issuance inside the capture transaction: rejected, because it still couples capture latency and locks to invoicing.
+- Disabling payments until invoicing is fixed: rejected, because customers must still be able to pay.
+
+### 4. Reason
+
+An invoice must never state an amount or tax that was not collected. Payment recording is the priority; tax documents follow it and must be correct or absent.
+
+### 5. Consequences / Trade-offs
+
+- Until checkout charges quoted GST and the CA approval is recorded, the platform issues **no tax invoices**. Checkout copy still promises a "tax invoice"; that is an open owner decision.
+- Invoices appear up to an hour after payment once active (job cadence).
+- Migration 018 undo is documented in `api/src/db/migrations.ts`. It applied cleanly to a throwaway copy of the local development data (migrations 012–018; the existing payment stays `LEGACY_UNREVIEWED`).
+- Recording an approval is a manual SQL insert by the owner (no screen yet).
+
+### 6. Tests & Evidence (2026-11-17)
+
+- `npm run typecheck` 0 errors; `npm run lint` 0 problems; `npm run build` passed.
+- `npm test -w api`: 233 passed, 0 failed, 0 skipped. This includes 6 tests on a throwaway real PostgreSQL 16 database (`TEST_DATABASE_URL`; concurrent job runs, concurrent issuance of one payment, concurrent quote redemption, rollback without gaps, capture during an invoicing outage).
+- `npm test -w web`: 101 passed (14 files).
+- Mutation check: each of 17 fixes was reverted one at a time in a scratch copy, and the guarding test failed each time.
+- Not run: Playwright e2e. `npx prettier --check .` still reports 37 pre-existing files outside this change.
+
+## DEC-022: Phase 1 Financial Foundation — Ledger Truth, Refund Safety, Role Separation
+
+- **Decision ID**: `DEC-022`
+- **Date**: `2026-11-17`
+- **Decision Title**: Fix every finding of the independent verification of DEC-021 before any dashboard or BI work
+- **Status**: Implemented & Locally Verified (not committed, not deployed; awaiting an independent read-only audit)
+
+### 1. Context / Problem
+
+A fresh-context, read-only audit verified DEC-021. It found C1, C3, C4, H2 and H3 fixed, and C2, H1 and H5 partial. It also found new, reproduced defects:
+
+- the finance report counted unpaid orders as collected;
+- a refund missing from Razorpay's list was marked FAILED for good (a later "processed" was ignored), freeing its amount for a second refund;
+- the invoice job could starve behind 50 payments that keep failing;
+- confirmation emails could be delivered twice;
+- immutability could be bypassed with TRUNCATE, by disabling triggers, or with `session_replication_role`;
+- production PostgreSQL skipped TLS certificate verification;
+- checkout promised a tax invoice that is never issued.
+
+### 2. Decisions
+
+1. **Report:** only PAID payments count as collected. Processed refunds are deducted; pending (and under-review) refunds are shown separately. The summary states it covers captured amounts, not bank receipts. CSV neutralises leading tab and CR formulas. One request covers at most 20,000 rows.
+2. **Refunds:**
+   - Absence from Razorpay's list never fails a refund. After 24 hours it becomes `REQUIRES_REVIEW`, a new state that keeps its amount reserved.
+   - Razorpay reporting a refund processed overrides a locally recorded FAILED. This is audited, and refused if it would exceed the captured amount. PROCESSED stays final.
+   - Only definite refusals are failures; 408, 409, 429 and 5xx are "unknown".
+   - The refund list is read page by page.
+   - `X-Refund-Idempotency` is sent with the refund receipt (Razorpay documents this header for refunds).
+3. **Approvals:**
+   - The latest record is decided by a database identity (`seq`), never caller timestamps.
+   - An approval cannot take effect before it is recorded (checked in the service and the database).
+   - Recording and revoking go through `POST /api/finance/tax-approvals`, which is super-admin only, audited (`TAX_APPROVAL_RECORDED`) and always uses the configuration in code. Finance staff can read the state.
+   - Issuing an invoice re-checks the approval inside its transaction, under a shared advisory lock that a revocation takes exclusively.
+4. **Invoice job:**
+   - Failed payments back off (1h, 2h ... 24h) in `invoice_issuance_attempts`, and never-tried payments go first.
+   - `processed` counts only invoices created by the run.
+   - Older invoices that break the money rules are reported, never changed.
+5. **Database (migration `019_finance_integrity_hardening`):**
+   - TRUNCATE is refused on every financial table.
+   - Invoices are unique per (financial year, sequence), and the number text must be `INV/<year>/<sequence>`.
+   - Snapshots must belong to an invoice and match every quoted amount.
+   - Only an unused quote's status may change.
+   - `email_outbox.claim_token` is added, and the 018 check constraint is validated.
+6. **Role separation (owner decision B):** `MIGRATION_DATABASE_URL` (owner) runs migrations and grants a restricted `DATABASE_URL` role that owns nothing and may only insert into append-only records. Single-role mode is unchanged for local development. See `docs/database-roles.md`.
+7. **TLS:** production verifies the database certificate (`DATABASE_SSL=verify`, optional `DATABASE_SSL_CA`), refuses `disable`, and ignores TLS settings inside URLs, which node-postgres would otherwise let override verification.
+8. **Outbox:**
+   - Each email carries its stable key as Resend's `Idempotency-Key` (Resend keeps keys for 24 hours).
+   - Only the worker holding the current claim token may record a result.
+   - A failed "mark sent" no longer counts as a failed send.
+   - An email abandoned on its last attempt is failed, not resent.
+   - Log lines mask recipient addresses.
+9. **Checkout (owner decision A):** the approved neutral wording replaces every tax-invoice promise. A test keeps "tax invoice" out of checkout copy.
+
+### 3. Alternatives Considered
+
+- Marking absent refunds FAILED after a longer delay: rejected. Any automatic FAILED can free money Razorpay actually refunded, so a person decides instead.
+- Requiring `MIGRATION_DATABASE_URL` in production: deferred. It would stop an unprepared deployment, so a loud warning was chosen; it can be made mandatory once production is configured.
+- Allowing `DATABASE_SSL=disable` in production for private networks: rejected, per the owner's TLS requirement.
+
+### 4. Reason
+
+Business intelligence built on these records must start from figures that agree with Razorpay and with each other.
+
+### 5. Consequences / Trade-offs
+
+- `REQUIRES_REVIEW` refunds need a person, and there is no screen yet (Phase 2).
+- The report's summary fields changed, which is a contract change; no website screen used them.
+- Recording an approval is now an API call; a screen comes with the GST centre.
+- Production needs the role and TLS configuration in `docs/database-roles.md` before deployment.
+- The migration 019 undo is documented in `api/src/db/migrations.ts`.
+
+### 6. Tests & Evidence (2026-11-17)
+
+- Typecheck 0 errors; lint 0 problems; build passed.
+- API: 266 passed, 0 failed, 0 skipped. This includes real-PostgreSQL suites run against throwaway databases: invoice concurrency, and the restricted role running the whole money path.
+- Web: 103 passed (15 files).
+- Each of 25 fixes was reverted one at a time in a scratch copy, and its test failed every time. Two tests were tightened during this check.
+- The real API started with split roles on a throwaway copy of the local development data: migrations through 019 applied, health OK, and the application role owned 0 tables. `sridha_dev` was unchanged.
+- Not run: Playwright end-to-end.
+
+## DEC-023: Phase 1.6 Financial Integrity Closure
+
+- **Decision ID**: `DEC-023`
+- **Date**: `2026-11-17`
+- **Decision Title**: Close every finding of the Phase 1.5 independent audit, with database-level guards and real-PostgreSQL proof
+- **Status**: Implemented & Locally Verified (not committed, not deployed; awaiting the Phase 1.7 independent audit)
+
+### 1. Context / Problem
+
+The Phase 1.5 independent audit gave Phase 1 a conditional pass. It reproduced:
+
+- refunds on uncaptured payments distorting the report (N1);
+- a retry backoff stuck at two hours (N2);
+- the application role able to delete refund and event history and rewrite paid payments (N3);
+- a same-role configuration that broke migrations (N4);
+- a role check that only logged (N5);
+- opposite refund lock orders (N6);
+- unchecked refund webhook amounts (N7).
+
+It also noted:
+
+- an undocumented report date basis (N8);
+- under-review refunds grouped with pending (A);
+- a CSV gap for leading line feeds (B);
+- the outbox's final-attempt state (C);
+- no place for finance to see refund exceptions (D);
+- no tests for the invoice approval lock or the Resend header.
+
+### 2. Decisions
+
+1. **Report:**
+   - Refunds count against collections only on PAID payments, so captured − refunded = net always holds.
+   - Refunds on a payment never captured here are a separate exception category, never deducted and never discarded.
+   - Pending, under-review and failed refunds each have their own figure.
+   - The date basis (`PAYMENT_CREATED_AT_IST`) is stated in the report.
+   - CSV neutralises any text starting with a control character, or with `= + - @` after spaces or control characters. Numbers are written unchanged.
+2. **Invoice retries:** the database computes the delay from the stored attempt count in one atomic upsert: 1, 2, 4, 8, 16, then 24 hours, with the exponent capped so it cannot overflow.
+3. **Migration `020_financial_history_guards`:**
+   - Payment events are append-only (the outcome is recorded once).
+   - Refunds are never deleted; their amounts and references never change; their status only moves forward (FAILED → PROCESSED only when Razorpay confirms).
+   - A PAID payment's amount, currency, Razorpay references, buyer, paid time and status are fixed, and the row is never deleted. Tax-review columns stay writable.
+   - Adds outbox status `UNCONFIRMED`.
+   - The application role also loses `DELETE` on payments, events and refunds.
+4. **Roles:**
+   - Production requires `MIGRATION_DATABASE_URL`.
+   - Start-up compares the actual PostgreSQL roles: same role, membership either way, and a missing role all stop it before migrating.
+   - Granting refuses to run against the owner.
+   - After connecting, a full privilege inspection stops start-up on any problem. This includes CREATE in `public`, which covers the PostgreSQL 14 default.
+5. **Refund locks:** one order everywhere (payment row, then refund row), for creation updates, reconciliation and webhooks.
+6. **Refund webhooks:** a report whose payment, Razorpay refund id, amount or currency differs from the refund on record changes nothing. It is stored as `REJECTED_MISMATCH` and audited as `REFUND_EXCEPTION_RECORDED`. Reconciliation sends a listed refund with a different amount to review.
+7. **Visibility:** `GET /api/finance/refund-exceptions` (finance staff) lists open review and uncaptured-payment refunds, and the mismatch reports.
+8. **Outbox:** an email abandoned on its last attempt is `UNCONFIRMED`, never resent automatically. A manual resend within 24 hours carries the same Resend key.
+9. **Tests:**
+   - Real-PostgreSQL suites now report "NOT RUN" without `TEST_DATABASE_URL`.
+   - `npm run test:postgres -w api` (`REQUIRE_POSTGRES_TESTS=1`) fails if the database is missing.
+
+### 3. Alternatives Considered
+
+- Deducting refunds on uncaptured payments: rejected; it breaks the identity and hides unreconciled money.
+- A blanket immutability trigger on refunds: rejected; refunds have legitimate status transitions.
+- Keeping production single-role with a warning: rejected after the audit; a warning does not protect anything.
+- Choosing a new accounting date basis: not done; this is a CA decision.
+
+### 4. Reason
+
+Figures must reconcile, and history must hold at the database level, whatever code or role writes the rows.
+
+### 5. Consequences / Trade-offs
+
+- Production cannot start without the two-role configuration (`docs/database-roles.md`).
+- Tests can no longer delete refund rows, so test isolation retires them through allowed transitions.
+- Refund exceptions need a person; there is no screen until Phase 2.
+- The undo for migration 020 is documented above its entry; it was run, and 020 re-applied, on a throwaway copy of the local development data.
+
+### 6. Tests & Evidence (2026-11-17)
+
+See `docs/FINANCE_PLATFORM_PROGRESS.md`, Phase 1.6, for the counts from this session's runs.
+
+---
+
+## DEC-024: Phase 2.0 Tax Approval Timestamp Database Clock Hardening
+
+- **Decision ID**: `DEC-024`
+- **Date**: `2026-11-17`
+- **Decision Title**: Enforce authoritative server clock timestamping for tax approvals via PostgreSQL trigger hardening (Migration 021)
+- **Status**: Implemented & Verified
+
+### 1. Context / Problem
+
+In Phase 1.6, migration 019 introduced a database trigger `check_tax_approval_not_backdated` to prevent backdating tax configuration approvals. However, the Phase 1.7 independent audit identified a critical security vulnerability: the trigger evaluated `IF NEW.effective_from < NEW.recorded_at THEN RAISE EXCEPTION...`. Because `NEW.recorded_at` was supplied by the application layer (`req.body` or application ORM timestamps), a compromised or malicious application connection could provide an artificially backdated `recorded_at` matching or preceding `effective_from`, bypassing the backdating protection.
+
+### 2. Decisions
+
+1. Append migration `021_tax_approval_clock_timestamp`:
+   - Replace trigger function `guard_tax_approval_recorded_at()` to overwrite `NEW.recorded_at = CLOCK_TIMESTAMP()`.
+   - Update `check_tax_approval_not_backdated()` to validate `effective_from >= CLOCK_TIMESTAMP() - INTERVAL '5 minutes'` (allowing a narrow clock-skew tolerance while strictly preventing retroactive approvals).
+2. Prohibit client- or application-supplied `recorded_at` overrides.
+
+### 3. Verification
+
+Verified via `api/src/modules/finance/invoices.test.ts` and migrations suite. Backdated approvals are rejected with PostgreSQL exception `tax_approvals_cannot_be_backdated`.
+
+---
+
+## DEC-025: Phase 2.1 Refund Management Desk & Operational Exception Resolution
+
+- **Decision ID**: `DEC-025`
+- **Date**: `2026-11-17`
+- **Decision Title**: Provide operational interface and resolution workflows for pending and review refunds
+- **Status**: Implemented & Locally Verified
+
+### 1. Context / Problem
+
+When payment refunds encounter gateway timeouts, ambiguous states, or webhook mismatches, they enter `REQUIRES_REVIEW` status. Finance operations required an authoritative desk to inspect exceptions, view audit history, and resolve exceptions safely without direct database access.
+
+### 2. Decisions
+
+1. Build backend service `refundsDesk.service.ts` and routes under `/api/finance/refunds` and `/api/finance/refund-exceptions/:id/resolve`.
+2. Restrict access strictly to `FINANCE_ADMIN` and `SUPER_ADMIN` roles.
+3. Build web operational desk (`RefundsPage.tsx`) with status filters, KPI summaries, and an exception resolution dialog requiring external evidence reference and resolution notes.
+
+---
+
+## DEC-026: Phase 2.1-R2 Final Refund Integrity Remediation & Gateway Invariant Strictness
+
+- **Decision ID**: `DEC-026`
+- **Date**: `2026-11-17`
+- **Decision Title**: Enforce strict 5-point verification for CONFIRM_PROCESSED and MARK_FAILED, eliminate absence-based failure, remove fabricated adapter currency, and analyze Migration 022 redundancy
+- **Status**: Implemented & Locally Verified (Production BLOCKED pending independent audit and CA approval)
+
+### 1. Context / Problem
+
+The Phase 2.1-R independent audit revealed subtle financial-integrity risks in the refund resolution engine:
+- Conditional checking in `CONFIRM_PROCESSED`: `if (providerRefund.paymentId && ...)` and `if (providerRefund.currency && ...)` allowed payloads omitting `paymentId` or `currency` to pass verification without verifying the payment or currency.
+- Asymmetry in `MARK_FAILED`: `MARK_FAILED` checked status `'failed'` but did not verify `paymentId`, `amountPaise`, or `currency` against internal records.
+- Absence-based failure: `MARK_FAILED` allowed resolving refunds as `FAILED` if unlisted after 24 hours. Because marking `FAILED` removes a refund from the `payment_refunds_within_captured` cap, resolving an absent refund as failed unlocked the captured balance for double payout if Razorpay subsequently processed the refund.
+- Fabricated gateway currency: `createRazorpayGateway` in `gateway.ts` defaulted missing currency to `'INR'`, masking missing currency from the provider.
+- Concurrency conflict crash: Duplicate `provider_refund_id` threw PostgreSQL error `23505`, crashing the request as an unhandled HTTP 500 instead of a controlled HTTP 409 conflict.
+- Redundant Migration 022: Migration 014 already defined `provider_refund_id TEXT UNIQUE`. Migration 022 added a partial unique index `WHERE provider_refund_id IS NOT NULL`.
+
+### 2. Decisions
+
+1. **Strict 5-Point Invariant Verification for `CONFIRM_PROCESSED`**:
+   - Provider `paymentId` must be non-null and strictly match `paymentProviderId`.
+   - Provider `currency` must be non-null and strictly match `expectedCurrency` (case-insensitive).
+   - Provider `amountPaise` must exactly match internal `amountPaise`.
+   - Provider `id` must strictly match requested `providerRefundId`.
+   - Provider `status` must be lowercase `'processed'`.
+   Any violation throws HTTP 409 `PAYMENT_VERIFICATION_FAILED`.
+2. **Authoritative Terminal Failure Verification for `MARK_FAILED`**:
+   - Status `'pending'` or `'processed'` is strictly rejected.
+   - For status `'failed'`, full 5-point verification is applied: `paymentId`, `currency`, `amountPaise`, and `id` must all strictly match internal records.
+   - Complete removal of the 24-hour absence fallback: absence from Razorpay records never proves terminal failure. Unlisted/unverified refunds remain in `REQUIRES_REVIEW` indefinitely until affirmative proof of failure or processing is produced.
+3. **Receipt-Only Correlation**:
+   - In `fetchPaymentRefunds`, correlation strictly matches `r.receipt === expectedReceipt`. Removed loose amount-only fallback (`pr.amountPaise === expectedAmountPaise`) to prevent cross-refund conflation.
+4. **Adapter Currency & Field Accuracy**:
+   - Removed `currency: refund.currency ?? 'INR'` fallback in `gateway.ts`. Returns `currency: refund.currency ?? null` and `paymentId: item.payment_id ?? null`.
+5. **PostgreSQL Error 23505 Graceful Handling**:
+   - Wrapped database mutation in `try / catch`. Catches error code `23505` on `payment_refunds_provider_refund_id_key` or `payment_refunds_provider_refund_id_unique`, guarantees full rollback, and returns HTTP 409 `PAYMENT_VERIFICATION_FAILED`.
+6. **Migration 022 Redundancy Analysis**:
+   - Migration 014 declared `provider_refund_id TEXT UNIQUE`. Migration 022 created `CREATE UNIQUE INDEX payment_refunds_provider_refund_id_unique ON payment_refunds (provider_refund_id) WHERE provider_refund_id IS NOT NULL;`.
+   - Because standard SQL `UNIQUE` in PostgreSQL permits multiple `NULL` values by default, Migration 022 is technically redundant with Migration 014.
+   - Under forward-only migration policy, Migration 022 remains harmlessly applied. It is documented here to avoid any rollback or revision of existing migration sequence.
+
+### 3. Verification
+
+- All 31 tests in `api/src/modules/finance/refundsDesk.test.ts` pass, covering all negative and positive boundary conditions: null paymentId, null currency, mismatched amounts, duplicate provider_refund_id rollback, 72h absence rejection, receipt mismatch rejection, and concurrent resolution.
+- All 6 tests in `api/src/modules/payments/gateway.test.ts` pass, confirming null preservation for missing currency.
+- Monorepo full verification:
+  - `npm test -w api`: 315 passed, 0 failed.
+  - `npm test -w web`: 110 passed, 0 failed.
+  - `npm run typecheck`: 0 errors.
+  - `npm run lint`: 0 errors.
+  - `npm run build`: successful production build for both `api` and `web`.
+
+---
+
+## DEC-027: Phase 2.1-R3 Receipt-Path Provider ID Validation & Status Normalization Clarification
+
+- **Decision ID**: `DEC-027`
+- **Date**: `2026-11-17`
+- **Decision Title**: Enforce non-empty provider refund ID validation on MARK_FAILED receipt-matching path and clarify case-insensitive status normalization
+- **Status**: Implemented & Locally Verified (Awaiting independent Phase 2.1-R3 audit)
+
+### 1. Context / Problem
+
+The Phase 2.1-R2.1 independent audit identified:
+1. `AUDIT-2.1-R2-01` (HIGH): In `api/src/modules/finance/refundsDesk.service.ts` Path B (receipt matching), `candidateRefund` was matched by `pr.receipt && pr.receipt === initialData.receipt` and checked for status, payment ID, amount, and currency, but `candidateRefund.id` was not checked for non-emptiness before storing and transitioning the refund to `FAILED`. A malformed provider response could mark an internal refund as `FAILED` without an authoritative refund ID, releasing reserved captured balance.
+2. `AUDIT-2.1-R2-02` (LOW): The Phase 2.1-R2 report claimed "strict lowercase status parity", but code implemented case-insensitive normalization via `toLowerCase()`.
+
+### 2. Decisions
+
+1. **Enforce Non-Empty Provider Refund ID Validation in Path B**:
+   In `refundsDesk.service.ts`, before any candidate refund is accepted as authoritative terminal evidence, enforce:
+   ```typescript
+   if (
+     !candidateRefund.id ||
+     typeof candidateRefund.id !== 'string' ||
+     !candidateRefund.id.trim()
+   ) {
+     throw new ApiError(
+       409,
+       ERROR_CODE.paymentVerificationFailed,
+       'Provider refund record is missing an authoritative refund ID',
+     );
+   }
+   ```
+   This executes prior to assigning `verifiedProviderRefundId`, updating the database, or writing the resolution audit log.
+2. **Clarify Status Normalization**:
+   Document that status evaluation uses case-insensitive normalization (`status?.toLowerCase()`). This aligns with Razorpay's lowercase status values (`'processed'`, `'failed'`, `'pending'`) while remaining resilient against provider casing variations. Non-terminal states (pending, processing, undefined, null) continue to be rejected unconditionally.
+3. **Add Negative Unit Tests for All Malformed ID Cases**:
+   In `refundsDesk.test.ts`, add tests exercising Path B with:
+   - `id: ""` (empty string)
+   - `id: null`
+   - `id` omitted entirely
+   - `id: "   "` (whitespace only)
+   Confirm each returns HTTP 409, leaves refund in `REQUIRES_REVIEW`, does not populate `provider_refund_id`, keeps reserved refund balance intact, and records 0 resolution audit events.
+
+### 3. Verification
+
+- `api/src/modules/finance/refundsDesk.test.ts`: 35/35 passed (including 4 new negative tests and positive control).
+- Monorepo full verification:
+  - `npm test -w api`: 319 passed, 0 failed.
+  - `npm test -w web`: 110 passed, 0 failed.
+  - `npm run typecheck`: 0 errors.
+  - `npm run lint`: 0 errors.
+  - `npm run build`: successful production build for both `api` and `web`.
+
+## DEC-028: Phase 2.1-R3.2 Unified Refund Evidence & Reconciliation Integrity
+
+- **Decision ID**: `DEC-028`
+- **Date**: `2026-11-18`
+- **Decision Title**: One runtime validator for provider refund evidence, applied wherever a provider report can settle a refund; receipt binding on the refund desk; unusable webhook and creation data routed to a finance exception instead of being applied or only logged
+- **Status**: Implemented & Locally Verified (awaiting a fresh, independent R3.2 audit; not accepted)
+
+### 1. Context / Problem
+
+The independent Phase 2.1-R3.1 audit accepted the R3 fix (`AUDIT-2.1-R2-01`, desk Path B) for its own scope but found the same defect class in other places that trust Razorpay JSON, which the gateway and webhook only cast and never parse:
+
+1. **R31-01 (HIGH):** hourly reconciliation and `POST /finance/refunds/reconcile` marked `PENDING` and `REQUIRES_REVIEW` refunds `FAILED`, releasing their reserved balance, on a blank, whitespace-only, null or missing provider refund id, a foreign payment id, or a wrong or missing currency.
+2. **R31-02 (MEDIUM):** a staff-supplied provider refund id was never checked against the refund's receipt, so an unrelated failed refund could release a refund Razorpay had processed.
+3. **R31-03 (MEDIUM):** a signed `refund.failed` webhook with a blank id marked the refund `FAILED` and stored the blank id; `createRefund` passed a missing id through; no database rule forbade blank ids.
+4. **R31-04 (MEDIUM):** a late `refund.processed` that could not be reinstated, and a dashboard refund over the captured amount, were dropped with only a log line.
+
+### 2. Decisions
+
+1. **One validator, `modules/payments/refundEvidence.ts`.** `validateRefundEvidence(raw, expected)` takes what the provider sent (any field may be absent or the wrong type) and what our records say it must describe. It requires a non-empty provider refund id with no surrounding whitespace (refused, never trimmed, so a stored id is exactly what the provider sent), a provider payment id, a whole-number positive amount in paise, a currency, and a supported status (`pending`, `processed`, `failed`). Against our records it requires the same payment, amount, currency, our receipt when we have one (present and equal), the stored or supplied refund id, and the status an event type announces. Nothing is defaulted from our own data. It returns every problem found.
+2. **Insufficient evidence is not proof of failure.** On any problem, a refund keeps its reserved amount and a person is told. Absence from the provider still never fails a refund.
+3. **Reconciliation (both the hourly job and the manual endpoint).** Evidence is validated before any status change. A `PENDING` refund with unusable evidence moves to `REQUIRES_REVIEW` with the reasons, and one `REFUND_EXCEPTION_RECORDED` entry is written with what we recorded and what the provider reported. A refund already awaiting review is left alone, so an hourly run never records the same exception again. Two provider refunds under one receipt are never chosen between (exception, `receipt_ambiguous`). Under the row lock, a provider id stored meanwhile must equal the evidence id.
+4. **Refund desk (R31-02, R31-05, R31-06, R31-07).** CONFIRM_PROCESSED and both MARK_FAILED paths verify the provider record with the shared validator, including our receipt. A staff-supplied id is accepted only when the refund carries our receipt; a refund with neither a stored provider id nor a receipt cannot be resolved at all. A different id from the one already recorded is a 409 (it was a 500). More than one provider refund with the receipt is a 409. An id already recorded for another refund is a 409 before the transaction; the unique index and the 23505 handler remain for concurrency.
+5. **Webhook (R31-03).** The refund entity is parsed loosely on purpose, so an incomplete event is stored and judged rather than rejected with a 400 that Razorpay retries for ever. Signature checking is unchanged. The payment is locked first, then the evidence is validated (payment, currency, a status consistent with the event type). Invalid evidence changes nothing and records an exception, tied to a refund when the receipt names exactly one. Correlation reads the candidate refunds unlocked (`findRefundsForProvider`, replacing `findRefundForProvider`, which ordered NULL ids first, R31-08) and locks only the single refund it settles on, after the payment. An id that points at one refund and a receipt at another is an exception (`correlation`). A report for a payment we do not know is stored with outcome `UNKNOWN_PAYMENT` and touches nothing. A dashboard refund records the provider's own currency; the payment's currency is never substituted (R31-12).
+6. **Refund creation.** The gateway maps currency, payment id and receipt from the create response and invents nothing. `requestRefund` accepts a created refund only when it passes the validator; otherwise the refund stays `PENDING` (reconciliation finds it by receipt) and an exception is recorded (`source: refund_creation`).
+7. **R31-04: durable finance exceptions, no new table.** A late `refund.processed` that cannot be reinstated, and a dashboard refund over the captured amount, record `REFUND_EXCEPTION_RECORDED` with the refund and payment ids, expected and observed amounts, captured and reserved totals, the event id and type, and the reason. They appear in `GET /finance/refund-exceptions` and on the refund's own detail. One provider event gives one exception, because the event is stored once and a redelivery stops before it is applied. Nothing is rewritten and the cap trigger is not bypassed; if the accounting is uncertain, the discrepancy is kept for finance.
+8. **Migration `023_payment_refunds_provider_id_clean` (forward-only).** `CHECK (provider_refund_id IS NULL OR provider_refund_id ~ '^\S(.*\S)?$')`, added `NOT VALID` and validated in the same migration only when no existing row breaks it. Existing rows are never rewritten. `btrim()` was not used because it strips only spaces. If legacy blank ids exist the constraint stays `NOT VALID`, still guards every new and changed row, and a read-only review query is in the migration comment. Undo is in the comment above the migration. No grants are needed.
+9. **Realistic fixtures.** Existing tests built provider refunds without payment id, currency, receipt or status, which Razorpay always sends. They now carry them, so the tests fail for the reason they name. No assertion was weakened or skipped; one message assertion (`reports 9000 paise`) now matches the validator's message (`9000 paise`).
+
+### 3. Alternatives Considered
+
+- **Fixing each path separately.** Rejected: that is how R2-01 was fixed in one place only.
+- **Rejecting malformed webhooks with 400.** Rejected: no record, endless retries, finance never sees it.
+- **A new exceptions table.** Rejected for now: the append-only audit log and its existing finance screens already carry exceptions; a workflow table can follow with Phase 2.3.
+- **Validating the new CHECK immediately, or editing legacy rows.** Rejected: the first can stop start-up on populated data, the second rewrites financial history.
+- **Moving a reinstated-too-late refund from `FAILED` to `REQUIRES_REVIEW`.** Rejected: the refund guard moves status forward only, and this would change history; the exception is the record.
+
+### 4. Verification (run in this session on 2026-11-18)
+
+- New: `refundEvidence.test.ts` (23), `refunds.integrity.test.ts` (81), the receipt-binding block in `refundsDesk.test.ts`, migration 023 tests (3), a gateway creation-mapping test, and `refunds.postgres.test.ts` on real PostgreSQL.
+- Mutation check in a scratch copy: eleven removals of a guard (blank ids accepted, receipt ignored in reconciliation and in the desk, either R31-04 exception dropped, duplicate-receipt and correlation checks, created-refund check, re-flagging every run, the stored-id-only identity guard, status consistency) were each caught by at least one test.
+- Exact counts are in `docs/FINANCE_PLATFORM_PROGRESS.md` and the R3.2 report.
+
+### 5. Consequences / Remaining limitations
+
+- Staff resolution and reconciliation are stricter: a refund whose provider record carries no receipt now needs a person, where before an id alone passed. This is intended.
+- The refunds page still sends a hidden provider id with MARK_FAILED and has no confirmation step (R31-09, LOW, web only, not changed here).
+- Docs that overclaimed in DEC-026 and the R2 progress text (R31-10) are corrected by this entry, not rewritten: the desk validates every provider record against the receipt, the stored id and payment, amount and currency; case-insensitive status comparison is intentional.
+- A refund event for a payment we do not know is stored as `UNKNOWN_PAYMENT` only.
+- Bank settlement and fees are not modelled (Phase 2.4). Invoicing stays disabled and CA decisions remain open.
+- Needs a fresh independent audit before Phase 2.1 can be accepted.
+
+## DEC-029: Phase 2.1-R3.4 Closure of the R3.3 Audit Items (R33-01, R31-11, R33-02, R31-09)
+
+- **Decision ID**: `DEC-029`
+- **Date**: `2026-11-18`
+- **Decision Title**: Close the four items the independent R3.3 audit left open before a reviewed pull request
+- **Status**: Implemented & Locally Verified (awaiting independent review; not committed)
+
+### 1. Decisions
+
+1. **R33-01, guest checkout browser test.** The test never filled the billing address and PIN code that checkout now requires. It now fills `Billing address` and a 6-digit `PIN code`, as a real visitor must. Production validation is unchanged, and a new browser test proves checkout still refuses a 5-digit PIN code.
+2. **R31-11, real PostgreSQL in CI.** `.github/workflows/checks.yml` gets a third job, `postgres`, with a throwaway `postgres:16` service container. It runs `npm run test:postgres -w api`, which sets `REQUIRE_POSTGRES_TESTS=1`, so a missing server fails the job instead of skipping a suite. The suites create and drop their own databases and the restricted application role. The job's password is a disposable CI-only value for a container that exists only for the run. The job must be marked required in branch protection (a repository setting; not changeable from the code).
+3. **R33-02, legacy blank or padded provider refund ids.** Reconciliation now recognises such a row before calling Razorpay and records one `REFUND_EXCEPTION_RECORDED` entry (`source: legacy_invalid_provider_id`) with the refund, payment, status and amount. It is recorded once, not on every hourly run. The refund keeps its reserved amount and is never updated, rewritten or guessed at. The entry appears in `GET /finance/refund-exceptions` and on the refund's detail. Migration 023's constraint stays `NOT VALID`; nothing in this phase validates it or touches data.
+4. **R31-09, refunds page.** MARK_FAILED now opens a confirmation dialog that says the reserved amount is released and the decision is recorded against the staff member; nothing is sent until it is confirmed. A typed provider refund id is sent only with CONFIRM_PROCESSED, so MARK_FAILED can no longer carry a hidden id (the server uses the id on record or our receipt). The server's own refusal message is now shown instead of the generic HTTP error. No backend validation was removed or loosened.
+
+### 2. Procedure for existing invalid provider ids (R33-02) — not automated, needs the owner
+
+Run this on any database that held refunds before migration 023, before validating the constraint. Nothing here is run by the application.
+
+1. **Find them (read-only):** `SELECT id, payment_id, status, provider_refund_id FROM payment_refunds WHERE provider_refund_id IS NOT NULL AND provider_refund_id !~ '^\S(.*\S)?$';`
+2. **Look in finance:** each appears under refund exceptions (`legacy_invalid_provider_id`). Finance checks the refund in the Razorpay dashboard and decides whether Razorpay processed or failed it.
+3. **Do not rewrite or delete the row, and do not invent an id.** The row cannot be changed through the application: the migration 023 constraint and the provider-id guard (migration 020) refuse it, which is intended.
+4. **Correcting a row is a separate, owner-approved database operation** (a verified backup first, one transaction, the true Razorpay id taken from the dashboard, a `DECISION.md` entry naming the refund). It needs the owner role and a deliberate, temporary lift of the provider-id guard, so it is not scripted here.
+5. **Only when the query returns no rows**, run `ALTER TABLE payment_refunds VALIDATE CONSTRAINT payment_refunds_provider_refund_id_clean;`.
+
+No deployed database holds such a row today: the committed code has no refunds table in any deployment.
+
+### 3. Alternatives Considered
+
+- **Auto-correcting the ids.** Rejected: it would invent or rewrite financial history.
+- **Validating the constraint and failing on bad rows.** Rejected: it can stop a migration on populated data.
+- **A confirmation text field ("type FAIL to confirm").** Rejected for a dialog with the facts and an explicit button; the server remains the real check.
+
+### 4. Remaining limitations
+
+Two low-priority edge cases found by the independent review are left for a follow-up and must be fixed before any database that held refunds before migration 023 is operated on: R35-03 (a stored empty-string provider id makes the desk's MARK_FAILED return 500 from the migration 020 guard; nothing is written) and R35-04 (the desk calls Razorpay with a blank or padded stored id and returns a misleading 502 or 409). The branch-protection setting that makes the new CI job required is a repository setting. The exceptions list still shows only the newest 200 entries and has no "handled" state (R33-04). Not committed or pushed. Needs independent review.

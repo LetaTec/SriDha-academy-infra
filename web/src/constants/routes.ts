@@ -18,8 +18,9 @@ export const APP_ROUTES = {
   // Retired: there is no refund policy for now; old links go home
   REFUNDS: '/refund-policy',
   CONTACT: '/contact',
-  // Super admins only
+  // Super and finance admins
   TEAM_ORDERS: '/team/orders',
+  TEAM_REFUNDS: '/team/refunds',
 } as const;
 
 // In-page anchors on the homepage, shared by the header, footer and CTAs.

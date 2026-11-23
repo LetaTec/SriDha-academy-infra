@@ -3,17 +3,16 @@ import { createHmac } from 'node:crypto';
 import { after, before, describe, it } from 'node:test';
 
 import {
+  createFakeRazorpay,
+  FAKE_RAZORPAY_KEY_SECRET as KEY_SECRET,
+} from '../../test/fakeRazorpay.js';
+import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
   validRegistration,
   type TestClient,
 } from '../../test/testServer.js';
-import {
-  createRazorpayGateway,
-  type PaymentGateway,
-} from '../payments/gateway.js';
 
-const KEY_SECRET = 'rzp_test_secret';
 const WEBHOOK_SECRET = 'whsec_test';
 const BATCH = 'batch_gst_class_11_december';
 const PRE_REGISTER_TOPIC = 'topic_physics_wave_optics_class_12';
@@ -23,14 +22,9 @@ const BILLING = {
   mobile: '+91 98765 43210',
   state: 'Rajasthan',
   city: 'Jaipur',
-};
-
-const createFakeRazorpay = (): PaymentGateway => {
-  let orderNumber = 0;
-  return {
-    ...createRazorpayGateway('rzp_test_key', KEY_SECRET),
-    createOrder: async () => ({ orderId: `order_${(orderNumber += 1)}` }),
-  };
+  customerType: 'INDIVIDUAL',
+  addressLine1: '12 Civil Lines',
+  pinCode: '302006',
 };
 
 const signPayment = (orderId: string, paymentId: string) =>
@@ -117,6 +111,10 @@ describe('payment confirmations, pre-registrations and team orders', () => {
   });
 
   it("lists the student's own pre-registrations", async () => {
+    // A minute after the enrolment, so "newest first" below is well defined
+    // (the test clock is otherwise fixed and the two would tie)
+    const later = new Date(server.clock.now().getTime() + 60_000);
+    server.clock.now = () => later;
     await student.request('POST', '/api/payments/checkout', {
       kind: 'PRE_REGISTRATION',
       topicId: PRE_REGISTER_TOPIC,

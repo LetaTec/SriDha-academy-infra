@@ -1,5 +1,5 @@
 # The same checks AGENTS.md asks for before merging, on every pull request
-# and every push to main. Mark both jobs as required in the repository's
+# and every push to main. Mark all three jobs as required in the repository's
 # branch protection so a red check blocks the merge.
 name: Checks
 
@@ -32,6 +32,39 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+
+  # The suites that prove locking, concurrency and the restricted database
+  # role need a real PostgreSQL server; the in-memory database used by
+  # `npm test` cannot show them. They create and drop their own databases and
+  # roles on this throwaway service, which exists only for the job.
+  postgres:
+    name: Real PostgreSQL tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-disposable
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # REQUIRE_POSTGRES_TESTS=1 (set by this script) turns a missing server
+      # into a failure instead of a skipped suite
+      - run: npm run test:postgres -w api
+        env:
+          TEST_DATABASE_URL: postgres://postgres:ci-only-disposable@localhost:5432/postgres
 
   e2e:
     name: Browser tests (desktop and mobile)

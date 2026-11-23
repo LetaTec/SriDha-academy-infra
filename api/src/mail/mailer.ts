@@ -15,9 +15,13 @@ export type PaymentConfirmation = {
 export type Mailer = {
   sendPasswordReset: (email: string, resetUrl: string) => Promise<void>;
   sendAdminSignInLink: (email: string, signInUrl: string) => Promise<void>;
+  // idempotencyKey: the same key always means the same email, so the
+  // provider delivers it once even if it is sent again (Resend keeps keys
+  // for 24 hours)
   sendPaymentConfirmation: (
     email: string,
     confirmation: PaymentConfirmation,
+    options?: { idempotencyKey?: string },
   ) => Promise<void>;
 };
 
@@ -65,12 +69,17 @@ const renderEmail = ({ intro, action, url, note }: EmailContent) => `
 `;
 
 const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
-  const send = async (email: string, content: EmailContent) => {
+  const send = async (
+    email: string,
+    content: EmailContent,
+    idempotencyKey?: string,
+  ) => {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       },
       body: JSON.stringify({
         from: fromAddress,
@@ -112,14 +121,18 @@ const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
         url: signInUrl,
         note: 'This link works once and expires in 15 minutes. If you did not ask to sign in, you can safely ignore this email.',
       }),
-    sendPaymentConfirmation: (email, confirmation) =>
-      send(email, {
-        subject: `Payment received: ${confirmation.topic}`,
-        intro: describePayment(confirmation),
-        action: 'See more topics',
-        url: confirmation.topicsUrl,
-        note: `Payment reference: ${confirmation.paymentReference}. Keep it for any questions about this payment. Razorpay also emails a receipt.`,
-      }),
+    sendPaymentConfirmation: (email, confirmation, options) =>
+      send(
+        email,
+        {
+          subject: `Payment received: ${confirmation.topic}`,
+          intro: describePayment(confirmation),
+          action: 'See more topics',
+          url: confirmation.topicsUrl,
+          note: `Payment reference: ${confirmation.paymentReference}. Keep it for any questions about this payment. Razorpay also emails a receipt.`,
+        },
+        options?.idempotencyKey,
+      ),
   };
 };
 

@@ -3,14 +3,16 @@ import { createHmac } from 'node:crypto';
 import { after, before, describe, it } from 'node:test';
 
 import {
+  createFakeRazorpay,
+  FAKE_RAZORPAY_KEY_ID as KEY_ID,
+  FAKE_RAZORPAY_KEY_SECRET as KEY_SECRET,
+} from '../../test/fakeRazorpay.js';
+import {
   startTestServer,
   validRegistration,
   type TestClient,
 } from '../../test/testServer.js';
-import { createRazorpayGateway, type PaymentGateway } from './gateway.js';
 
-const KEY_ID = 'rzp_test_key';
-const KEY_SECRET = 'rzp_test_secret';
 const DECEMBER_BATCH = 'batch_gst_class_11_december';
 const OPEN_TOPIC = 'topic_accounts_gst_class_11';
 const PRE_REGISTER_TOPIC = 'topic_physics_wave_optics_class_12';
@@ -21,16 +23,9 @@ const BILLING = {
   mobile: '+91 98765 43210',
   state: 'Rajasthan',
   city: 'Jaipur',
-};
-
-// Razorpay's real signature check, with orders made locally instead of
-// through Razorpay's API
-const createFakeRazorpay = (): PaymentGateway => {
-  let orderNumber = 0;
-  return {
-    ...createRazorpayGateway(KEY_ID, KEY_SECRET),
-    createOrder: async () => ({ orderId: `order_${(orderNumber += 1)}` }),
-  };
+  customerType: 'INDIVIDUAL',
+  addressLine1: '12 Civil Lines',
+  pinCode: '302006',
 };
 
 const sign = (orderId: string, paymentId: string) =>
@@ -137,6 +132,25 @@ describe('payments', () => {
     assert.equal(batch.id, DECEMBER_BATCH);
     assert.equal(topic.id, OPEN_TOPIC);
 
+    // What was sold is recorded on the payment, so history never depends on
+    // the live catalogue; tax is pending until a rule is approved
+    const created = await server.db.get<Record<string, unknown>>(
+      `SELECT item_description, item_topic_id, item_batch_id, unit_price_paise,
+              quantity, tax_status, paid_at, paid_at_estimated
+       FROM payments WHERE id = $1`,
+      [paymentId],
+    );
+    assert.deepEqual(created, {
+      item_description: `${topic.title} — ${batch.name}`,
+      item_topic_id: OPEN_TOPIC,
+      item_batch_id: DECEMBER_BATCH,
+      unit_price_paise: 12900,
+      quantity: 1,
+      tax_status: 'PENDING_CONFIGURATION',
+      paid_at: null,
+      paid_at_estimated: false,
+    });
+
     const forged = await student.request('POST', '/api/payments/verify', {
       paymentId,
       providerOrderId: provider.orderId,
@@ -163,14 +177,31 @@ describe('payments', () => {
     });
     assert.equal(otherOrder.status, 400);
 
+    // A fixed instant just after now (sessions must stay valid at it)
+    const realNow = server.clock.now;
+    const paidAt = new Date(
+      Math.floor(realNow().getTime() / 1000) * 1000 + 60_000,
+    );
+    server.clock.now = () => paidAt;
     const verified = await student.request('POST', '/api/payments/verify', {
       paymentId,
       providerOrderId: provider.orderId,
       providerPaymentId: 'pay_1',
       signature: sign(provider.orderId, 'pay_1'),
     });
+    server.clock.now = realNow;
     assert.equal(verified.status, 200);
     assert.equal(verified.body.payment.status, 'PAID');
+
+    // The capture time is recorded exactly, not estimated
+    const paid = await server.db.get<{
+      paid_at: string;
+      paid_at_estimated: boolean;
+    }>('SELECT paid_at, paid_at_estimated FROM payments WHERE id = $1', [
+      paymentId,
+    ]);
+    assert.equal(new Date(paid!.paid_at).toISOString(), paidAt.toISOString());
+    assert.equal(paid!.paid_at_estimated, false);
 
     const enrolments = await student.request('GET', '/api/enrolments');
     const enrolment = enrolments.body.enrolments.find(

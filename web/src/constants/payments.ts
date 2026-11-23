@@ -1,5 +1,6 @@
 import type {
   CheckoutKind,
+  CustomerType,
   IndianState,
   PaymentProvider,
   PaymentStatus,
@@ -15,6 +16,13 @@ export const CHECKOUT_KIND = {
 
 export type { CheckoutKind };
 
+export const CUSTOMER_TYPE = {
+  individual: 'INDIVIDUAL',
+  business: 'BUSINESS',
+} as const satisfies Record<string, CustomerType>;
+
+export type { CustomerType };
+
 export const PAYMENT_PROVIDER = {
   razorpay: 'RAZORPAY',
   test: 'TEST',
@@ -24,7 +32,10 @@ export type { PaymentProvider };
 
 export const PAYMENT_STATUS = {
   created: 'CREATED',
+  authorized: 'AUTHORIZED',
   paid: 'PAID',
+  failed: 'FAILED',
+  expired: 'EXPIRED',
 } as const satisfies Record<string, PaymentStatus>;
 
 export type { PaymentStatus };
@@ -81,6 +92,60 @@ export const INDIAN_STATE_OPTIONS = [...INDIAN_STATES]
   .map(state => ({ value: state, label: state }));
 
 export type { IndianState };
+
+export const GST_STATE_CODE = {
+  'Jammu and Kashmir': '01',
+  'Himachal Pradesh': '02',
+  Punjab: '03',
+  Chandigarh: '04',
+  Uttarakhand: '05',
+  Haryana: '06',
+  Delhi: '07',
+  Rajasthan: '08',
+  'Uttar Pradesh': '09',
+  Bihar: '10',
+  Sikkim: '11',
+  'Arunachal Pradesh': '12',
+  Nagaland: '13',
+  Manipur: '14',
+  Mizoram: '15',
+  Tripura: '16',
+  Meghalaya: '17',
+  Assam: '18',
+  'West Bengal': '19',
+  Jharkhand: '20',
+  Odisha: '21',
+  Chhattisgarh: '22',
+  'Madhya Pradesh': '23',
+  Gujarat: '24',
+  'Dadra and Nagar Haveli and Daman and Diu': '26',
+  Maharashtra: '27',
+  Karnataka: '29',
+  Goa: '30',
+  Lakshadweep: '31',
+  Kerala: '32',
+  'Tamil Nadu': '33',
+  Puducherry: '34',
+  'Andaman and Nicobar Islands': '35',
+  Telangana: '36',
+  'Andhra Pradesh': '37',
+  Ladakh: '38',
+} as const satisfies Record<IndianState, string>;
+
+export const LEGACY_GST_STATE_CODE: Record<string, IndianState> = {
+  '28': 'Andhra Pradesh',
+  '25': 'Dadra and Nagar Haveli and Daman and Diu',
+};
+
+const STATE_FOR_CODE = new Map<string, IndianState>([
+  ...Object.entries(LEGACY_GST_STATE_CODE),
+  ...Object.entries(GST_STATE_CODE).map(
+    ([state, code]) => [code, state as IndianState] as const,
+  ),
+]);
+
+export const stateForGstStateCode = (code: string): IndianState | null =>
+  STATE_FOR_CODE.get(code) ?? null;
 
 export const RAZORPAY = {
   scriptUrl: 'https://checkout.razorpay.com/v1/checkout.js',
@@ -143,20 +208,60 @@ export const CHECKOUT_TEXT = {
   // Shown under what the topic teaches; there is no refund policy yet
   paymentNote: `Please check the topic and batch before you pay. For any question about a payment, write to ${SUPPORT_EMAIL}`,
   // Student details
-  detailsTitle: 'Student details',
-  detailsNote: 'Your payment receipt is sent to this email ID',
+  detailsTitle: 'Billing details',
+  // Owner-approved wording (November 2026): invoicing is off until the CA
+  // approval is recorded, so no tax invoice is promised
+  detailsNote:
+    "Payment confirmation will be provided after successful payment. Applicable tax documentation, where required, will be issued separately in accordance with the company's invoicing policy.",
+  customerTypeLegend: 'Billing as',
+  customerTypeIndividual: 'Individual',
+  customerTypeIndividualDesc: 'For personal learning and students',
+  customerTypeBusiness: 'Business / Organisation',
+  customerTypeBusinessDesc: 'With company legal name and GSTIN',
   fullNameLabel: 'Full name',
+  fullNameContactLabel: 'Contact person full name',
   emailLabel: 'Email ID',
   mobileLabel: 'Mobile number',
+  addressLine1Label: 'Billing address',
+  addressLine1Placeholder: 'Flat, house no., building, street',
+  addressLine2Label: 'Address line 2 (optional)',
+  addressLine2Placeholder: 'Apartment, suite, unit, landmark',
   stateLabel: 'State',
   statePlaceholder: 'Select your state',
   cityLabel: 'City',
   cityPlaceholder: 'Your city or town',
+  pinCodeLabel: 'PIN code',
+  pinCodePlaceholder: '6-digit PIN code',
   fullNameInvalid: 'Enter your full name',
   emailInvalid: 'Enter a valid email ID',
   mobileInvalid: 'Enter a valid mobile number',
+  addressLine1Invalid: 'Enter your billing address',
   stateRequired: 'Select your state',
   cityRequired: 'Enter your city',
+  pinCodeInvalid: 'Enter a valid 6-digit PIN code',
+  // Business fields
+  businessSectionTitle: 'Business & GST details',
+  businessSectionNote:
+    "Used for tax documentation, where required, under the company's invoicing policy",
+  businessLegalNameLabel: 'Business legal name',
+  businessLegalNamePlaceholder: 'Registered company or entity name',
+  businessLegalNameInvalid: "Enter the business's legal name",
+  gstinLabel: 'GSTIN',
+  gstinPlaceholder: '15-character GSTIN (e.g. 08AAGCL9166P1ZL)',
+  gstinRequired: 'Enter the GSTIN',
+  gstinInvalid: 'Enter a valid GSTIN',
+  gstinStateMismatch: (state: string) =>
+    `This GSTIN is registered in ${state}. Choose ${state} as the billing state, or check the GSTIN`,
+  purchaseOrderLabel: 'Purchase order reference (optional)',
+  purchaseOrderPlaceholder: 'e.g. PO-2026-0042',
+  gstinProblemMessage: {
+    length: 'A GSTIN has 15 characters. Please check the GSTIN',
+    format: 'This is not in the GSTIN format. Please check the GSTIN',
+    state:
+      'The first two digits are not a GST state code. Please check the GSTIN',
+    checksum:
+      'The last character does not match the rest. Please check the GSTIN',
+  } as Record<string, string>,
   // Price summary
   summaryTitle: 'Price summary',
   summaryFee: 'Topic fee',
@@ -174,6 +279,11 @@ export const CHECKOUT_TEXT = {
   paidEnrolment: (batch: string) => `Your seat in the ${batch} is confirmed`,
   paidPreRegistration:
     'Your pre-registration is confirmed. We will email you when the first batch opens',
+  // Razorpay has the payment but has not reported it captured yet: the seat
+  // is confirmed (and the email sent) only once it does
+  confirmingTitle: 'Confirming your payment',
+  confirmingMessage: (email: string) =>
+    `Razorpay has your payment and is confirming it. We will email ${email} as soon as your seat is confirmed`,
   pendingTitle: 'Seat saved',
   pendingMessage:
     'Online payment opens soon. Your seat is held and our team will contact you to complete the payment',

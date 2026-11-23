@@ -7,7 +7,6 @@ import {
   TEST_WEB_ORIGIN,
   validRegistration,
 } from '../../test/testServer.js';
-import { syncSuperAdmins } from './roles.js';
 
 const tokenFrom = (signInUrl: string) => {
   const url = new URL(signInUrl);
@@ -151,22 +150,16 @@ describe('super admin sign-in', () => {
       validRegistration({ email }),
     );
 
-    await syncSuperAdmins(
-      server.db,
-      [TEST_SUPER_ADMIN_EMAIL, email],
-      server.clock.now(),
-    );
+    await server.syncStaff({
+      superAdminEmails: [TEST_SUPER_ADMIN_EMAIL, email],
+    });
     const promoted = await client.request('GET', '/api/auth/session');
     assert.equal(promoted.body.user.role, 'SUPER_ADMIN');
     assert.equal(promoted.body.user.student.fullName, 'Asha Verma');
 
     const [link] = await requestLink(email);
 
-    await syncSuperAdmins(
-      server.db,
-      [TEST_SUPER_ADMIN_EMAIL],
-      server.clock.now(),
-    );
+    await server.syncStaff({ superAdminEmails: [TEST_SUPER_ADMIN_EMAIL] });
     const demoted = await client.request('GET', '/api/auth/session');
     assert.equal(demoted.body.user.role, 'STUDENT');
 

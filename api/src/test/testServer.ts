@@ -6,7 +6,7 @@ import { seedCatalogue } from '../db/catalogueSeed.js';
 import { openDatabase, runMigrations } from '../db/client.js';
 import type { Mailer } from '../mail/mailer.js';
 import { configureLogger } from '../logging/logger.js';
-import { syncSuperAdmins } from '../modules/auth/roles.js';
+import { syncStaffRoles, type StaffEmails } from '../modules/auth/roles.js';
 import type { PaymentGateway } from '../modules/payments/gateway.js';
 
 export const TEST_WEB_ORIGIN = 'http://localhost:5173';
@@ -17,12 +17,17 @@ export type SentSignInLink = { email: string; signInUrl: string };
 export const TEST_SUPER_ADMIN_EMAIL = 'admin@sridha.test';
 
 export type TestClient = {
-  request: (
+  request: <T = any>(
     method: string,
     path: string,
     body?: unknown,
     headers?: Record<string, string>,
-  ) => Promise<{ status: number; body: any; setCookie: string | null }>;
+  ) => Promise<{
+    status: number;
+    body: T;
+    setCookie: string | null;
+    headers: Record<string, string>;
+  }>;
   clearCookies: () => void;
 };
 
@@ -31,15 +36,23 @@ export const startTestServer = async ({
   enableRateLimiting = false,
   now = () => new Date('2026-10-10T09:00:00Z'),
   superAdminEmails = [TEST_SUPER_ADMIN_EMAIL],
+  financeAdminEmails = [],
+  operationsAdminEmails = [],
+  financeNotificationEmails = [],
   paymentGateway,
   razorpayWebhookSecret,
+  invoicingEnabled = false,
 }: {
   withMailer?: boolean;
   enableRateLimiting?: boolean;
   now?: () => Date;
   superAdminEmails?: string[];
+  financeAdminEmails?: string[];
+  operationsAdminEmails?: string[];
+  financeNotificationEmails?: string[];
   paymentGateway?: PaymentGateway;
   razorpayWebhookSecret?: string;
+  invoicingEnabled?: boolean;
 } = {}) => {
   const db = await openDatabase(':memory:');
   await runMigrations(db);
@@ -72,12 +85,16 @@ export const startTestServer = async ({
     WEB_ORIGIN: TEST_WEB_ORIGIN,
     ENABLE_RATE_LIMIT: enableRateLimiting ? 'true' : 'false',
     SUPER_ADMIN_EMAILS: superAdminEmails.join(','),
+    FINANCE_ADMIN_EMAILS: financeAdminEmails.join(','),
+    OPERATIONS_ADMIN_EMAILS: operationsAdminEmails.join(','),
+    FINANCE_NOTIFICATION_EMAILS: financeNotificationEmails.join(','),
+    INVOICING_ENABLED: invoicingEnabled ? 'true' : 'false',
     ...(razorpayWebhookSecret
       ? { RAZORPAY_WEBHOOK_SECRET: razorpayWebhookSecret }
       : {}),
   });
   configureLogger({ level: config.logLevel, pretty: true });
-  await syncSuperAdmins(db, config.superAdminEmails, clock.now());
+  await syncStaffRoles(db, config, clock.now());
   const app = createApp({
     db,
     config,
@@ -98,6 +115,7 @@ export const startTestServer = async ({
         const response = await fetch(`${baseUrl}${path}`, {
           method,
           headers: {
+            Connection: 'close',
             ...(body === undefined
               ? {}
               : { 'Content-Type': 'application/json' }),
@@ -114,10 +132,19 @@ export const startTestServer = async ({
         }
 
         const text = await response.text();
+        let parsedBody: any = null;
+        if (text) {
+          try {
+            parsedBody = JSON.parse(text);
+          } catch {
+            parsedBody = text;
+          }
+        }
         return {
           status: response.status,
-          body: text ? JSON.parse(text) : null,
+          body: parsedBody,
           setCookie,
+          headers: Object.fromEntries(response.headers.entries()),
         };
       },
       clearCookies: () => {
@@ -126,8 +153,33 @@ export const startTestServer = async ({
     };
   };
 
+  // Signs a staff member in the way they do it: an emailed one-time link
+  const signInStaff = async (email: string) => {
+    const client = createClient();
+    await client.request('POST', '/api/auth/admin-sign-in', { email });
+    const link = sentSignInLinks.filter(sent => sent.email === email).at(-1);
+    const token = link
+      ? new URL(link.signInUrl).searchParams.get('token')
+      : null;
+    const confirmed = await client.request(
+      'POST',
+      '/api/auth/admin-sign-in/confirm',
+      { token },
+    );
+    if (confirmed.status !== 200) {
+      throw new Error(`Staff sign-in failed for ${email}: ${confirmed.status}`);
+    }
+    return client;
+  };
+
+  // Runs the start-up role sync again with changed lists (unchanged lists
+  // keep their configured emails)
+  const syncStaff = (changes: Partial<StaffEmails>) =>
+    syncStaffRoles(db, { ...config, ...changes }, clock.now());
+
   return {
     db,
+    config,
     clock,
     sentEmails,
     sentSignInLinks,
@@ -135,8 +187,11 @@ export const startTestServer = async ({
     port,
     baseUrl,
     createClient,
+    signInStaff,
+    syncStaff,
     close: () =>
       new Promise<void>((resolve, reject) => {
+        server.closeAllConnections?.();
         server.close(async err => {
           if (err) {
             reject(err);
