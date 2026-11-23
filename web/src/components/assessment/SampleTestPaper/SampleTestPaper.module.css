@@ -6,7 +6,6 @@
   background: var(--color-bg-page);
   color: var(--color-text-primary);
   box-shadow: var(--shadow-offset-accent-lg);
-  rotate: var(--tilt-test-sheet);
 }
 
 .sheet::before {
@@ -41,7 +40,7 @@
   border-bottom: var(--border-width-base) solid var(--color-border-base);
 }
 
-/* One paper per subject, picked with text links */
+/* A class or exam first, then a subject in it, picked with text links */
 .subjects {
   display: flex;
   flex-wrap: wrap;
@@ -72,6 +71,16 @@
   color: var(--color-text-accent);
 }
 
+/* The class or exam row reads first */
+.tracks .subject {
+  color: var(--color-text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.tracks .subjectActive {
+  color: var(--color-text-accent);
+}
+
 .instruction {
   margin: var(--space-1) 0 var(--space-0-5);
   font-size: var(--text-xs);
@@ -80,6 +89,20 @@
 
 .questions {
   list-style: none;
+}
+
+/* In a compact paper the twenty questions scroll inside the sheet, so the
+   page around it stays short */
+.compact .questions {
+  max-height: var(--height-test-questions);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A wide paper is the page: it uses the room and the page scrolls */
+.wide {
+  max-width: var(--width-test-sheet-wide);
+  padding: var(--space-6);
 }
 
 .question {
@@ -222,9 +245,9 @@
 }
 
 @media (--viewport-sm) {
-  .sheet {
+  .sheet,
+  .wide {
     padding: var(--space-4) var(--space-3);
-    rotate: var(--tilt-test-sheet-sm);
   }
 
   .options,

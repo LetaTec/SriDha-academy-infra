@@ -14,7 +14,7 @@ export const BRAND = {
 // isSection: a jump to a section of a page, never shown as the current page.
 export const NAV_LINKS = [
   { label: 'Topics', to: APP_ROUTES.TOPICS, isSection: false },
-  { label: 'AI Test', to: APP_ROUTES.AI_TEST, isSection: false },
+  { label: 'PYQ Test Paper', to: APP_ROUTES.AI_TEST, isSection: false },
   { label: 'Model Paper', to: APP_ROUTES.MODEL_PAPER, isSection: false },
   { label: 'About', to: APP_ROUTES.ABOUT, isSection: false },
 ] as const;
@@ -94,7 +94,7 @@ export const CONCEPT_MAP_TEXT = {
 } as const;
 
 export const LEARNING_JOURNEY_TEXT = {
-  eyebrow: '03 / The SriDha Learning Model',
+  eyebrow: '04 / The SriDha Learning Model',
   title: 'How true mastery happens.',
   titleEmphasis: 'Step by step.',
   description:
@@ -138,7 +138,7 @@ export const MODEL_PAPER_DISCOVERY_TEXT = {
 } as const;
 
 export const AI_TEST_TEXT = {
-  eyebrow: '04 / Assessment Experience',
+  eyebrow: '02 / Assessment Experience',
   title: 'Test your understanding.',
   titleEmphasis: 'Without repetition.',
   description:
@@ -230,7 +230,7 @@ export const FOOTER_COLUMNS = [
     title: 'Explore',
     links: [
       { label: 'Topics', to: APP_ROUTES.TOPICS },
-      { label: 'AI Test', to: APP_ROUTES.AI_TEST },
+      { label: 'PYQ Test Paper', to: APP_ROUTES.AI_TEST },
       { label: 'Model Paper', to: APP_ROUTES.MODEL_PAPER },
     ],
   },
