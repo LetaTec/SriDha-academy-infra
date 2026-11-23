@@ -1,30 +1,30 @@
 # Finance platform progress
 
-Last updated: 18 November 2026. Branch `feat/finance-platform`, HEAD `2aebdab`. Nothing in Phases 1–2.1-R3.2 is committed, pushed or deployed.
+Last updated: 18 November 2026. Branch `feat/finance-platform`, pushed at `79524ab` (Phases 1 to 2.1-R3.2). The R3.4 closure work below is uncommitted. Nothing is merged or deployed.
 
-Decisions are recorded in the root `DECISION.md` (DEC-021 to DEC-028). The architecture is in `docs/finance-platform-architecture.md`, and database roles and TLS in `docs/database-roles.md`.
+Decisions are recorded in the root `DECISION.md` (DEC-021 to DEC-029). The architecture is in `docs/finance-platform-architecture.md`, and database roles and TLS in `docs/database-roles.md`.
 
 ## Status by phase
 
-| Phase                                                                                                                    | Status                                                     |
-| :----------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------- |
-| Remediation of the first audit (C1–C4, H1–H5)                                                                            | Done (DEC-021); independently verified as partly complete  |
-| **Phase 1: financial foundation** (the independent verification's findings)                                              | Done (DEC-022)                                             |
-| Phase 1.5: independent audit of Phase 1                                                                                  | Conditional pass (N1–N8, A–D)                              |
-| **Phase 1.6: financial integrity closure**                                                                               | Done (DEC-023)                                             |
-| Phase 1.7: independent audit of Phase 1.6                                                                                | Pass with conditions (tax approval backdating risk)        |
-| **Phase 2.0: tax approval timestamp hardening**                                                                          | Done (DEC-024; Migration 021)                              |
-| **Phase 2.1: refund management desk (UI & backend)**                                                                     | Done (DEC-025)                                             |
-| Phase 2.1-R: first audit findings remediation                                                                            | Completed                                                  |
-| Phase 2.1-R2: final refund integrity remediation                                                                         | Completed                                                  |
-| Phase 2.1-R2.1: independent audit of Phase 2.1-R2                                                                         | Conditional pass (AUDIT-2.1-R2-01 HIGH finding)           |
-| **Phase 2.1-R3: receipt-path provider ID validation & normalization clarification**                                      | **Done locally; awaiting independent audit verification**   |
-| Phase 2.1-R3.1: independent audit of Phase 2.1-R3                                                                         | PARTIAL: R3 accepted for its scope; R31-01 (HIGH), R31-02 to R31-04 (MEDIUM) open |
-| **Phase 2.1-R3.2: unified refund evidence & reconciliation integrity**                                                   | **Done locally (DEC-028; Migration 023); awaiting a fresh independent audit** |
-| Phase 2.2: email outbox monitoring & operational desk                                                                    | Pending (paused for refund engine verification)            |
-| Phase 2.3: finance dashboard & reporting analytics                                                                       | Pending                                                    |
-| Phase 2.4: Razorpay settlement & fee reconciliation                                                                      | Pending                                                    |
-| Phase 2.5: GST credit notes & live invoicing                                                                             | Blocked pending CA approval                                |
+| Phase                                                                               | Status                                                                            |
+| :---------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------- |
+| Remediation of the first audit (C1–C4, H1–H5)                                       | Done (DEC-021); independently verified as partly complete                         |
+| **Phase 1: financial foundation** (the independent verification's findings)         | Done (DEC-022)                                                                    |
+| Phase 1.5: independent audit of Phase 1                                             | Conditional pass (N1–N8, A–D)                                                     |
+| **Phase 1.6: financial integrity closure**                                          | Done (DEC-023)                                                                    |
+| Phase 1.7: independent audit of Phase 1.6                                           | Pass with conditions (tax approval backdating risk)                               |
+| **Phase 2.0: tax approval timestamp hardening**                                     | Done (DEC-024; Migration 021)                                                     |
+| **Phase 2.1: refund management desk (UI & backend)**                                | Done (DEC-025)                                                                    |
+| Phase 2.1-R: first audit findings remediation                                       | Completed                                                                         |
+| Phase 2.1-R2: final refund integrity remediation                                    | Completed                                                                         |
+| Phase 2.1-R2.1: independent audit of Phase 2.1-R2                                   | Conditional pass (AUDIT-2.1-R2-01 HIGH finding)                                   |
+| **Phase 2.1-R3: receipt-path provider ID validation & normalization clarification** | **Done locally; awaiting independent audit verification**                         |
+| Phase 2.1-R3.1: independent audit of Phase 2.1-R3                                   | PARTIAL: R3 accepted for its scope; R31-01 (HIGH), R31-02 to R31-04 (MEDIUM) open |
+| **Phase 2.1-R3.2: unified refund evidence & reconciliation integrity**              | **Done locally (DEC-028; Migration 023); awaiting a fresh independent audit**     |
+| Phase 2.2: email outbox monitoring & operational desk                               | Pending (paused for refund engine verification)                                   |
+| Phase 2.3: finance dashboard & reporting analytics                                  | Pending                                                                           |
+| Phase 2.4: Razorpay settlement & fee reconciliation                                 | Pending                                                                           |
+| Phase 2.5: GST credit notes & live invoicing                                        | Blocked pending CA approval                                                       |
 
 ## Phase 1
 
@@ -178,6 +178,7 @@ Decisions are recorded in the root `DECISION.md` (DEC-021 to DEC-028). The archi
 ## Phase 1.7: Independent Audit
 
 Phase 1.7 conducted an independent review of Phase 1.6:
+
 - **Verdict:** Pass with Conditions.
 - **Key finding:** Migration 019 `check_tax_approval_not_backdated` checked `effective_from >= NEW.recorded_at`. Because `recorded_at` was supplied by the caller, an application exploit could backdate `recorded_at` to circumvent backdating protection.
 - **Remediation required:** Phase 2.0 database clock hardening.
@@ -195,6 +196,7 @@ Phase 1.7 conducted an independent review of Phase 1.6:
 ## Phase 2.1-R2: Final Refund Integrity Remediation
 
 **Objective:** Address all findings from the Phase 2.1-R audit to make the refund engine unconditionally safe before Phase 2.2:
+
 1. **Strict 5-Point Invariant Verification for `CONFIRM_PROCESSED`:**
    - Validates that provider response provides non-null `paymentId` and that it matches `paymentProviderId`.
    - Validates that provider response provides non-null `currency` and that it matches `expectedCurrency`.
@@ -215,6 +217,7 @@ Phase 1.7 conducted an independent review of Phase 1.6:
    - Documented in `DECISION.md` (DEC-026) that Migration 022 (`CREATE UNIQUE INDEX ... WHERE provider_refund_id IS NOT NULL`) is technically redundant with Migration 014's column-level `UNIQUE` constraint, but harmlessly preserved under forward-only migration policy.
 
 **Verification Results:**
+
 - `npm test -w api`: 315 passed, 0 failed.
 - `npm test -w web`: 110 passed, 0 failed.
 - `npm run typecheck`: clean (0 errors).
@@ -225,6 +228,7 @@ Phase 1.7 conducted an independent review of Phase 1.6:
 ## Phase 2.1-R2.1: Independent Audit
 
 Phase 2.1-R2.1 independently evaluated Phase 2.1-R2:
+
 - **Verdict:** Conditional pass — 1 HIGH finding (`AUDIT-2.1-R2-01`), 1 LOW finding (`AUDIT-2.1-R2-02`), and real PostgreSQL suite marked `NOT RUN` (`AUDIT-2.1-R2-08`).
 - **Core finding (`AUDIT-2.1-R2-01`):** In `refundsDesk.service.ts` Path B (receipt matching), `candidateRefund.id` was not checked for non-emptiness before storing and transitioning the refund to `FAILED`.
 - **Observation (`AUDIT-2.1-R2-02`):** Status evaluation uses case-insensitive `toLowerCase()` normalization rather than strict lowercase string comparison.
@@ -261,6 +265,7 @@ Phase 2.1-R2.1 independently evaluated Phase 2.1-R2:
    - Verified positive control test where a valid, non-empty provider refund ID successfully resolves.
 
 **Verification Results:**
+
 - `npm test -w api`: 319 passed, 0 failed (75 suites).
 - `npm test -w web`: 110 passed, 0 failed (16 test files).
 - `npm run typecheck`: clean (0 errors).
@@ -290,3 +295,19 @@ See the R3.2 report for exact counts. Real PostgreSQL ran on a disposable Postgr
 ### Remaining
 
 A fresh independent R3.2 audit; R31-09; the production-readiness audit; CA approvals. Phase 2.2 has not been started.
+
+## Phase 2.1-R3.4: closure of the R3.3 audit items
+
+Decision: DEC-029. Uncommitted, awaiting independent review.
+
+| Item                       | Change                                                                                                                                             |
+| :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R33-01 guest checkout e2e  | Test fills the required billing address and 6-digit PIN code; a new test proves a 5-digit PIN is still refused                                     |
+| R31-11 PostgreSQL in CI    | New `postgres` job in `.github/workflows/checks.yml` (`postgres:16` service, `npm run test:postgres -w api`, fails if no server)                   |
+| R33-02 legacy provider ids | Reconciliation records one finance exception per legacy blank/padded id, never rewrites it; constraint stays NOT VALID; owner procedure in DEC-029 |
+| R31-09 refunds page        | Confirmation dialog before MARK_FAILED; no provider id sent with MARK_FAILED; server error message shown                                           |
+
+Known low-priority edge cases, left for a follow-up (found by the independent R3.5 review; both concern legacy refund rows that no deployed database holds, to be fixed before any database that held refunds before migration 023 is migrated or operated on):
+
+- **R35-03:** if a legacy row's stored provider id is an empty string, "Mark as Failed" on the refund desk hits the migration 020 guard and returns HTTP 500. Nothing is written.
+- **R35-04:** for a blank or padded stored provider id, the desk calls Razorpay with that id and answers with a misleading 502 or 409 instead of pointing staff to the exception record.

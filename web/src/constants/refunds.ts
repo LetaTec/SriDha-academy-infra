@@ -80,6 +80,13 @@ export const REFUND_DESK_TEXT = {
   resolveSubmitConfirm: 'Confirm Processed',
   resolveSubmitFail: 'Mark as Failed',
   resolveCancel: 'Cancel',
+  resolveFailTitle: 'Mark this refund as failed?',
+  resolveFailEyebrow: 'This releases the reserved amount',
+  resolveFailBody:
+    'Marking a refund failed frees its amount to be refunded again. Do this only after you have checked in the Razorpay dashboard that this refund failed and no money was returned. The server checks Razorpay too, and the decision is recorded against your name.',
+  resolveFailConfirm: 'Yes, mark as failed',
+  resolveFailBack: 'Go back',
+  resolveFallbackError: 'Failed to resolve refund exception',
   resolveSuccess: 'Exception successfully resolved and recorded in audit log',
   empty: 'No refunds recorded yet',
   emptyFiltered: 'No refunds match this filter or search query',

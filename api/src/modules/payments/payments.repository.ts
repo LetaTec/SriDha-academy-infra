@@ -386,6 +386,23 @@ export const markRefundRequiresReview = (
     [refund.id, refund.reason, timestamp],
   );
 
+// Whether a finance exception from this source is already on record for a
+// refund, so a recurring job records it once and not on every run
+export const hasRefundExceptionFromSource = async (
+  db: DatabaseClient,
+  refundId: string,
+  source: string,
+) =>
+  Boolean(
+    await db.get<Row>(
+      `SELECT id FROM finance_audit_log
+       WHERE action = 'REFUND_EXCEPTION_RECORDED' AND entity_id = $1
+         AND details ->> 'source' = $2
+       LIMIT 1`,
+      [refundId, source],
+    ),
+  );
+
 // Unresolved refunds (pending or awaiting review) created before the cutoff
 export const listPendingRefundsBefore = (
   db: DatabaseClient,

@@ -1336,3 +1336,39 @@ The independent Phase 2.1-R3.1 audit accepted the R3 fix (`AUDIT-2.1-R2-01`, des
 - A refund event for a payment we do not know is stored as `UNKNOWN_PAYMENT` only.
 - Bank settlement and fees are not modelled (Phase 2.4). Invoicing stays disabled and CA decisions remain open.
 - Needs a fresh independent audit before Phase 2.1 can be accepted.
+
+## DEC-029: Phase 2.1-R3.4 Closure of the R3.3 Audit Items (R33-01, R31-11, R33-02, R31-09)
+
+- **Decision ID**: `DEC-029`
+- **Date**: `2026-11-18`
+- **Decision Title**: Close the four items the independent R3.3 audit left open before a reviewed pull request
+- **Status**: Implemented & Locally Verified (awaiting independent review; not committed)
+
+### 1. Decisions
+
+1. **R33-01, guest checkout browser test.** The test never filled the billing address and PIN code that checkout now requires. It now fills `Billing address` and a 6-digit `PIN code`, as a real visitor must. Production validation is unchanged, and a new browser test proves checkout still refuses a 5-digit PIN code.
+2. **R31-11, real PostgreSQL in CI.** `.github/workflows/checks.yml` gets a third job, `postgres`, with a throwaway `postgres:16` service container. It runs `npm run test:postgres -w api`, which sets `REQUIRE_POSTGRES_TESTS=1`, so a missing server fails the job instead of skipping a suite. The suites create and drop their own databases and the restricted application role. The job's password is a disposable CI-only value for a container that exists only for the run. The job must be marked required in branch protection (a repository setting; not changeable from the code).
+3. **R33-02, legacy blank or padded provider refund ids.** Reconciliation now recognises such a row before calling Razorpay and records one `REFUND_EXCEPTION_RECORDED` entry (`source: legacy_invalid_provider_id`) with the refund, payment, status and amount. It is recorded once, not on every hourly run. The refund keeps its reserved amount and is never updated, rewritten or guessed at. The entry appears in `GET /finance/refund-exceptions` and on the refund's detail. Migration 023's constraint stays `NOT VALID`; nothing in this phase validates it or touches data.
+4. **R31-09, refunds page.** MARK_FAILED now opens a confirmation dialog that says the reserved amount is released and the decision is recorded against the staff member; nothing is sent until it is confirmed. A typed provider refund id is sent only with CONFIRM_PROCESSED, so MARK_FAILED can no longer carry a hidden id (the server uses the id on record or our receipt). The server's own refusal message is now shown instead of the generic HTTP error. No backend validation was removed or loosened.
+
+### 2. Procedure for existing invalid provider ids (R33-02) — not automated, needs the owner
+
+Run this on any database that held refunds before migration 023, before validating the constraint. Nothing here is run by the application.
+
+1. **Find them (read-only):** `SELECT id, payment_id, status, provider_refund_id FROM payment_refunds WHERE provider_refund_id IS NOT NULL AND provider_refund_id !~ '^\S(.*\S)?$';`
+2. **Look in finance:** each appears under refund exceptions (`legacy_invalid_provider_id`). Finance checks the refund in the Razorpay dashboard and decides whether Razorpay processed or failed it.
+3. **Do not rewrite or delete the row, and do not invent an id.** The row cannot be changed through the application: the migration 023 constraint and the provider-id guard (migration 020) refuse it, which is intended.
+4. **Correcting a row is a separate, owner-approved database operation** (a verified backup first, one transaction, the true Razorpay id taken from the dashboard, a `DECISION.md` entry naming the refund). It needs the owner role and a deliberate, temporary lift of the provider-id guard, so it is not scripted here.
+5. **Only when the query returns no rows**, run `ALTER TABLE payment_refunds VALIDATE CONSTRAINT payment_refunds_provider_refund_id_clean;`.
+
+No deployed database holds such a row today: the committed code has no refunds table in any deployment.
+
+### 3. Alternatives Considered
+
+- **Auto-correcting the ids.** Rejected: it would invent or rewrite financial history.
+- **Validating the constraint and failing on bad rows.** Rejected: it can stop a migration on populated data.
+- **A confirmation text field ("type FAIL to confirm").** Rejected for a dialog with the facts and an explicit button; the server remains the real check.
+
+### 4. Remaining limitations
+
+Two low-priority edge cases found by the independent review are left for a follow-up and must be fixed before any database that held refunds before migration 023 is operated on: R35-03 (a stored empty-string provider id makes the desk's MARK_FAILED return 500 from the migration 020 guard; nothing is written) and R35-04 (the desk calls Razorpay with a blank or padded stored id and returns a misleading 502 or 409). The branch-protection setting that makes the new CI job required is a repository setting. The exceptions list still shows only the newest 200 entries and has no "handled" state (R33-04). Not committed or pushed. Needs independent review.

@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -320,5 +326,141 @@ describe('RefundsPage — Operational Refund Desk & Exceptions', () => {
     });
 
     await screen.findByText(new RegExp(TEXT.resolveSuccess));
+  });
+  describe('marking a refund failed (R31-09)', () => {
+    const openResolution = async () => {
+      const user = userEvent.setup();
+      renderRefundsPage();
+      await screen.findByText('rfnd_test_001');
+      await user.click(
+        screen.getAllByRole('button', { name: TEXT.inspectAction })[0],
+      );
+      await screen.findByRole('heading', {
+        level: 3,
+        name: /Action Required: Manual Review Exception/,
+      });
+      await user.type(
+        screen.getByLabelText(TEXT.resolveEvidenceLabel),
+        'Razorpay dashboard: refund failed',
+      );
+      await user.type(
+        screen.getByLabelText(TEXT.resolveNotesLabel),
+        'Checked the dashboard, no money returned',
+      );
+      return user;
+    };
+
+    it('asks for confirmation first and sends nothing until it is given', async () => {
+      const user = await openResolution();
+      await user.selectOptions(
+        screen.getByLabelText(TEXT.resolveActionLabel),
+        'MARK_FAILED',
+      );
+      await user.click(
+        screen.getByRole('button', { name: TEXT.resolveSubmitFail }),
+      );
+
+      const dialog = await screen.findByRole('dialog', {
+        name: TEXT.resolveFailTitle,
+      });
+      expect(dialog).toBeInTheDocument();
+      expect(resolveRefundException).not.toHaveBeenCalled();
+
+      await user.click(
+        within(dialog).getByRole('button', { name: TEXT.resolveFailBack }),
+      );
+      expect(resolveRefundException).not.toHaveBeenCalled();
+    });
+
+    it('sends the failure only after confirmation, and never a provider refund id', async () => {
+      const user = await openResolution();
+      // An id typed for CONFIRM_PROCESSED must not travel with MARK_FAILED
+      await user.type(
+        screen.getByLabelText(TEXT.resolveProviderRefundIdLabel),
+        'rfnd_typed_earlier',
+      );
+      await user.selectOptions(
+        screen.getByLabelText(TEXT.resolveActionLabel),
+        'MARK_FAILED',
+      );
+      expect(
+        screen.queryByLabelText(TEXT.resolveProviderRefundIdLabel),
+      ).not.toBeInTheDocument();
+      await user.click(
+        screen.getByRole('button', { name: TEXT.resolveSubmitFail }),
+      );
+      const dialog = await screen.findByRole('dialog', {
+        name: TEXT.resolveFailTitle,
+      });
+      await user.click(
+        within(dialog).getByRole('button', { name: TEXT.resolveFailConfirm }),
+      );
+
+      await waitFor(() => {
+        expect(resolveRefundException).toHaveBeenCalledTimes(1);
+      });
+      const [, body] = vi.mocked(resolveRefundException).mock.calls[0];
+      expect(body).toEqual({
+        action: 'MARK_FAILED',
+        evidenceReference: 'Razorpay dashboard: refund failed',
+        notes: 'Checked the dashboard, no money returned',
+      });
+      expect(body).not.toHaveProperty('providerRefundId');
+    });
+
+    it('does not ask for confirmation when confirming a refund as processed', async () => {
+      const user = await openResolution();
+      await user.type(
+        screen.getByLabelText(TEXT.resolveProviderRefundIdLabel),
+        'rfnd_support_verified_123',
+      );
+      await user.click(
+        screen.getByRole('button', { name: TEXT.resolveSubmitConfirm }),
+      );
+      await waitFor(() => {
+        expect(resolveRefundException).toHaveBeenCalledTimes(1);
+      });
+      // The confirmation dialog never opens
+      expect(screen.queryByText(TEXT.resolveFailTitle)).not.toBeInTheDocument();
+    });
+
+    it("shows the server's own message when it refuses the evidence", async () => {
+      vi.mocked(resolveRefundException).mockRejectedValueOnce(
+        Object.assign(new Error('Request failed with status code 409'), {
+          isAxiosError: true,
+          response: {
+            status: 409,
+            data: {
+              message: 'Provider refund receipt does not match this refund',
+              code: 'PAYMENT_VERIFICATION_FAILED',
+              details: null,
+            },
+          },
+        }),
+      );
+      const user = await openResolution();
+      await user.selectOptions(
+        screen.getByLabelText(TEXT.resolveActionLabel),
+        'MARK_FAILED',
+      );
+      await user.click(
+        screen.getByRole('button', { name: TEXT.resolveSubmitFail }),
+      );
+      const dialog = await screen.findByRole('dialog', {
+        name: TEXT.resolveFailTitle,
+      });
+      await user.click(
+        within(dialog).getByRole('button', { name: TEXT.resolveFailConfirm }),
+      );
+
+      expect(
+        await screen.findByText(
+          'Provider refund receipt does not match this refund',
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText('Request failed with status code 409'),
+      ).not.toBeInTheDocument();
+    });
   });
 });

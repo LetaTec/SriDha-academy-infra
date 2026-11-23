@@ -950,6 +950,133 @@ describe('refund evidence integrity (R3.2)', () => {
   });
 
   // ---------------------------------------------------------------------
+  // R33-02: a legacy blank or padded provider id is surfaced, never rewritten
+  // ---------------------------------------------------------------------
+  describe('R33-02: legacy invalid provider refund ids', () => {
+    // What a database migrated before 023 can hold: the constraint is NOT
+    // VALID (existing rows kept, new rows guarded). The test server enforces
+    // it, so it is lifted for the test and put back as it was.
+    const withLegacyRow = async (
+      providerRefundId: string,
+      status: 'PENDING' | 'REQUIRES_REVIEW',
+      run: (refundId: string, paid: Paid, stored: string) => Promise<void>,
+    ) => {
+      const paid = await paidPayment();
+      // Each legacy id is distinct: provider ids stay unique
+      const stored = providerRefundId.trim()
+        ? ` rfnd_legacy_${eventNumber} `
+        : ' '.repeat(3 + eventNumber);
+      const refundId = `legacy-${eventNumber}-${Math.abs(providerRefundId.length)}`;
+      await server.db.exec(
+        'ALTER TABLE payment_refunds DROP CONSTRAINT payment_refunds_provider_refund_id_clean',
+      );
+      try {
+        await server.db.query(
+          `INSERT INTO payment_refunds (id, payment_id, provider, provider_refund_id, receipt, amount_paise, currency, status, source, created_at, updated_at)
+           VALUES ($1, $2, 'RAZORPAY', $3, $4, 2500, 'INR', $5, 'FINANCE_ADMIN', $6, $6)`,
+          [
+            refundId,
+            paid.paymentId,
+            stored,
+            `rcpt_${refundId}`,
+            status,
+            // On the test clock, which the reconciliation cutoff uses
+            server.clock.now().toISOString(),
+          ],
+        );
+        await run(refundId, paid, stored);
+      } finally {
+        // Retire the legacy row while the constraint is off, so later tests'
+        // isolation updates do not meet a row the constraint would refuse
+        await server.db.query(
+          `UPDATE payment_refunds SET status = 'FAILED', failure_reason = 'Test isolation' WHERE id = $1`,
+          [refundId],
+        );
+        await server.db.exec(
+          `ALTER TABLE payment_refunds ADD CONSTRAINT payment_refunds_provider_refund_id_clean
+           CHECK (provider_refund_id IS NULL OR provider_refund_id ~ '^\\S(.*\\S)?$') NOT VALID`,
+        );
+      }
+    };
+
+    for (const [label, value] of [
+      ['blank', '   '],
+      ['padded', ' rfnd_legacy_padded '],
+    ] as const) {
+      for (const status of ['PENDING', 'REQUIRES_REVIEW'] as const) {
+        it(`records a ${label} legacy id on a ${status} refund once, keeps it reserved and rewrites nothing`, async () => {
+          await withLegacyRow(value, status, async (refundId, paid, stored) => {
+            // Reconciliation must not crash on the row, however often it runs
+            const results = [
+              await reconcile(),
+              await reconcile(),
+              await reconcile(),
+            ];
+            assert.ok(
+              results.every(run => run.failed === 0 && run.processed === 0),
+            );
+
+            const row = await getRefund(refundId);
+            assert.equal(row?.status, status);
+            assert.equal(row?.provider_refund_id, stored, 'never rewritten');
+            assert.equal(await reservedPaise(paid.paymentId), 2500);
+
+            const recorded = await exceptionsFor(refundId);
+            assert.equal(recorded.length, 1, 'recorded once, not every run');
+            assert.equal(
+              recorded[0].details.source,
+              'legacy_invalid_provider_id',
+            );
+            assert.equal(recorded[0].details.field, 'provider_refund_id');
+
+            // Durable and visible to finance
+            const listed = await finance.request(
+              'GET',
+              '/api/finance/refund-exceptions',
+            );
+            assert.ok(
+              listed.body.mismatches.some(
+                (item: { refundId: string | null }) =>
+                  item.refundId === refundId,
+              ),
+            );
+            const detail = await finance.request(
+              'GET',
+              `/api/finance/refunds/${refundId}`,
+            );
+            assert.equal(detail.status, 200);
+          });
+        });
+      }
+    }
+
+    it('does not let the hourly job or the endpoint touch the legacy row, and still settles clean refunds', async () => {
+      await withLegacyRow('   ', 'PENDING', async refundId => {
+        const clean = await paidPayment();
+        const requested = await requestRefund(clean, 3000);
+        const cleanId = String(requested.body.refund.id);
+        razorpay.refunds.set(String(requested.body.refund.providerRefundId), {
+          id: String(requested.body.refund.providerRefundId),
+          status: 'failed',
+          amountPaise: 3000,
+          currency: 'INR',
+          paymentId: clean.providerPaymentId,
+          receipt: razorpay.refundRequests.at(-1)!.receipt,
+        });
+        const response = await finance.request(
+          'POST',
+          '/api/finance/refunds/reconcile',
+          { olderThanMinutes: 0 },
+        );
+        assert.equal(response.status, 200);
+        assert.equal((await getRefund(cleanId))?.status, 'FAILED');
+        assert.equal((await getRefund(refundId))?.status, 'PENDING');
+        assert.equal((await exceptionsFor(refundId)).length, 1);
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------
   // Authorization boundaries stay as they were
   // ---------------------------------------------------------------------
   describe('authorization', () => {

@@ -223,6 +223,9 @@ test.describe('student journey', () => {
     await page.getByLabel('Mobile number').fill('+91 98765 43210');
     await page.getByLabel('State', { exact: true }).selectOption('Rajasthan');
     await page.getByLabel('City', { exact: true }).fill('Jaipur');
+    // Checkout records the billing address; the PIN code must be 6 digits
+    await page.getByLabel('Billing address').fill('12 Civil Lines');
+    await page.getByLabel('PIN code').fill('302006');
     await page.getByRole('checkbox', { name: /I agree to the/ }).check();
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/${testInfo.project.name}-checkout.png`,
@@ -234,6 +237,31 @@ test.describe('student journey', () => {
     await expect(page.getByText('Seat saved')).toBeVisible();
     await page.getByRole('link', { name: 'Browse topics' }).click();
     await expect(page).toHaveURL(/\/topics$/);
+  });
+
+  test('checkout still refuses an invalid PIN code and a missing address', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/#topics');
+    await page
+      .getByRole('button', { name: 'Enrol now: GST, Class 11' })
+      .click();
+    await expect(page).toHaveURL(/\/checkout\?topic=/);
+    await page.getByLabel('Full name').fill('Asha Verma');
+    await page
+      .getByLabel('Email ID')
+      .fill(uniqueEmail(`${testInfo.project.name}-badpin`));
+    await page.getByLabel('Mobile number').fill('+91 98765 43210');
+    await page.getByLabel('State', { exact: true }).selectOption('Rajasthan');
+    await page.getByLabel('City', { exact: true }).fill('Jaipur');
+    await page.getByLabel('PIN code').fill('12345');
+    await page.getByRole('checkbox', { name: /I agree to the/ }).check();
+    await page.getByRole('button', { name: 'Pay ₹129' }).click();
+
+    await expect(
+      page.getByText('Enter a valid 6-digit PIN code'),
+    ).toBeVisible();
+    await expect(page.getByText('Seat saved')).toHaveCount(0);
   });
 
   test('the About page introduces the tutors', async ({ page }, testInfo) => {

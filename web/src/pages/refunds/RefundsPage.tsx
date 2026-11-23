@@ -7,6 +7,7 @@ import { Drawer } from '@components/ui/Drawer/Drawer';
 import { EmptyState } from '@components/ui/EmptyState/EmptyState';
 import { Heading } from '@components/ui/Heading/Heading';
 import { Input } from '@components/ui/Input/Input';
+import { Modal } from '@components/ui/Modal/Modal';
 import { KeyValueList } from '@components/ui/KeyValueList/KeyValueList';
 import { Section } from '@components/ui/Section/Section';
 import { Select } from '@components/ui/Select/Select';
@@ -28,6 +29,7 @@ import {
   useRefunds,
   useResolveRefundException,
 } from '@hooks/useRefunds';
+import { getApiErrorMessage } from '@services/api/errors';
 import { formatPaise } from '@utils/currency';
 import { formatDateTime } from '@utils/date';
 
@@ -58,6 +60,7 @@ export const RefundsPage: React.FC = () => {
     useState<string>('');
   const [formFeedback, setFormFeedback] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [confirmFailOpen, setConfirmFailOpen] = useState<boolean>(false);
 
   const { refunds, summary, isLoading, hasError, reload } = useRefunds(
     canView,
@@ -124,6 +127,18 @@ export const RefundsPage: React.FC = () => {
     }
 
     setFormError(null);
+    // Marking a refund failed frees its amount and cannot be undone here, so
+    // it is confirmed first
+    if (resolveAction === 'MARK_FAILED') {
+      setConfirmFailOpen(true);
+      return;
+    }
+    await submitResolution();
+  };
+
+  const submitResolution = async () => {
+    if (!selectedRefundId) return;
+    setConfirmFailOpen(false);
     try {
       await resolveMutation.mutateAsync({
         refundId: selectedRefundId,
@@ -131,17 +146,19 @@ export const RefundsPage: React.FC = () => {
           action: resolveAction,
           evidenceReference: evidenceReference.trim(),
           notes: resolutionNotes.trim(),
-          providerRefundId: providerRefundIdInput.trim() || undefined,
+          // Only confirming a refund as processed names a provider refund. A
+          // failure is checked by the server against the id on record or our
+          // receipt, never against a typed id.
+          ...(resolveAction === 'CONFIRM_PROCESSED' &&
+          providerRefundIdInput.trim()
+            ? { providerRefundId: providerRefundIdInput.trim() }
+            : {}),
         },
       });
       setFormFeedback(TEXT.resolveSuccess);
       reload();
     } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Failed to resolve refund exception';
-      setFormError(message);
+      setFormError(getApiErrorMessage(err, TEXT.resolveFallbackError));
     }
   };
 
@@ -561,6 +578,38 @@ export const RefundsPage: React.FC = () => {
                 </form>
               </div>
             ) : null}
+
+            <Modal
+              open={confirmFailOpen}
+              onClose={() => setConfirmFailOpen(false)}
+              eyebrow={TEXT.resolveFailEyebrow}
+              title={TEXT.resolveFailTitle}
+            >
+              <Text as="p">{TEXT.resolveFailBody}</Text>
+              <Text as="p" variant="small" tone="muted">
+                {formatPaise(detail.refund.amountPaise)}
+                {detail.refund.providerRefundId
+                  ? ` · ${detail.refund.providerRefundId}`
+                  : ''}
+              </Text>
+              <div className={cn('formActions')}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  loading={resolveMutation.isPending}
+                  onClick={() => void submitResolution()}
+                >
+                  {TEXT.resolveFailConfirm}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setConfirmFailOpen(false)}
+                >
+                  {TEXT.resolveFailBack}
+                </Button>
+              </div>
+            </Modal>
 
             {/* Audit Trail */}
             <div className={cn('sectionBlock')}>

@@ -15,6 +15,7 @@ import {
   type RefundEvidenceProblem,
 } from './refundEvidence.js';
 import {
+  hasRefundExceptionFromSource,
   listPendingRefundsBefore,
   lockRefundWithPayment,
   markRefundRequiresReview,
@@ -31,6 +32,10 @@ export const DEFAULT_PENDING_REFUND_THRESHOLD_MINUTES = 30;
 export const REFUND_ABSENCE_REVIEW_AFTER_MS = 24 * 60 * 60 * 1000;
 
 const UNRESOLVED = ['PENDING', 'REQUIRES_REVIEW'];
+
+// The same rule as migration 023: no leading or trailing whitespace, not blank
+const CLEAN_PROVIDER_ID = /^\S([\s\S]*\S)?$/;
+const LEGACY_INVALID_ID_SOURCE = 'legacy_invalid_provider_id';
 
 export type ReconcileRefundsOptions = {
   olderThanMinutes?: number;
@@ -90,6 +95,65 @@ export const reconcilePendingRefunds = async (
       candidate.provider_payment_id === null
         ? null
         : String(candidate.provider_payment_id);
+
+    // A provider id stored before migration 023 may be blank or padded. The
+    // database now refuses any change to such a row, so it can never be
+    // settled here. It is never rewritten or guessed at: it is recorded once
+    // for finance, and its amount stays reserved.
+    if (
+      providerRefundId !== null &&
+      !CLEAN_PROVIDER_ID.test(providerRefundId)
+    ) {
+      try {
+        const recorded = await transaction(context.db, async tx => {
+          const locked = await lockRefundWithPayment(tx, paymentId, refundId);
+          if (
+            !locked ||
+            (await hasRefundExceptionFromSource(
+              tx,
+              refundId,
+              LEGACY_INVALID_ID_SOURCE,
+            ))
+          ) {
+            return false;
+          }
+          await recordAudit(tx, {
+            actor: null,
+            action: AUDIT_ACTION.refundException,
+            entityType: 'refund',
+            entityId: refundId,
+            details: {
+              field: 'provider_refund_id',
+              source: LEGACY_INVALID_ID_SOURCE,
+              reason:
+                'This refund has a blank or padded provider refund ID from before it was refused. It cannot be settled automatically and its amount stays reserved. Check the Razorpay dashboard and resolve it by hand.',
+              recorded: {
+                paymentId,
+                providerRefundId: describeReported({ id: providerRefundId })
+                  .providerRefundId,
+                status: String(locked.status),
+                amountPaise: Number(candidate.amount_paise),
+              },
+            },
+            at: now,
+          });
+          return true;
+        });
+        if (recorded) {
+          logger.error('payments.refund_legacy_invalid_provider_id', {
+            refundId,
+            paymentId,
+          });
+        }
+      } catch (error) {
+        logger.error('payments.refund_reconcile_item_failed', {
+          refundId,
+          error,
+        });
+      }
+      result.skipped += 1;
+      continue;
+    }
 
     try {
       let providerRefund: ProviderRefund | null = null;
