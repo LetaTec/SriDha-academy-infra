@@ -281,22 +281,6 @@ test.describe('student journey', () => {
       path: `${SCREENSHOT_DIR}/${testInfo.project.name}-about-tutors.png`,
     });
   });
-
-  test('model paper waitlist sign-ups are stored', async ({ page }) => {
-    await page.goto('/#model-paper');
-    await expect(
-      page.getByRole('heading', { level: 3, name: 'AI Model Paper' }),
-    ).toBeVisible();
-
-    await page.getByRole('button', { name: 'Join waitlist' }).first().click();
-    const dialog = page.getByRole('dialog', { name: /prepare\s*ahead/i });
-    await dialog.getByLabel(/email/i).fill(uniqueEmail('waitlist'));
-    await dialog.getByLabel('Exam').selectOption('NEET');
-    await dialog.getByRole('button', { name: /join waitlist/i }).click();
-    await expect(
-      page.getByText('You have been added to the model paper waitlist'),
-    ).toBeVisible();
-  });
 });
 
 test.describe('student account', () => {
@@ -307,23 +291,33 @@ test.describe('student account', () => {
     const password = 'correct-horse-1';
     await page.goto('/ai-test');
 
-    // Reading needs no account; answering does
+    // A visitor sees the paper locked, with sign-up in the middle
     const paper = page.getByRole('region', { name: 'Sample test paper' });
-    const firstQuestion = paper.getByRole('radiogroup').first();
-    // Clicking the option as a student would; the answer is held back
-    // until the account exists
-    await firstQuestion.locator('label').first().click();
-    const signUp = page.getByRole('dialog', { name: /Create your/ });
-    await expect(signUp).toBeVisible();
-    await expect(paper.getByText('Answered 0 of 20')).toBeVisible();
+    const lock = paper.getByRole('region', {
+      name: 'Sign in to start this paper',
+    });
+    await expect(lock).toBeVisible();
+    await expect(
+      lock.getByRole('heading', {
+        name: 'Sign up or log in to start the test',
+      }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: `${SCREENSHOT_DIR}/${testInfo.project.name}-paper-locked.png`,
+    });
 
+    await lock.getByRole('button', { name: 'Sign up' }).click();
+    const signUp = page.getByRole('dialog', { name: /Create your/ });
     await signUp.getByLabel('Full name').fill('Meera Iyer');
     await signUp.getByLabel('Email ID').fill(email);
     await signUp.getByLabel('Create a password').fill(password);
     await signUp.getByRole('button', { name: 'Create account' }).click();
 
-    // The answer they clicked counts, and the clock is running
+    // Signed in: the lock lifts and the paper can be answered
     await expect(signUp).toBeHidden();
+    await expect(lock).toBeHidden();
+    const firstQuestion = paper.getByRole('radiogroup').first();
+    await firstQuestion.locator('label').first().click();
     await expect(paper.getByText('Answered 1 of 20')).toBeVisible();
     await expect(firstQuestion.getByRole('radio').first()).toBeChecked();
 
@@ -358,5 +352,28 @@ test.describe('student account', () => {
     await expect(
       header.getByRole('button', { name: 'Your account' }),
     ).toBeVisible();
+
+    // Change the password from the profile menu
+    const newPassword = 'new-password-2';
+    await header.getByRole('button', { name: 'Your account' }).click();
+    await header.getByRole('button', { name: 'Change password' }).click();
+    const change = page.getByRole('dialog', { name: /Change your/ });
+    await change.getByLabel('Current password').fill(password);
+    await change.getByLabel('New password').fill(newPassword);
+    await change.getByRole('button', { name: 'Save new password' }).click();
+    await expect(change).toBeHidden();
+    await expect(page.getByText('Password changed')).toBeVisible();
+
+    // The new password works; this device stayed signed in
+    await header.getByRole('button', { name: 'Your account' }).click();
+    await header.getByRole('button', { name: 'Sign out' }).click();
+    await header
+      .getByRole('button', { name: 'Sign in or create an account' })
+      .click();
+    await dialog.getByRole('button', { name: 'Sign in' }).click();
+    await dialog.getByLabel('Email ID').fill(email);
+    await dialog.getByLabel('Password', { exact: true }).fill(newPassword);
+    await dialog.getByRole('button', { name: 'Sign in' }).click();
+    await expect(dialog).toBeHidden();
   });
 });

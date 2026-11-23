@@ -11,7 +11,7 @@ These rules follow the pro-web conventions, adapted to SriDha Academy. Differenc
 
 ## Architecture (web)
 
-- Pages, layouts, components and hooks talk to domain services in `src/services/*` (`auth`, `catalogue`, `payments`, `admin`, `enquiries`). Only services import the shared Axios client from `src/services/http/api.ts`.
+- Pages, layouts, components and hooks talk to domain services in `src/services/*` (`auth`, `catalogue`, `payments`, `admin`, `finance`). Only services import the shared Axios client from `src/services/http/api.ts`.
 - Server data is read through TanStack Query hooks in `src/hooks` (`useCatalogue`, `useTopicPreviews`, `useTeamOrders`), with keys in `QUERY_KEY` (`src/app/queryClient.ts`). Do not fetch in `useEffect`; after a change on the server, invalidate the keys it affects (see `useRefreshAfterPayment`).
 - Topics come only from the catalogue: use `useTopicPreviews` for topic cards. The topic list lives in `api/src/db/topicLibrary.ts`; never copy topic names or lists into the website.
 - Dependency direction: pages/layouts compose services, hooks, constants and components; services own backend calls; utilities stay pure and side-effect free.
@@ -44,7 +44,7 @@ These rules follow the pro-web conventions, adapted to SriDha Academy. Differenc
 ## Components and styling
 
 - React + TypeScript with CSS Modules. Each component with styling has a colocated `.module.css` and uses `classnames/bind` via `cx.bind(styles)`.
-- `src/components/ui` holds product-agnostic building blocks. Business-aware components live under their entity: `auth`, `catalogue`, `enrolments`, `enquiries`, `brand`.
+- `src/components/ui` holds product-agnostic building blocks. Business-aware components live under their entity: `auth`, `assessment`, `catalogue`, `enrolments`, `brand`.
 - Reuse before building. Cards are always `Card` inside `CardGrid`. Section layout is `Section` + `SectionHead`. Text is `Text` / `Heading`. Buttons are `Button`, `ButtonLink`, `ButtonRouteLink`, `IconButton` or `ButtonBase` — never a raw `<button>`. Dialogs are `Modal` (native `<dialog>`). Icons are `Icon` with names from `src/constants/icons.ts` — never raw Unicode arrows.
 - Async actions pass `loading` to `Button`; the button keeps its width and shows a spinner.
 - Export public prop types as `ComponentNameProps`. No single-component `index.ts` barrels.
@@ -66,7 +66,7 @@ These rules follow the pro-web conventions, adapted to SriDha Academy. Differenc
 
 ## Constants, pages and routing
 
-- Domain labels, options and status mappings live in one constants file per domain (`catalogue.ts`, `student.ts`, `enquiry.ts`, `auth.ts`). Derive option arrays from source values.
+- Domain labels, options and status mappings live in one constants file per domain (`catalogue.ts`, `assessment.ts`, `payments.ts`, `auth.ts`). Derive option arrays from source values.
 - Homepage copy lives in `src/constants/home.ts`. Components do not hardcode display strings.
 - Page entry files are named after the page (`HomePage.tsx`) and lazy-loaded at route boundaries in `src/app/router.tsx`.
 

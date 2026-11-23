@@ -10,10 +10,30 @@ import {
   SAMPLE_TEST_TRACKS,
   SAMPLE_TEST_TEXT as TEXT,
 } from '@constants/assessment';
+import { useSamplePaper } from '@hooks/useQuestionBanks';
 
 import styles from './SampleTestPaper.module.css';
 
 const cn = cx.bind(styles);
+
+// The chosen paper, with its questions once they have downloaded
+const SamplePaperQuestions = ({
+  trackKey,
+  subjectKey,
+  scrollsInside,
+}: {
+  trackKey: string;
+  subjectKey: string;
+  scrollsInside: boolean;
+}) => (
+  <PaperAnswers
+    questions={useSamplePaper(trackKey, subjectKey)}
+    questionCount={TOTAL}
+    durationSeconds={SAMPLE_TEST_DURATION_SECONDS}
+    instruction={TEXT.instruction}
+    scrollsInside={scrollsInside}
+  />
+);
 
 export type SampleTestPaperProps = {
   // The class or exam the paper opens on; the first one by default.
@@ -87,11 +107,10 @@ export const SampleTestPaper = ({
       </div>
 
       {/* A new paper for every class and subject: fresh answers and clock */}
-      <PaperAnswers
+      <SamplePaperQuestions
         key={`${track.key}-${subject.key}`}
-        questions={subject.questions}
-        durationSeconds={SAMPLE_TEST_DURATION_SECONDS}
-        instruction={TEXT.instruction}
+        trackKey={track.key}
+        subjectKey={subject.key}
         scrollsInside={layout === 'compact'}
       />
     </PaperSheet>

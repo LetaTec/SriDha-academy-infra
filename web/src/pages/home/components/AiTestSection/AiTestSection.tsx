@@ -16,8 +16,8 @@ const cn = cx.bind(styles);
 
 const TITLE_ID = 'ai-test-title';
 
-// Live interactive assessment preview: Try a sample test paper right in the browser.
-// Focuses the first answer option when clicking "Start sample test".
+// A sample paper to take right on the homepage. "Start sample test"
+// scrolls to it and focuses the first answer option.
 export const AiTestSection = () => {
   const paperRef = useRef<HTMLDivElement>(null);
 
@@ -53,18 +53,12 @@ export const AiTestSection = () => {
           </Text>
 
           <ul className={cn('featuresList')}>
-            <li className={cn('featureItem')}>
-              <span className={cn('featureDot')} aria-hidden="true" />
-              <span>Algorithmic paper generation from syllabus blueprints</span>
-            </li>
-            <li className={cn('featureItem')}>
-              <span className={cn('featureDot')} aria-hidden="true" />
-              <span>Instant step-marking with detailed reasoning</span>
-            </li>
-            <li className={cn('featureItem')}>
-              <span className={cn('featureDot')} aria-hidden="true" />
-              <span>Client-side demonstration · No login required</span>
-            </li>
+            {AI_TEST_TEXT.features.map(feature => (
+              <li key={feature} className={cn('featureItem')}>
+                <span className={cn('featureDot')} aria-hidden="true" />
+                <span>{feature}</span>
+              </li>
+            ))}
           </ul>
 
           <Button

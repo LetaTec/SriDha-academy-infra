@@ -1,0 +1,48 @@
+/* Covers the questions: they show through blurred and tinted, so a visitor
+   sees there is a paper but cannot read or answer it */
+.lock {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-content);
+  display: grid;
+  justify-items: center;
+  padding: var(--space-3);
+  background: var(--color-paper-lock);
+  backdrop-filter: blur(var(--blur-paper-lock));
+  -webkit-backdrop-filter: blur(var(--blur-paper-lock));
+}
+
+/* A compact paper is one screen tall: the card sits in its middle */
+.compact {
+  align-items: center;
+}
+
+/* A wide paper is long: the card stays near the top of the screen */
+.wide {
+  align-items: start;
+}
+
+.wide .card {
+  position: sticky;
+  top: calc(var(--height-header) + var(--space-6));
+  margin-top: var(--space-6);
+}
+
+.card {
+  display: grid;
+  gap: var(--space-1-5);
+  width: min(var(--width-paper-lock-card), 100%);
+  padding: var(--space-3);
+  text-align: center;
+  background: var(--color-bg-page);
+  border: var(--border-width-base) solid var(--color-border-strong);
+  box-shadow: var(--shadow-offset-accent-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1-5);
+  margin-top: var(--space-1);
+}

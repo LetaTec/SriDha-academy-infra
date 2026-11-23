@@ -1,4 +1,4 @@
-import type { SampleTestFigure } from './assessment';
+import type { SampleTestFigure, SampleTestQuestion } from './assessment';
 import { type PaperRow as Row, toPaper } from './paperRows';
 
 // The sample test papers: 20 questions for each subject of each class or
@@ -3876,3 +3876,15 @@ export const SAMPLE_TEST_BANK = {
     maths: toPaper('ca-maths', CA_BUSINESS_MATHS),
   },
 } as const;
+
+// A class or exam's subject paper, or null for keys it does not have
+export const findSamplePaper = (
+  trackKey: string,
+  subjectKey: string,
+): readonly SampleTestQuestion[] | null => {
+  const track: Readonly<Record<string, readonly SampleTestQuestion[]>> | null =
+    Object.hasOwn(SAMPLE_TEST_BANK, trackKey)
+      ? SAMPLE_TEST_BANK[trackKey as keyof typeof SAMPLE_TEST_BANK]
+      : null;
+  return track && Object.hasOwn(track, subjectKey) ? track[subjectKey] : null;
+};

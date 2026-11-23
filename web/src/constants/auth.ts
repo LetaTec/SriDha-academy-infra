@@ -78,6 +78,21 @@ export const ACCOUNT_TEXT = {
   profileLabel: 'Your account',
   signInLabel: 'Sign in or create an account',
   signOut: 'Sign out',
+  // Over a paper until the visitor signs in
+  lockTitle: 'Sign up or log in to start the test',
+  lockLead:
+    'A free account lets you answer, see your score and every right answer',
+  lockSignUp: 'Sign up',
+  lockLogIn: 'Log in',
+  lockLabel: 'Sign in to start this paper',
+  changePassword: 'Change password',
+  changeEyebrow: 'SriDha Academy / Your account',
+  changeTitle: 'Change your',
+  changeTitleEmphasis: 'password.',
+  changeLead: 'Other devices signed in to your account will be signed out',
+  currentPasswordLabel: 'Current password',
+  changeSubmit: 'Save new password',
+  changedToast: 'Password changed',
 } as const;
 
 // Password-free sign-in for the SriDha Academy team (super admins)

@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -754,85 +755,119 @@ describe('app routing', () => {
     ).toHaveAttribute('href', '/team/refunds');
   });
 
-  it('leads the AI test page with a past paper to take, opened on Class 12', async () => {
-    vi.mocked(getCurrentSession).mockResolvedValue(student);
-    renderApp('/ai-test');
+  it(
+    'leads the AI test page with a past paper to take, opened on Class 12',
+    async () => {
+      vi.mocked(getCurrentSession).mockResolvedValue(student);
+      renderApp('/ai-test');
 
-    expect(
-      await screen.findByRole(
-        'heading',
-        { level: 1, name: /real past papers/ },
-        { timeout: LAZY_PAGE_TIMEOUT_MS },
-      ),
-    ).toBeInTheDocument();
-    const paper = screen.getByRole('region', { name: 'Sample test paper' });
-    expect(
-      within(paper).getByRole('button', { name: 'Class 12' }),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(within(paper).getAllByRole('radiogroup')).toHaveLength(20);
-    // The header names the page after what is on it
-    expect(
-      within(screen.getByRole('banner')).getAllByRole('link', {
-        name: 'PYQ Test Paper',
-      })[0],
-    ).toHaveAttribute('href', '/ai-test');
-    // Real papers, not a feature in the workshop
-    expect(screen.queryByText('In progress')).not.toBeInTheDocument();
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-  });
+      expect(
+        await screen.findByRole(
+          'heading',
+          { level: 1, name: /real past papers/ },
+          { timeout: LAZY_PAGE_TIMEOUT_MS },
+        ),
+      ).toBeInTheDocument();
+      const paper = screen.getByRole('region', { name: 'Sample test paper' });
+      expect(
+        within(paper).getByRole('button', { name: 'Class 12' }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      // Questions download separately from the page
+      expect(
+        await within(paper).findAllByRole(
+          'radiogroup',
+          {},
+          { timeout: LAZY_PAGE_TIMEOUT_MS },
+        ),
+      ).toHaveLength(20);
+      // The header names the page after what is on it
+      expect(
+        within(screen.getByRole('banner')).getAllByRole('link', {
+          name: 'PYQ Test Paper',
+        })[0],
+      ).toHaveAttribute('href', '/ai-test');
+      // Real papers, not a feature in the workshop
+      expect(screen.queryByText('In progress')).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    },
+    JOURNEY_TEST_TIMEOUT_MS,
+  );
 
-  it('lists topic tests, ready ones first, and takes a two-hour topic test', async () => {
-    vi.mocked(getCurrentSession).mockResolvedValue(student);
-    const user = userEvent.setup();
-    // Old model paper links land on the topic tests
-    const router = renderApp('/model-paper');
+  it(
+    'lists topic tests, ready ones first, and takes a two-hour topic test',
+    async () => {
+      vi.mocked(getCurrentSession).mockResolvedValue(student);
+      const user = userEvent.setup();
+      // Old model paper links land on the topic tests
+      const router = renderApp('/model-paper');
 
-    expect(
-      await screen.findByRole(
-        'heading',
-        { level: 1, name: /one topic at a time/ },
-        { timeout: LAZY_PAGE_TIMEOUT_MS },
-      ),
-    ).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/topic-tests');
-    expect(
-      within(screen.getByRole('banner')).getAllByRole('link', {
-        name: 'Topic Test Paper',
-      })[0],
-    ).toHaveAttribute('href', '/topic-tests');
+      expect(
+        await screen.findByRole(
+          'heading',
+          { level: 1, name: /one topic at a time/ },
+          { timeout: LAZY_PAGE_TIMEOUT_MS },
+        ),
+      ).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe('/topic-tests');
+      expect(
+        within(screen.getByRole('banner')).getAllByRole('link', {
+          name: 'Topic Test Paper',
+        })[0],
+      ).toHaveAttribute('href', '/topic-tests');
 
-    const ready = await screen.findByRole('region', {
-      name: 'Tests ready to take',
-    });
-    expect(within(ready).getAllByRole('link')).toHaveLength(3);
-    const soon = screen.getByRole('region', { name: 'Tests coming soon' });
-    expect(within(soon).getByText('Ecosystem')).toBeInTheDocument();
-    expect(within(soon).getByText('Test coming soon')).toBeInTheDocument();
-    expect(within(soon).queryByRole('link')).not.toBeInTheDocument();
+      const ready = await screen.findByRole('region', {
+        name: 'Tests ready to take',
+      });
+      expect(within(ready).getAllByRole('link')).toHaveLength(3);
+      const soon = screen.getByRole('region', { name: 'Tests coming soon' });
+      expect(within(soon).getByText('Ecosystem')).toBeInTheDocument();
+      expect(within(soon).getByText('Test coming soon')).toBeInTheDocument();
+      expect(within(soon).queryByRole('link')).not.toBeInTheDocument();
 
-    await user.click(
-      within(ready).getByRole('link', {
-        name: 'Take the Ray optics test, Class 12',
-      }),
-    );
-    expect(
-      await screen.findByRole(
-        'heading',
-        { level: 1, name: /Ray optics/ },
-        { timeout: LAZY_PAGE_TIMEOUT_MS },
-      ),
-    ).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe(
-      '/topic-tests/topic_physics_ray_optics_class_12',
-    );
-    // The clock waits for the student
-    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+      await user.click(
+        within(ready).getByRole('link', {
+          name: 'Take the Ray optics test, Class 12',
+        }),
+      );
+      expect(
+        await screen.findByRole(
+          'heading',
+          { level: 1, name: /Ray optics/ },
+          { timeout: LAZY_PAGE_TIMEOUT_MS },
+        ),
+      ).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe(
+        '/topic-tests/topic_physics_ray_optics_class_12',
+      );
+      // The clock waits for the student
+      expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Start the test' }));
-    const paper = screen.getByRole('region', { name: 'Topic test paper' });
-    expect(within(paper).getAllByRole('radiogroup')).toHaveLength(20);
-    expect(within(paper).getByText(/^Time left (2:00:00|1:59:5\d)$/));
-  });
+      // Awaited act: the questions are their own download
+      await act(async () => {
+        await user.click(
+          screen.getByRole('button', { name: 'Start the test' }),
+        );
+      });
+      const paper = screen.getByRole('region', { name: 'Topic test paper' });
+      // Questions download separately from the page
+      expect(
+        await within(paper).findAllByRole(
+          'radiogroup',
+          {},
+          { timeout: LAZY_PAGE_TIMEOUT_MS },
+        ),
+      ).toHaveLength(20);
+      expect(within(paper).getByText(/^Time left (2:00:00|1:59:5\d)$/));
+
+      // Once marked, every question says why its answer is right
+      await user.click(within(paper).getAllByRole('radio')[0]);
+      await user.click(
+        within(paper).getByRole('button', { name: 'Submit answers' }),
+      );
+      expect(within(paper).getAllByText(/^Why: /)).toHaveLength(20);
+    },
+    JOURNEY_TEST_TIMEOUT_MS,
+  );
 
   it('says when a topic’s test is not ready yet', async () => {
     vi.mocked(getCurrentSession).mockResolvedValue(student);

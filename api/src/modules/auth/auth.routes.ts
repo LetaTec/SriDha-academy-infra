@@ -7,6 +7,7 @@ import { validate } from '../../http/validate.js';
 import {
   adminSignInConfirmSchema,
   adminSignInRequestSchema,
+  changePasswordSchema,
   loginSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
@@ -15,6 +16,7 @@ import {
 } from './auth.schema.js';
 import {
   authenticateStudent,
+  changePassword,
   confirmAdminSignIn,
   confirmPasswordReset,
   getAuthUser,
@@ -91,6 +93,13 @@ export const createAuthRouter = (context: AppContext) => {
     }
 
     res.json({ user });
+  });
+
+  router.post('/change-password', requireAuth, async (req, res) => {
+    const auth = getRequiredAuth(req.auth);
+    const input = validate(changePasswordSchema, req.body);
+    await changePassword(context, auth, input);
+    res.status(204).end();
   });
 
   router.post('/password-reset', async (req, res) => {

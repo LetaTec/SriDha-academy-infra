@@ -4,6 +4,7 @@ import type {
   AdminSignInConfirmRequest,
   AdminSignInRequest,
   AuthUser,
+  ChangePasswordRequest,
   LoginRequest,
   PasswordResetConfirmRequest,
   PasswordResetRequest,
@@ -32,6 +33,10 @@ export const confirmPasswordReset = async (body: PasswordResetConfirmRequest) =>
       body,
     )
   ).data.user;
+
+export const changePassword = async (body: ChangePasswordRequest) => {
+  await API_CLIENT.post('/auth/change-password', body);
+};
 
 export const logoutStudent = async () => {
   await API_CLIENT.post('/auth/logout');

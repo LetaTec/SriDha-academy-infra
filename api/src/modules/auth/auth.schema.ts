@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import type {
   AdminSignInConfirmRequest,
+  ChangePasswordRequest,
   AdminSignInRequest,
   LoginRequest,
   PasswordResetConfirmRequest,
@@ -108,6 +109,14 @@ export const signUpSchema = z.strictObject({
   password: passwordSchema,
 }) satisfies z.ZodType<SignUpRequest>;
 
+export const changePasswordSchema = z.strictObject({
+  currentPassword: z
+    .string()
+    .min(1, 'Enter your current password')
+    .max(PASSWORD_MAX_LENGTH),
+  newPassword: passwordSchema,
+}) satisfies z.ZodType<ChangePasswordRequest>;
+
 export const loginSchema = z.strictObject({
   email: emailSchema,
   password: z.string().min(1, 'Enter your password').max(PASSWORD_MAX_LENGTH),
@@ -138,6 +147,7 @@ export const adminSignInConfirmSchema = z.strictObject({
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type PasswordResetConfirmInput = z.infer<
   typeof passwordResetConfirmSchema
 >;

@@ -1,5 +1,6 @@
 import type { SampleTestQuestion } from './assessment';
 import { type PaperRow, toPaper } from './paperRows';
+import { TOPIC_TEST_EXPLANATIONS } from './topicTestExplanations';
 
 // Topic-wise test papers: 20 hard questions on one topic, keyed by the
 // topic's catalogue id (the topic's name and class come from the
@@ -1077,7 +1078,7 @@ export const TOPIC_TEST_BANK: Readonly<
 > = Object.fromEntries(
   Object.entries(TOPIC_TEST_ROWS).map(([topicId, rows]) => [
     topicId,
-    toPaper(topicId, rows),
+    toPaper(topicId, rows, TOPIC_TEST_EXPLANATIONS[topicId]),
   ]),
 );
 

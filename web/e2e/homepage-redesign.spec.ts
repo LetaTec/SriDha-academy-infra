@@ -80,21 +80,12 @@ test.describe('Homepage Redesign Responsiveness and Quality', () => {
         journeySection.getByRole('link', { name: 'Topic Test Paper' }),
       ).toHaveAttribute('href', '/topic-tests');
 
-      // Verify Model Paper Discovery section
-      const modelPaperSection = page.locator('section#model-paper');
-      await expect(modelPaperSection).toBeVisible();
+      // Only what students can use today: no model paper promises
+      await expect(page.locator('section#model-paper')).toHaveCount(0);
+      const programs = page.locator('#programs');
       await expect(
-        modelPaperSection.getByRole('heading', {
-          level: 3,
-          name: /Past 5 Years' Board Questions/i,
-        }),
-      ).toBeVisible();
-      await expect(
-        modelPaperSection.getByRole('heading', {
-          level: 3,
-          name: /AI-Synthesised Model Papers/i,
-        }),
-      ).toBeVisible();
+        programs.getByRole('link', { name: 'Take a topic test' }),
+      ).toHaveAttribute('href', '/topic-tests');
     });
   }
 });

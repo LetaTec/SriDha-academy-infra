@@ -4,8 +4,19 @@
   font-style: italic;
 }
 
+/* The lock lies over this area */
+.questionsArea {
+  position: relative;
+}
+
 .questions {
   list-style: none;
+}
+
+/* Under the lock: nothing to select or scroll through */
+.questionsLocked {
+  overflow: hidden;
+  user-select: none;
 }
 
 /* In a compact paper the questions scroll inside the sheet, so the page
@@ -14,6 +25,18 @@
   max-height: var(--height-test-questions);
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/* While the questions download, a compact paper keeps the same height, so
+   nothing below it moves when they arrive */
+.questionsLoading {
+  display: grid;
+  place-items: center;
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
+}
+
+.scrollsInside .questionsLoading {
+  height: var(--height-test-questions);
 }
 
 .question {
@@ -106,6 +129,12 @@
   padding-left: var(--space-4);
 }
 
+/* Why the answer is right, under the marking */
+.explanation {
+  margin-top: var(--space-0-5);
+  padding-left: var(--space-4);
+}
+
 .result {
   display: grid;
   gap: var(--space-0-5);
@@ -174,7 +203,8 @@
 
 @media (--viewport-sm) {
   .options,
-  .feedback {
+  .feedback,
+  .explanation {
     padding-left: 0;
   }
 

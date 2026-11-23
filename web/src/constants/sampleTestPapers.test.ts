@@ -1,5 +1,14 @@
 import { SAMPLE_TEST_QUESTION_COUNT, SAMPLE_TEST_TRACKS } from './assessment';
 import { finishPrompt } from './paperRows';
+import { findSamplePaper } from './sampleTestPapers';
+
+// Every class or exam's subject paper, by its names
+const papers = SAMPLE_TEST_TRACKS.flatMap(track =>
+  track.subjects.map(subject => ({
+    name: `${track.label} / ${subject.label}`,
+    questions: findSamplePaper(track.key, subject.key) ?? [],
+  })),
+);
 
 describe('finishPrompt', () => {
   it.each([
@@ -30,8 +39,8 @@ describe('finishPrompt', () => {
   });
 
   it('leaves no displayed prompt ending mid-sentence', () => {
-    SAMPLE_TEST_TRACKS.flatMap(track => track.subjects)
-      .flatMap(subject => subject.questions)
+    papers
+      .flatMap(paper => paper.questions)
       .forEach(question =>
         expect(question.prompt).toMatch(/[?.:!…)\]”’"]$|_{3,}/),
       );
@@ -39,13 +48,6 @@ describe('finishPrompt', () => {
 });
 
 describe('sample test papers', () => {
-  const papers = SAMPLE_TEST_TRACKS.flatMap(track =>
-    track.subjects.map(subject => ({
-      name: `${track.label} / ${subject.label}`,
-      questions: subject.questions,
-    })),
-  );
-
   it.each(papers)('$name has a full paper of distinct questions', paper => {
     expect(paper.questions).toHaveLength(SAMPLE_TEST_QUESTION_COUNT);
     const prompts = paper.questions.map(question => question.prompt);

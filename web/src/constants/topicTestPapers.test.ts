@@ -1,4 +1,8 @@
-import { SAMPLE_TEST_QUESTION_COUNT } from './assessment';
+import {
+  SAMPLE_TEST_QUESTION_COUNT,
+  TOPIC_TEST_QUESTION_COUNTS,
+} from './assessment';
+import { TOPIC_TEST_EXPLANATIONS } from './topicTestExplanations';
 import { findTopicTest, TOPIC_TEST_BANK } from './topicTestPapers';
 
 describe('topic test papers', () => {
@@ -36,6 +40,25 @@ describe('topic test papers', () => {
       expect(
         new Set(questions.map(question => question.answer)).size,
       ).toBeGreaterThan(2);
+    },
+  );
+
+  // The topic list reads the counts without downloading the questions
+  it('lists exactly the topics that have a paper, with their sizes', () => {
+    expect(TOPIC_TEST_QUESTION_COUNTS).toEqual(
+      Object.fromEntries(
+        papers.map(paper => [paper.topicId, paper.questions.length]),
+      ),
+    );
+  });
+
+  it.each(papers)(
+    '$topicId explains every answer',
+    ({ topicId, questions }) => {
+      expect(TOPIC_TEST_EXPLANATIONS[topicId]).toHaveLength(questions.length);
+      questions.forEach(question =>
+        expect(question.explanation?.trim()).toBeTruthy(),
+      );
     },
   );
 

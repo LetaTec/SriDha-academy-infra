@@ -1,4 +1,5 @@
 export {
+  changePassword,
   confirmAdminSignIn,
   confirmPasswordReset,
   getCurrentSession,
@@ -12,6 +13,7 @@ export type {
   AdminSignInConfirmRequest,
   AdminSignInRequest,
   AuthUser,
+  ChangePasswordRequest,
   LoginRequest,
   PasswordResetConfirmRequest,
   PasswordResetRequest,

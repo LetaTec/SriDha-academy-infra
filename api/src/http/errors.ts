@@ -10,6 +10,7 @@ export const ERROR_CODE = {
   unauthenticated: 'UNAUTHENTICATED',
   sessionExpired: 'SESSION_EXPIRED',
   invalidCredentials: 'INVALID_CREDENTIALS',
+  currentPasswordIncorrect: 'CURRENT_PASSWORD_INCORRECT',
   emailAlreadyRegistered: 'EMAIL_ALREADY_REGISTERED',
   invalidResetToken: 'INVALID_RESET_TOKEN',
   passwordRecoveryUnavailable: 'PASSWORD_RECOVERY_UNAVAILABLE',
