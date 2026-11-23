@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import cx from 'classnames/bind';
 
+import { canAnswerPapers, mustSignInToAnswer } from '@/access/papers';
 import { QuestionFigure } from '@components/assessment/QuestionFigure/QuestionFigure';
+import { AccountDialog } from '@components/auth/AccountDialog/AccountDialog';
 import { Button } from '@components/ui/Button/Button';
 import { Confetti } from '@components/ui/Confetti/Confetti';
 import { Text } from '@components/ui/Text/Text';
@@ -9,6 +11,7 @@ import {
   SAMPLE_TEST_TEXT as TEXT,
   type SampleTestQuestion,
 } from '@constants/assessment';
+import { useAuth } from '@context/AuthContext';
 import { useCountdown } from '@hooks/useCountdown';
 import { formatCountdown } from '@utils/date';
 
@@ -41,6 +44,8 @@ export type PaperAnswersProps = {
 // The answering part of a paper: questions with OMR-style bubbles, a
 // clock, and marking. Submitting (or running out of time) marks the paper,
 // shows the right answers and the score, with confetti for full marks.
+// Answering needs an account: a visitor's first click opens sign-up, and
+// the answer they picked is recorded once they are in.
 // Give it a new key to start a fresh paper.
 export const PaperAnswers = ({
   questions,
@@ -50,6 +55,12 @@ export const PaperAnswers = ({
   scrollsInside = false,
 }: PaperAnswersProps) => {
   const paperId = useId();
+  const auth = useAuth();
+  // The answer a visitor clicked before signing up
+  const [waitingAnswer, setWaitingAnswer] = useState<{
+    questionId: string;
+    key: string;
+  } | null>(null);
   const total = questions.length;
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isMarked, setIsMarked] = useState(false);
@@ -74,10 +85,18 @@ export const PaperAnswers = ({
   ).length;
   const isFullMarks = isMarked && score === total;
 
-  const handleSelect = (questionId: string, key: string) => {
-    if (isMarked) return;
+  const recordAnswer = (questionId: string, key: string) => {
     if (!countdown.isRunning) countdown.start();
     setAnswers(current => ({ ...current, [questionId]: key }));
+  };
+
+  const handleSelect = (questionId: string, key: string) => {
+    if (isMarked) return;
+    if (mustSignInToAnswer(auth)) {
+      setWaitingAnswer({ questionId, key });
+      return;
+    }
+    if (canAnswerPapers(auth)) recordAnswer(questionId, key);
   };
 
   const handleSubmit = () => {
@@ -236,6 +255,16 @@ export const PaperAnswers = ({
       </div>
 
       <Confetti burst={isFullMarks ? attempt : 0} />
+
+      <AccountDialog
+        open={waitingAnswer !== null}
+        onClose={() => setWaitingAnswer(null)}
+        onSignedIn={() => {
+          if (waitingAnswer) {
+            recordAnswer(waitingAnswer.questionId, waitingAnswer.key);
+          }
+        }}
+      />
     </div>
   );
 };

@@ -61,6 +61,7 @@ const student = {
   id: '6f0a3c1e-0000-4000-8000-000000000001',
   email: 'asha@example.com',
   role: 'STUDENT' as const,
+  name: 'Asha Verma',
   student: {
     id: '6f0a3c1e-0000-4000-8000-000000000002',
     fullName: 'Asha Verma',
@@ -75,6 +76,7 @@ const superAdmin = {
   id: '6f0a3c1e-0000-4000-8000-000000000009',
   email: 'admin@example.com',
   role: 'SUPER_ADMIN' as const,
+  name: null,
   student: null,
 };
 

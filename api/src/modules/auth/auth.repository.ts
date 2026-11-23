@@ -8,7 +8,8 @@ import type { DatabaseClient, Row } from '../../db/client.js';
 
 export const findAuthUserRow = (db: DatabaseClient, userId: string) =>
   db.get<Row>(
-    `SELECT u.id, u.email, u.role, s.id AS student_id, s.full_name, s.standard, s.stream, s.stream_other
+    `SELECT u.id, u.email, u.role, u.full_name AS account_name, u.password_hash IS NOT NULL AS has_password,
+       s.id AS student_id, s.full_name, s.standard, s.stream, s.stream_other
      FROM users u
      LEFT JOIN student_profiles s ON s.user_id = u.id
      WHERE u.id = $1`,
@@ -48,6 +49,65 @@ export const findCredentialsByEmail = (db: DatabaseClient, email: string) =>
     'SELECT id, password_hash FROM users WHERE LOWER(email) = LOWER($1)',
     [email],
   );
+
+// What sign-up needs to know about an email already on file
+export const findAccountByEmail = (db: DatabaseClient, email: string) =>
+  db.get<{ id: string; role: string; password_hash: string | null }>(
+    'SELECT id, role, password_hash FROM users WHERE LOWER(email) = LOWER($1)',
+    [email],
+  );
+
+export const insertSignedUpStudent = (
+  db: DatabaseClient,
+  student: {
+    id: string;
+    email: string;
+    fullName: string;
+    passwordHash: string;
+    role: string;
+    timestamp: string;
+  },
+) =>
+  db.query(
+    `INSERT INTO users (id, email, password_hash, role, full_name, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $6)`,
+    [
+      student.id,
+      student.email,
+      student.passwordHash,
+      student.role,
+      student.fullName,
+      student.timestamp,
+    ],
+  );
+
+// Gives a password and name to a student record checkout made for a
+// billing email. Only password-less student records qualify, never staff;
+// returns whether a row changed.
+export const claimPasswordlessStudent = async (
+  db: DatabaseClient,
+  claim: {
+    userId: string;
+    fullName: string;
+    passwordHash: string;
+    role: string;
+    timestamp: string;
+  },
+) => {
+  const row = await db.get<{ id: string }>(
+    `UPDATE users SET password_hash = $1, full_name = $2, updated_at = $3
+     WHERE id = $4 AND role = $5 AND password_hash IS NULL
+     RETURNING id`,
+    [
+      claim.passwordHash,
+      claim.fullName,
+      claim.timestamp,
+      claim.userId,
+      claim.role,
+    ],
+  );
+  return row !== null && row !== undefined;
+};
 
 export type NewStudent = {
   userId: string;

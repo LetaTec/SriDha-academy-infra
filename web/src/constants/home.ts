@@ -40,7 +40,6 @@ export const TICKER_TEXT = {
 export const HEADER_TEXT = {
   teamOrders: 'Orders',
   teamRefunds: 'Refunds',
-  logout: 'Log out',
   openMenu: 'Open menu',
   closeMenu: 'Close menu',
   primaryNavigation: 'Primary',

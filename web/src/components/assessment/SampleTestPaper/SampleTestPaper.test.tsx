@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { AxiosError } from 'axios';
 
 import {
   SAMPLE_TEST_DURATION_SECONDS,
@@ -6,8 +7,51 @@ import {
   SAMPLE_TEST_TRACKS,
   type SampleTestQuestion,
 } from '@constants/assessment';
+import { AuthProvider } from '@context/AuthContext';
+import { ToastProvider } from '@context/ToastContext';
+import { getCurrentSession, signUpStudent } from '@services/auth/api';
 
 import { SampleTestPaper } from './SampleTestPaper';
+
+vi.mock('@services/auth/api', () => ({
+  getCurrentSession: vi.fn(),
+  logoutStudent: vi.fn(),
+  signInStudent: vi.fn(),
+  signUpStudent: vi.fn(),
+}));
+
+const student = {
+  id: 'user_1',
+  email: 'meera@example.com',
+  role: 'STUDENT' as const,
+  name: 'Meera Iyer',
+  student: null,
+};
+
+const signedOut = () =>
+  new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', undefined, undefined, {
+    status: 401,
+    statusText: 'Unauthorized',
+    headers: {},
+    config: { headers: {} } as never,
+    data: { message: 'Sign in', code: 'UNAUTHENTICATED', details: null },
+  });
+
+// The paper as a signed-in student sees it (or a visitor, with
+// signedIn: false), once the saved session has been checked
+const renderPaper = async ({ signedIn = true } = {}) => {
+  if (signedIn) vi.mocked(getCurrentSession).mockResolvedValue(student);
+  else vi.mocked(getCurrentSession).mockRejectedValue(signedOut());
+
+  render(
+    <ToastProvider>
+      <AuthProvider>
+        <SampleTestPaper />
+      </AuthProvider>
+    </ToastProvider>,
+  );
+  await act(async () => {});
+};
 
 const trackPaper = (trackKey: string, subjectKey: string) =>
   SAMPLE_TEST_TRACKS.find(track => track.key === trackKey)!.subjects.find(
@@ -35,6 +79,12 @@ const answerQuestion = (
     }),
   );
 };
+
+// The paper's own result line (toasts are a status region too)
+const paperResult = () =>
+  within(screen.getByRole('region', { name: 'Sample test paper' })).getByRole(
+    'status',
+  );
 
 const optionLabel = (question: SampleTestQuestion, key: string) =>
   question.options.find(option => option.key === key)!.label;
@@ -74,8 +124,8 @@ describe('SampleTestPaper', () => {
     );
   });
 
-  it('picks a class or exam, then a subject, each with a fresh paper', () => {
-    render(<SampleTestPaper />);
+  it('picks a class or exam, then a subject, each with a fresh paper', async () => {
+    await renderPaper();
     answerQuestion(CLASS_11_ACCOUNTANCY, 0, CLASS_11_ACCOUNTANCY[0].answer);
     expect(screen.getByText('Answered 1 of 20')).toBeInTheDocument();
 
@@ -115,8 +165,8 @@ describe('SampleTestPaper', () => {
     ).toBeInTheDocument();
   });
 
-  it('marks a full-marks paper 20 / 20 and congratulates the student', () => {
-    render(<SampleTestPaper />);
+  it('marks a full-marks paper 20 / 20 and congratulates the student', async () => {
+    await renderPaper();
     expect(
       screen.getByRole('button', { name: 'Submit answers' }),
     ).toBeDisabled();
@@ -127,14 +177,14 @@ describe('SampleTestPaper', () => {
     expect(screen.getByText('Answered 20 of 20')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
 
-    const result = screen.getByRole('status');
+    const result = paperResult();
     expect(within(result).getByText('Congratulations!')).toBeInTheDocument();
     expect(within(result).getByText('Score 20 / 20')).toBeInTheDocument();
     expect(screen.getAllByText('Correct')).toHaveLength(20);
   });
 
-  it('shows the right answer for wrong and unanswered questions, then resets', () => {
-    render(<SampleTestPaper />);
+  it('shows the right answer for wrong and unanswered questions, then resets', async () => {
+    await renderPaper();
     const first = CLASS_11_ACCOUNTANCY[0];
     const wrongKey = first.options.find(
       option => option.key !== first.answer,
@@ -144,9 +194,7 @@ describe('SampleTestPaper', () => {
     answerQuestion(CLASS_11_ACCOUNTANCY, 1, CLASS_11_ACCOUNTANCY[1].answer);
     fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
 
-    expect(
-      within(screen.getByRole('status')).getByText('Score 1 / 20'),
-    ).toBeInTheDocument();
+    expect(within(paperResult()).getByText('Score 1 / 20')).toBeInTheDocument();
     expect(screen.queryByText('Congratulations!')).not.toBeInTheDocument();
     expect(
       screen.getByText(
@@ -166,9 +214,9 @@ describe('SampleTestPaper', () => {
       .forEach(radio => expect(radio).not.toBeChecked());
   });
 
-  it('starts the 20-minute clock on the first answer and marks the paper when time runs out', () => {
+  it('starts the 20-minute clock on the first answer and marks the paper when time runs out', async () => {
     vi.useFakeTimers();
-    render(<SampleTestPaper />);
+    await renderPaper();
     expect(screen.getByText('Time left 20:00')).toBeInTheDocument();
 
     answerQuestion(CLASS_11_ACCOUNTANCY, 0, CLASS_11_ACCOUNTANCY[0].answer);
@@ -181,11 +229,49 @@ describe('SampleTestPaper', () => {
       vi.advanceTimersByTime(SAMPLE_TEST_DURATION_SECONDS * 1000);
     });
     expect(screen.getByText("Time's up")).toBeInTheDocument();
-    expect(
-      within(screen.getByRole('status')).getByText('Score 1 / 20'),
-    ).toBeInTheDocument();
+    expect(within(paperResult()).getByText('Score 1 / 20')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Try again' }),
     ).toBeInTheDocument();
+  });
+
+  it('asks a visitor to sign up on their first answer, then records that answer', async () => {
+    vi.mocked(signUpStudent).mockResolvedValue(student);
+    await renderPaper({ signedIn: false });
+    const first = CLASS_11_ACCOUNTANCY[0];
+
+    answerQuestion(CLASS_11_ACCOUNTANCY, 0, first.answer);
+    const dialog = screen.getByRole('dialog', { name: /Create your/ });
+    expect(screen.getByText('Answered 0 of 20')).toBeInTheDocument();
+    // The clock waits for the account too
+    expect(screen.getByText('Time left 20:00')).toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByLabelText('Full name'), {
+      target: { value: 'Meera Iyer' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('Email ID'), {
+      target: { value: 'meera@example.com' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('Create a password'), {
+      target: { value: 'correct-horse-1' },
+    });
+    await act(async () => {
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'Create account' }),
+      );
+    });
+
+    expect(signUpStudent).toHaveBeenCalledWith({
+      fullName: 'Meera Iyer',
+      email: 'meera@example.com',
+      password: 'correct-horse-1',
+    });
+    expect(screen.getByText('Answered 1 of 20')).toBeInTheDocument();
+    const group = screen.getByRole('radiogroup', { name: first.prompt });
+    expect(
+      within(group).getByRole('radio', {
+        name: new RegExp(escapeRegExp(optionLabel(first, first.answer))),
+      }),
+    ).toBeChecked();
   });
 });

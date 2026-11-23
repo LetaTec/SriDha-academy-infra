@@ -8,14 +8,18 @@ import type {
 } from '../../contracts/auth.js';
 import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
+import { logger } from '../../logging/logger.js';
 import {
+  claimPasswordlessStudent,
   claimSignInLink,
+  findAccountByEmail,
   findAuthUserRow,
   findCredentialsByEmail,
   findPasswordResetToken,
   findSignInLink,
   findUserIdByEmail,
   findUserRole,
+  insertSignedUpStudent,
   insertStudent,
   insertToken,
   markPasswordResetTokenUsed,
@@ -23,13 +27,13 @@ import {
   TOKEN_TABLE,
   updatePasswordHash,
 } from './auth.repository.js';
-import type { LoginInput, RegisterInput } from './auth.schema.js';
+import type { LoginInput, RegisterInput, SignUpInput } from './auth.schema.js';
 import {
   hashPassword,
   verifyAgainstDummyHash,
   verifyPassword,
 } from './password.js';
-import { isStaffRole, toUserRole } from './roles.js';
+import { isStaffRole, toUserRole, USER_ROLE } from './roles.js';
 import { deleteUserSessions } from './session.js';
 import { generateToken, hashToken } from './tokens.js';
 
@@ -91,16 +95,20 @@ export const getAuthUser = async (
 
   const role = toUserRole(row.role);
 
-  // A student account without its profile is incomplete; only staff may
-  // exist without one.
-  if (row.student_id === null && !isStaffRole(role)) {
+  // A student needs a profile (older accounts) or a password from
+  // sign-up; a checkout buyer's password-less record cannot sign in. Staff
+  // need neither.
+  if (row.student_id === null && !row.has_password && !isStaffRole(role)) {
     return null;
   }
+
+  const name = row.full_name ?? row.account_name;
 
   return {
     id: String(row.id),
     email: String(row.email),
     role,
+    name: name === null ? null : String(name),
     student:
       row.student_id === null
         ? null
@@ -164,6 +172,60 @@ export const registerStudent = async (
     throw new Error(`Registered user ${userId} could not be loaded`);
   }
 
+  return user;
+};
+
+// Students sign up with a name, email and password; nothing is emailed to
+// check the address yet. A billing email that checkout already recorded
+// (with no password) becomes this account. An email that already has a
+// password, or belongs to staff, must sign in instead.
+export const signUpStudent = async (
+  context: AppContext,
+  input: SignUpInput,
+): Promise<AuthUser> => {
+  const { db } = context;
+  const passwordHash = await hashPassword(input.password);
+  const timestamp = context.now().toISOString();
+  const existing = await findAccountByEmail(db, input.email);
+  let userId: string;
+
+  if (!existing) {
+    userId = randomUUID();
+    try {
+      await insertSignedUpStudent(db, {
+        id: userId,
+        email: input.email,
+        fullName: input.fullName,
+        passwordHash,
+        role: USER_ROLE.student,
+        timestamp,
+      });
+    } catch (error) {
+      // Two sign-ups for one email at once: the second gets the same answer
+      if (isUniqueViolation(error)) throw emailAlreadyRegistered();
+      throw error;
+    }
+  } else {
+    userId = String(existing.id);
+    const isClaimed = await claimPasswordlessStudent(db, {
+      userId,
+      fullName: input.fullName,
+      passwordHash,
+      role: USER_ROLE.student,
+      timestamp,
+    });
+    if (!isClaimed) throw emailAlreadyRegistered();
+  }
+
+  const user = await getAuthUser(context, userId);
+  if (!user) {
+    throw new Error(`Signed-up account ${userId} could not be loaded`);
+  }
+
+  logger.info('auth.student_signed_up', {
+    userId,
+    fromCheckout: Boolean(existing),
+  });
   return user;
 };
 

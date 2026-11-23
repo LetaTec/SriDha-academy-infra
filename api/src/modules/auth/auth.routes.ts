@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import type { AppContext } from '../../app/context.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
+import type { AuthUserResponse } from '../../contracts/auth.js';
 import { validate } from '../../http/validate.js';
 import {
   adminSignInConfirmSchema,
@@ -10,6 +11,7 @@ import {
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
   registerSchema,
+  signUpSchema,
 } from './auth.schema.js';
 import {
   authenticateStudent,
@@ -19,6 +21,7 @@ import {
   registerStudent,
   requestAdminSignIn,
   requestPasswordReset,
+  signUpStudent,
 } from './auth.service.js';
 import {
   clearSessionCookie,
@@ -38,6 +41,19 @@ export const createAuthRouter = (context: AppContext) => {
     const session = await createSession(context, user.id, false);
     setSessionCookie(context, res, session);
     res.status(201).json({ user });
+  });
+
+  // The website's sign-up: name, email and password. Students stay signed
+  // in on this device.
+  router.post('/sign-up', async (req, res) => {
+    const input = validate(signUpSchema, req.body);
+    const user = await signUpStudent(context, input);
+    if (req.auth) {
+      await deleteSession(context, req.auth.sessionId);
+    }
+    const session = await createSession(context, user.id, true);
+    setSessionCookie(context, res, session);
+    res.status(201).json({ user } satisfies AuthUserResponse);
   });
 
   router.post('/login', async (req, res) => {

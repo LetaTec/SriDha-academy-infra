@@ -4,11 +4,19 @@ import type {
   AdminSignInConfirmRequest,
   AdminSignInRequest,
   AuthUser,
+  LoginRequest,
+  SignUpRequest,
 } from './types';
 
 type AuthUserResponse = { user: AuthUser };
 
-// Students never sign in; these serve the team's session
+// Students sign up with a name, email and password and stay signed in
+export const signUpStudent = async (body: SignUpRequest) =>
+  (await API_CLIENT.post<AuthUserResponse>('/auth/sign-up', body)).data.user;
+
+export const signInStudent = async (body: LoginRequest) =>
+  (await API_CLIENT.post<AuthUserResponse>('/auth/login', body)).data.user;
+
 export const logoutStudent = async () => {
   await API_CLIENT.post('/auth/logout');
 };

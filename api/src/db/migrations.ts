@@ -1405,4 +1405,14 @@ export const MIGRATIONS: readonly Migration[] = [
       END $$;
     `,
   },
+  {
+    // Students sign up with only a name, email and password, so the name
+    // lives on the account (the old full profile is no longer asked for).
+    // Existing accounts keep NULL: staff and checkout buyers have no name
+    // here, and older students have one on their profile.
+    id: '024_user_full_name',
+    sql: `
+      ALTER TABLE users ADD COLUMN full_name TEXT;
+    `,
+  },
 ];
