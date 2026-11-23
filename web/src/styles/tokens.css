@@ -217,6 +217,10 @@
   /* Cards for things not ready yet, such as topic tests still being written */
   --opacity-muted: 0.6;
   --blur-header: 12px;
+  /* Papers are blurred behind a tint until the visitor signs in */
+  --blur-paper-lock: 7px;
+  --color-paper-lock: rgb(247 245 239 / 0.62);
+  --width-paper-lock-card: 380px;
   --blur-book-shadow: 22px;
   --opacity-pulse-min: 0.4;
   --scale-pulse-min: 0.5;

@@ -1,5 +1,3 @@
-import { SAMPLE_TEST_BANK } from './sampleTestPapers';
-
 // Sample tests students can actually take: a 20-question paper for each
 // subject of each class or exam, a 20-minute timer and a score out of 20.
 
@@ -42,12 +40,16 @@ export type SampleTestQuestion = {
   options: readonly SampleTestOption[];
   answer: string;
   figure?: SampleTestFigure;
+  // Why the answer is right, shown once the paper is marked
+  explanation?: string;
 };
 
+// The class or exam and subject names, shown at once. Each paper's
+// questions are a separate download (sampleTestPapers.ts), fetched the first
+// time a paper opens; see useQuestionBanks.
 type SampleTestSubject = {
   key: string;
   label: string;
-  questions: readonly SampleTestQuestion[];
 };
 
 export type SampleTestTrack = {
@@ -56,118 +58,78 @@ export type SampleTestTrack = {
   subjects: readonly SampleTestSubject[];
 };
 
-const CLASS_SUBJECTS = (bank: typeof SAMPLE_TEST_BANK.class11) => [
-  { key: 'accountancy', label: 'Accountancy', questions: bank.accountancy },
-  {
-    key: 'businessStudies',
-    label: 'Business Studies',
-    questions: bank.businessStudies,
-  },
-  { key: 'economics', label: 'Economics', questions: bank.economics },
-  { key: 'physics', label: 'Physics', questions: bank.physics },
-  { key: 'chemistry', label: 'Chemistry', questions: bank.chemistry },
-  { key: 'mathematics', label: 'Mathematics', questions: bank.mathematics },
-  { key: 'biology', label: 'Biology', questions: bank.biology },
+const CLASS_SUBJECTS: readonly SampleTestSubject[] = [
+  { key: 'accountancy', label: 'Accountancy' },
+  { key: 'businessStudies', label: 'Business Studies' },
+  { key: 'economics', label: 'Economics' },
+  { key: 'physics', label: 'Physics' },
+  { key: 'chemistry', label: 'Chemistry' },
+  { key: 'mathematics', label: 'Mathematics' },
+  { key: 'biology', label: 'Biology' },
 ];
 
 // Choose a class or exam, then a subject within it
 export const SAMPLE_TEST_TRACKS: readonly SampleTestTrack[] = [
-  {
-    key: 'class11',
-    label: 'Class 11',
-    subjects: CLASS_SUBJECTS(SAMPLE_TEST_BANK.class11),
-  },
-  {
-    key: 'class12',
-    label: 'Class 12',
-    subjects: CLASS_SUBJECTS(SAMPLE_TEST_BANK.class12),
-  },
+  { key: 'class11', label: 'Class 11', subjects: CLASS_SUBJECTS },
+  { key: 'class12', label: 'Class 12', subjects: CLASS_SUBJECTS },
   {
     key: 'jee',
     label: 'JEE',
     subjects: [
-      {
-        key: 'physics',
-        label: 'Physics',
-        questions: SAMPLE_TEST_BANK.jee.physics,
-      },
-      {
-        key: 'chemistry',
-        label: 'Chemistry',
-        questions: SAMPLE_TEST_BANK.jee.chemistry,
-      },
-      {
-        key: 'mathematics',
-        label: 'Mathematics',
-        questions: SAMPLE_TEST_BANK.jee.mathematics,
-      },
+      { key: 'physics', label: 'Physics' },
+      { key: 'chemistry', label: 'Chemistry' },
+      { key: 'mathematics', label: 'Mathematics' },
     ],
   },
   {
     key: 'neet',
     label: 'NEET',
     subjects: [
-      {
-        key: 'physics',
-        label: 'Physics',
-        questions: SAMPLE_TEST_BANK.neet.physics,
-      },
-      {
-        key: 'chemistry',
-        label: 'Chemistry',
-        questions: SAMPLE_TEST_BANK.neet.chemistry,
-      },
-      {
-        key: 'biology',
-        label: 'Biology',
-        questions: SAMPLE_TEST_BANK.neet.biology,
-      },
+      { key: 'physics', label: 'Physics' },
+      { key: 'chemistry', label: 'Chemistry' },
+      { key: 'biology', label: 'Biology' },
     ],
   },
   {
     key: 'reasoning',
     label: 'Reasoning & aptitude',
     subjects: [
-      {
-        key: 'logical',
-        label: 'Logical reasoning',
-        questions: SAMPLE_TEST_BANK.reasoning.logical,
-      },
-      {
-        key: 'quantitative',
-        label: 'Quantitative aptitude',
-        questions: SAMPLE_TEST_BANK.reasoning.quantitative,
-      },
-      {
-        key: 'verbal',
-        label: 'Verbal ability',
-        questions: SAMPLE_TEST_BANK.reasoning.verbal,
-      },
+      { key: 'logical', label: 'Logical reasoning' },
+      { key: 'quantitative', label: 'Quantitative aptitude' },
+      { key: 'verbal', label: 'Verbal ability' },
     ],
   },
   {
     key: 'ca',
     label: 'CA / CPT',
     subjects: [
-      {
-        key: 'accounting',
-        label: 'Accounting',
-        questions: SAMPLE_TEST_BANK.ca.accounting,
-      },
-      { key: 'law', label: 'Business law', questions: SAMPLE_TEST_BANK.ca.law },
-      {
-        key: 'economics',
-        label: 'Business economics',
-        questions: SAMPLE_TEST_BANK.ca.economics,
-      },
-      {
-        key: 'maths',
-        label: 'Business maths & statistics',
-        questions: SAMPLE_TEST_BANK.ca.maths,
-      },
+      { key: 'accounting', label: 'Accounting' },
+      { key: 'law', label: 'Business law' },
+      { key: 'economics', label: 'Business economics' },
+      { key: 'maths', label: 'Business maths & statistics' },
     ],
   },
 ];
+
+// Topics with a topic test, and how many questions each has. Kept here so
+// the topic list never downloads the questions; a test checks it matches
+// topicTestPapers.ts.
+export const TOPIC_TEST_QUESTION_COUNTS: Readonly<Record<string, number>> = {
+  topic_accounts_gst_class_11: 20,
+  topic_chemistry_bonding_class_11: 20,
+  topic_physics_ray_optics_class_12: 20,
+  topic_maths_integrals_class_12: 20,
+  topic_chemistry_mole_concept_class_11: 20,
+  topic_physics_current_electricity_class_12: 20,
+  topic_physics_laws_of_motion_class_11: 20,
+  topic_accounts_partnership_class_12: 20,
+};
+
+// How many questions the topic's test has, or null when it has none yet
+export const findTopicTestSize = (topicId: string) =>
+  Object.hasOwn(TOPIC_TEST_QUESTION_COUNTS, topicId)
+    ? TOPIC_TEST_QUESTION_COUNTS[topicId]
+    : null;
 
 // Every paper has this many questions, one mark each
 export const SAMPLE_TEST_QUESTION_COUNT = 20;
@@ -264,12 +226,14 @@ export const SAMPLE_TEST_TEXT = {
   correctAnswer: (key: string, label: string) =>
     `Correct answer: (${key}) ${label}`,
   notAnswered: 'Not answered',
+  why: (reason: string) => `Why: ${reason}`,
   // Shown after marking, chosen by score
   resultFull: 'Full marks! Every answer is right. That is a small victory.',
   resultGood: 'Nearly there. One more topic and you have full marks.',
   resultStart: 'Every topic starts somewhere. Have another go.',
   celebrationTitle: 'Congratulations!',
   paperLabel: 'Sample test paper',
+  loading: 'Opening the paper',
   tracksLabel: 'Choose a class or exam',
   // Read out for drawn figures
   diagramLabel: {

@@ -16,7 +16,7 @@ import styles from './AccountDialog.module.css';
 
 const cn = cx.bind(styles);
 
-type AccountMode = 'signUp' | 'signIn' | 'reset';
+export type AccountMode = 'signUp' | 'signIn' | 'reset';
 
 // Each mode's heading and lead line
 const MODE_HEAD = {
@@ -46,6 +46,8 @@ export type AccountDialogProps = {
   // Runs once the student is signed in, e.g. to record the answer they
   // clicked
   onSignedIn?: (user: AuthUser) => void;
+  // The form it opens on; sign-up unless asked otherwise
+  initialMode?: AccountMode;
 };
 
 // Create an account (name, email, password) or sign in to one. Opens on
@@ -55,21 +57,22 @@ export const AccountDialog = ({
   open,
   onClose,
   onSignedIn,
+  initialMode = 'signUp',
 }: AccountDialogProps) => {
   const { login } = useAuth();
   const { showToast } = useToast();
-  const [mode, setMode] = useState<AccountMode>('signUp');
+  const [mode, setMode] = useState<AccountMode>(initialMode);
   const head = MODE_HEAD[mode];
 
   const handleClose = () => {
-    setMode('signUp');
+    setMode(initialMode);
     onClose();
   };
 
   const finish = (user: AuthUser, message: string) => {
     login(user);
     showToast(message);
-    setMode('signUp');
+    setMode(initialMode);
     onSignedIn?.(user);
     onClose();
   };

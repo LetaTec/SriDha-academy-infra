@@ -1,14 +1,19 @@
 import { render, screen } from '@testing-library/react';
 
 import { SAMPLE_TEST_TRACKS } from '@constants/assessment';
+import { findSamplePaper } from '@constants/sampleTestPapers';
+import { TOPIC_TEST_BANK } from '@constants/topicTestPapers';
 
 import { QuestionFigure } from './QuestionFigure';
 
-const figureQuestions = SAMPLE_TEST_TRACKS.flatMap(track =>
-  track.subjects.flatMap(subject =>
-    subject.questions.filter(question => question.figure),
+const figureQuestions = [
+  ...SAMPLE_TEST_TRACKS.flatMap(track =>
+    track.subjects.flatMap(
+      subject => findSamplePaper(track.key, subject.key) ?? [],
+    ),
   ),
-);
+  ...Object.values(TOPIC_TEST_BANK).flat(),
+].filter(question => question.figure);
 
 describe('QuestionFigure', () => {
   it('draws a figure for every question that has one', () => {

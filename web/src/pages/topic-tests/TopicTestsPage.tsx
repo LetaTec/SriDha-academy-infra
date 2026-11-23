@@ -11,9 +11,11 @@ import { Icon } from '@components/ui/Icon/Icon';
 import { Input } from '@components/ui/Input/Input';
 import { Section } from '@components/ui/Section/Section';
 import { Text } from '@components/ui/Text/Text';
-import { TOPIC_TESTS_PAGE_TEXT as TEXT } from '@constants/assessment';
+import {
+  findTopicTestSize,
+  TOPIC_TESTS_PAGE_TEXT as TEXT,
+} from '@constants/assessment';
 import { LANDING_TEXT } from '@constants/landing';
-import { findTopicTest } from '@constants/topicTestPapers';
 import { TOPIC_FILTER_PARAM } from '@constants/topics';
 import { useTopicPreviews } from '@hooks/useTopicPreviews';
 import type { TopicPreview } from '@services/catalogue';
@@ -46,9 +48,7 @@ const TopicTestGroup = ({
         <TopicTestCard
           key={preview.catalogueTopicId}
           preview={preview}
-          questionCount={
-            findTopicTest(preview.catalogueTopicId)?.length ?? null
-          }
+          questionCount={findTopicTestSize(preview.catalogueTopicId)}
         />
       ))}
     </CardGrid>
@@ -65,7 +65,7 @@ const TopicTestsPage = () => {
   const { results, ready, soon } = useMemo(() => {
     const matches = searchTopicPreviews(previews, query).results;
     const hasTest = (preview: TopicPreview) =>
-      findTopicTest(preview.catalogueTopicId) !== null;
+      findTopicTestSize(preview.catalogueTopicId) !== null;
     return {
       results: matches,
       ready: matches.filter(hasTest),
@@ -73,7 +73,7 @@ const TopicTestsPage = () => {
     };
   }, [previews, query]);
   const readyCount = previews.filter(
-    preview => findTopicTest(preview.catalogueTopicId) !== null,
+    preview => findTopicTestSize(preview.catalogueTopicId) !== null,
   ).length;
 
   // Replacing the history entry keeps Back for leaving the page

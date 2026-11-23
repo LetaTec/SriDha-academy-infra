@@ -13,13 +13,13 @@ import { RuledList } from '@components/ui/RuledList/RuledList';
 import { Section } from '@components/ui/Section/Section';
 import { Text } from '@components/ui/Text/Text';
 import {
+  findTopicTestSize,
   TOPIC_TEST_DURATION_SECONDS,
   TOPIC_TEST_TEXT as TEXT,
-  type SampleTestQuestion,
 } from '@constants/assessment';
 import { APP_ROUTES } from '@constants/routes';
-import { findTopicTest } from '@constants/topicTestPapers';
 import { useAuth } from '@context/AuthContext';
+import { loadTopicPapers, useTopicPaper } from '@hooks/useQuestionBanks';
 import { useTopicPreviews } from '@hooks/useTopicPreviews';
 import type { TopicPreview } from '@services/catalogue';
 
@@ -35,16 +35,39 @@ const BackLink = () => (
   </ButtonRouteLink>
 );
 
+// The topic's questions, once they have downloaded; the clock starts now
+const TopicPaperQuestions = ({
+  topicId,
+  questionCount,
+}: {
+  topicId: string;
+  questionCount: number;
+}) => (
+  <PaperAnswers
+    questions={useTopicPaper(topicId)}
+    questionCount={questionCount}
+    durationSeconds={TOPIC_TEST_DURATION_SECONDS}
+    instruction={TEXT.instruction}
+    startsOnOpen
+  />
+);
+
 // The rules first; the clock starts only when the student presses start.
 // A visitor signs up first, so the two hours never run during sign-up.
 const TopicTest = ({
   preview,
-  questions,
+  questionCount,
 }: {
   preview: TopicPreview;
-  questions: readonly SampleTestQuestion[];
+  questionCount: number;
 }) => {
   const auth = useAuth();
+
+  // Fetch the questions while the student reads the rules
+  useEffect(() => {
+    void loadTopicPapers();
+  }, []);
+
   const [isStarted, setIsStarted] = useState(false);
   // Start was pressed before signing up, or while the session loaded
   const [wantsToStart, setWantsToStart] = useState(false);
@@ -79,21 +102,19 @@ const TopicTest = ({
         <div className={cn('paper')}>
           <PaperSheet
             label={TEXT.paperLabel}
-            questionCount={questions.length}
-            meta={TEXT.meta(preview.level, preview.title, questions.length)}
+            questionCount={questionCount}
+            meta={TEXT.meta(preview.level, preview.title, questionCount)}
             layout="wide"
           >
-            <PaperAnswers
-              questions={questions}
-              durationSeconds={TOPIC_TEST_DURATION_SECONDS}
-              instruction={TEXT.instruction}
-              startsOnOpen
+            <TopicPaperQuestions
+              topicId={preview.catalogueTopicId}
+              questionCount={questionCount}
             />
           </PaperSheet>
         </div>
       ) : (
         <section className={cn('rules')} aria-label={TEXT.rulesLabel}>
-          <RuledList items={TEXT.rules(questions.length)} />
+          <RuledList items={TEXT.rules(questionCount)} />
           <Button
             endIcon="arrowRight"
             onClick={handleStart}
@@ -124,15 +145,19 @@ const TopicTestPage = () => {
   const { previews, isLoading, hasError, reload } = useTopicPreviews();
   const preview =
     previews.find(item => item.catalogueTopicId === topicId) ?? null;
-  const questions = findTopicTest(topicId);
+  const questionCount = findTopicTestSize(topicId);
 
   return (
     <Section labelledBy={TITLE_ID} className={cn('page')}>
       {isLoading || hasError ? (
         <TopicsStatus hasError={hasError} onRetry={reload} />
-      ) : preview && questions ? (
+      ) : preview && questionCount ? (
         // A different topic is a fresh start
-        <TopicTest key={topicId} preview={preview} questions={questions} />
+        <TopicTest
+          key={topicId}
+          preview={preview}
+          questionCount={questionCount}
+        />
       ) : (
         <div className={cn('intro')}>
           <Heading level={1} variant="title" id={TITLE_ID}>

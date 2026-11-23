@@ -2,6 +2,7 @@ export type {
   AdminSignInConfirmRequest,
   AdminSignInRequest,
   AuthUser,
+  ChangePasswordRequest,
   LoginRequest,
   PasswordResetConfirmRequest,
   PasswordResetRequest,

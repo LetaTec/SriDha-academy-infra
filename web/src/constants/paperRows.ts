@@ -38,9 +38,11 @@ export const finishPrompt = (prompt: string) => {
   return `${text} ______`;
 };
 
+// explanations, when given, are in the same order as the rows
 export const toPaper = (
   paperId: string,
   rows: readonly PaperRow[],
+  explanations: readonly string[] = [],
 ): readonly SampleTestQuestion[] =>
   rows.map(([prompt, answer, wrong1, wrong2, wrong3, figure], index) => {
     // Placed from the prompt as written, so answers never move
@@ -56,5 +58,6 @@ export const toPaper = (
       })),
       answer: OPTION_KEYS[slot],
       ...(figure ? { figure } : {}),
+      ...(explanations[index] ? { explanation: explanations[index] } : {}),
     };
   });

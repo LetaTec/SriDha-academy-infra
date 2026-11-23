@@ -30,3 +30,9 @@
 .email {
   overflow-wrap: anywhere;
 }
+
+.actions {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1-5);
+}

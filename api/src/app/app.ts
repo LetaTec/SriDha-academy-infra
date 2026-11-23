@@ -233,6 +233,8 @@ export const createApp = (context: AppContext) => {
     });
 
     api.use('/auth/login', loginLimiter);
+    // Guessing the current password is limited like guessing at sign-in
+    api.use('/auth/change-password', loginLimiter);
     api.use('/auth/register', registerLimiter);
     api.use('/auth/sign-up', registerLimiter);
     api.use('/auth/password-reset/confirm', passwordResetConfirmLimiter);

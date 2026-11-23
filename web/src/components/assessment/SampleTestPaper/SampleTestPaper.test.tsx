@@ -7,8 +7,10 @@ import {
   SAMPLE_TEST_TRACKS,
   type SampleTestQuestion,
 } from '@constants/assessment';
+import { findSamplePaper } from '@constants/sampleTestPapers';
 import { AuthProvider } from '@context/AuthContext';
 import { ToastProvider } from '@context/ToastContext';
+import { loadSamplePapers } from '@hooks/useQuestionBanks';
 import { getCurrentSession, signUpStudent } from '@services/auth/api';
 
 import { SampleTestPaper } from './SampleTestPaper';
@@ -43,20 +45,22 @@ const renderPaper = async ({ signedIn = true } = {}) => {
   if (signedIn) vi.mocked(getCurrentSession).mockResolvedValue(student);
   else vi.mocked(getCurrentSession).mockRejectedValue(signedOut());
 
-  render(
-    <ToastProvider>
-      <AuthProvider>
-        <SampleTestPaper />
-      </AuthProvider>
-    </ToastProvider>,
-  );
-  await act(async () => {});
+  // Rendered inside an awaited act, so React finishes once the questions
+  // (their own download) are in
+  await act(async () => {
+    render(
+      <ToastProvider>
+        <AuthProvider>
+          <SampleTestPaper />
+        </AuthProvider>
+      </ToastProvider>,
+    );
+  });
+  await screen.findAllByRole('radiogroup');
 };
 
 const trackPaper = (trackKey: string, subjectKey: string) =>
-  SAMPLE_TEST_TRACKS.find(track => track.key === trackKey)!.subjects.find(
-    subject => subject.key === subjectKey,
-  )!.questions;
+  findSamplePaper(trackKey, subjectKey)!;
 
 // The paper opens on Class 11 Accountancy
 const CLASS_11_ACCOUNTANCY = trackPaper('class11', 'accountancy');
@@ -90,6 +94,11 @@ const optionLabel = (question: SampleTestQuestion, key: string) =>
   question.options.find(option => option.key === key)!.label;
 
 describe('SampleTestPaper', () => {
+  // The questions are their own download; fetch them once up front
+  beforeAll(async () => {
+    await loadSamplePapers();
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -105,8 +114,9 @@ describe('SampleTestPaper', () => {
     ]);
     SAMPLE_TEST_TRACKS.forEach(track =>
       track.subjects.forEach(subject => {
-        expect(subject.questions).toHaveLength(SAMPLE_TEST_QUESTION_COUNT);
-        subject.questions.forEach(question => {
+        const questions = trackPaper(track.key, subject.key);
+        expect(questions).toHaveLength(SAMPLE_TEST_QUESTION_COUNT);
+        questions.forEach(question => {
           expect(question.options).toHaveLength(4);
           expect(
             question.options.filter(option => option.key === question.answer),
@@ -118,7 +128,7 @@ describe('SampleTestPaper', () => {
         });
         // The right answer is not always in the same place
         expect(
-          new Set(subject.questions.map(question => question.answer)).size,
+          new Set(questions.map(question => question.answer)).size,
         ).toBeGreaterThan(1);
       }),
     );
@@ -215,8 +225,8 @@ describe('SampleTestPaper', () => {
   });
 
   it('starts the 20-minute clock on the first answer and marks the paper when time runs out', async () => {
-    vi.useFakeTimers();
     await renderPaper();
+    vi.useFakeTimers();
     expect(screen.getByText('Time left 20:00')).toBeInTheDocument();
 
     answerQuestion(CLASS_11_ACCOUNTANCY, 0, CLASS_11_ACCOUNTANCY[0].answer);
@@ -235,16 +245,31 @@ describe('SampleTestPaper', () => {
     ).toBeInTheDocument();
   });
 
-  it('asks a visitor to sign up on their first answer, then records that answer', async () => {
+  it('locks the paper for a visitor until they sign up', async () => {
     vi.mocked(signUpStudent).mockResolvedValue(student);
     await renderPaper({ signedIn: false });
     const first = CLASS_11_ACCOUNTANCY[0];
 
-    answerQuestion(CLASS_11_ACCOUNTANCY, 0, first.answer);
+    // The questions are covered, with sign-up and log-in in the middle
+    const lock = screen.getByRole('region', {
+      name: 'Sign in to start this paper',
+    });
+    expect(
+      within(lock).getByRole('heading', {
+        name: 'Sign up or log in to start the test',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Submit answers' }),
+    ).toBeDisabled();
+
+    // Log in opens the sign-in form; the visitor switches to sign-up there
+    fireEvent.click(within(lock).getByRole('button', { name: 'Log in' }));
+    expect(
+      screen.getByRole('dialog', { name: /Sign in to/ }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Create an account' }));
     const dialog = screen.getByRole('dialog', { name: /Create your/ });
-    expect(screen.getByText('Answered 0 of 20')).toBeInTheDocument();
-    // The clock waits for the account too
-    expect(screen.getByText('Time left 20:00')).toBeInTheDocument();
 
     fireEvent.change(within(dialog).getByLabelText('Full name'), {
       target: { value: 'Meera Iyer' },
@@ -266,12 +291,18 @@ describe('SampleTestPaper', () => {
       email: 'meera@example.com',
       password: 'correct-horse-1',
     });
-    expect(screen.getByText('Answered 1 of 20')).toBeInTheDocument();
-    const group = screen.getByRole('radiogroup', { name: first.prompt });
+    // Signed in: the lock is gone and the paper can be answered
     expect(
-      within(group).getByRole('radio', {
-        name: new RegExp(escapeRegExp(optionLabel(first, first.answer))),
-      }),
-    ).toBeChecked();
+      screen.queryByRole('region', { name: 'Sign in to start this paper' }),
+    ).not.toBeInTheDocument();
+    answerQuestion(CLASS_11_ACCOUNTANCY, 0, first.answer);
+    expect(screen.getByText('Answered 1 of 20')).toBeInTheDocument();
+  });
+
+  it('shows no lock to a signed-in student', async () => {
+    await renderPaper();
+    expect(
+      screen.queryByRole('region', { name: 'Sign in to start this paper' }),
+    ).not.toBeInTheDocument();
   });
 });

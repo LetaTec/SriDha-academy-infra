@@ -220,6 +220,25 @@ export const findSession = (db: DatabaseClient, sessionId: string) =>
 export const deleteSessionById = (db: DatabaseClient, sessionId: string) =>
   db.query('DELETE FROM sessions WHERE id = $1', [sessionId]);
 
+// Every other device signs out; the session that asked stays
+export const deleteOtherSessions = (
+  db: DatabaseClient,
+  userId: string,
+  keepSessionId: string,
+) =>
+  db.query('DELETE FROM sessions WHERE user_id = $1 AND id <> $2', [
+    userId,
+    keepSessionId,
+  ]);
+
+export const findPasswordHash = async (db: DatabaseClient, userId: string) => {
+  const row = await db.get<{ password_hash: string | null }>(
+    'SELECT password_hash FROM users WHERE id = $1',
+    [userId],
+  );
+  return row?.password_hash ?? null;
+};
+
 export const deleteSessionsForUser = (db: DatabaseClient, userId: string) =>
   db.query('DELETE FROM sessions WHERE user_id = $1', [userId]);
 

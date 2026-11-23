@@ -13,10 +13,12 @@ import {
   claimPasswordlessStudent,
   claimSignInLink,
   countResetCodeAttempt,
+  deleteOtherSessions,
   findAccountByEmail,
   findAuthUserRow,
   findCredentialsByEmail,
   findLatestResetCode,
+  findPasswordHash,
   findSignInLink,
   findUserIdByEmail,
   findUserRole,
@@ -30,6 +32,7 @@ import {
   updatePasswordHash,
 } from './auth.repository.js';
 import type {
+  ChangePasswordInput,
   LoginInput,
   PasswordResetConfirmInput,
   RegisterInput,
@@ -318,6 +321,37 @@ export const requestPasswordReset = async (
 
   await context.mailer.sendPasswordResetCode(email, code);
   logger.info('auth.password_reset_code_sent', { userId });
+};
+
+// A signed-in student changes their password with the current one. Other
+// devices are signed out; this one stays signed in. Staff have no password.
+export const changePassword = async (
+  context: AppContext,
+  auth: { userId: string; sessionId: string },
+  input: ChangePasswordInput,
+) => {
+  const storedHash = await findPasswordHash(context.db, auth.userId);
+  const isValid =
+    storedHash === null
+      ? await verifyAgainstDummyHash(input.currentPassword)
+      : await verifyPassword(input.currentPassword, storedHash);
+
+  if (!isValid || storedHash === null) {
+    throw new ApiError(
+      400,
+      ERROR_CODE.currentPasswordIncorrect,
+      'Your current password is not right',
+    );
+  }
+
+  const passwordHash = await hashPassword(input.newPassword);
+  const timestamp = context.now().toISOString();
+  await transaction(context.db, async tx => {
+    await updatePasswordHash(tx, auth.userId, passwordHash, timestamp);
+    await deleteOtherSessions(tx, auth.userId, auth.sessionId);
+  });
+
+  logger.info('auth.password_changed', { userId: auth.userId });
 };
 
 const invalidResetCode = () =>

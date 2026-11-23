@@ -2,7 +2,9 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import cx from 'classnames/bind';
 
+import { canChangePassword } from '@/access/account';
 import { AccountDialog } from '@components/auth/AccountDialog/AccountDialog';
+import { ChangePasswordDialog } from '@components/auth/ChangePasswordDialog/ChangePasswordDialog';
 import { Button } from '@components/ui/Button/Button';
 import { IconButton } from '@components/ui/IconButton/IconButton';
 import { Text } from '@components/ui/Text/Text';
@@ -19,14 +21,16 @@ export type ProfileMenuProps = {
 };
 
 // The profile button in the header. Signed out, it opens sign-up; signed
-// in, it shows who is signed in and a way to sign out.
+// in, it shows who is signed in, Change password (students) and Sign out.
 export const ProfileMenu = ({ onSignOut, isSigningOut }: ProfileMenuProps) => {
-  const { status, user } = useAuth();
+  const auth = useAuth();
+  const { status, user } = auth;
   const location = useLocation();
   const panelId = useId();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isChangeOpen, setIsChangeOpen] = useState(false);
 
   useEffect(() => {
     setIsOpen(false);
@@ -90,15 +94,32 @@ export const ProfileMenu = ({ onSignOut, isSigningOut }: ProfileMenuProps) => {
               {user.email}
             </Text>
           </div>
-          <Button
-            variant="secondary"
-            loading={isSigningOut}
-            onClick={onSignOut}
-          >
-            {TEXT.signOut}
-          </Button>
+          <div className={cn('actions')}>
+            {canChangePassword(auth) ? (
+              <Button
+                variant="plain"
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsChangeOpen(true);
+                }}
+              >
+                {TEXT.changePassword}
+              </Button>
+            ) : null}
+            <Button
+              variant="secondary"
+              loading={isSigningOut}
+              onClick={onSignOut}
+            >
+              {TEXT.signOut}
+            </Button>
+          </div>
         </div>
       ) : null}
+      <ChangePasswordDialog
+        open={isChangeOpen}
+        onClose={() => setIsChangeOpen(false)}
+      />
     </div>
   );
 };

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useId, useState } from 'react';
 import cx from 'classnames/bind';
 
 import { canAnswerPapers, mustSignInToAnswer } from '@/access/papers';
+import { PaperLoading } from '@components/assessment/PaperLoading/PaperLoading';
+import { PaperLock } from '@components/assessment/PaperLock/PaperLock';
 import { QuestionFigure } from '@components/assessment/QuestionFigure/QuestionFigure';
 import { AccountDialog } from '@components/auth/AccountDialog/AccountDialog';
 import { Button } from '@components/ui/Button/Button';
@@ -30,7 +32,10 @@ const resultMessage = (score: number, total: number) => {
 };
 
 export type PaperAnswersProps = {
-  questions: readonly SampleTestQuestion[];
+  // null while the questions download; the frame keeps its size meanwhile
+  questions: readonly SampleTestQuestion[] | null;
+  // How many questions the paper has, known before they arrive
+  questionCount: number;
   durationSeconds: number;
   // Shown above the first question
   instruction: string;
@@ -49,6 +54,7 @@ export type PaperAnswersProps = {
 // Give it a new key to start a fresh paper.
 export const PaperAnswers = ({
   questions,
+  questionCount,
   durationSeconds,
   instruction,
   startsOnOpen = false,
@@ -62,7 +68,10 @@ export const PaperAnswers = ({
     questionId: string;
     key: string;
   } | null>(null);
-  const total = questions.length;
+  const total = questions?.length ?? questionCount;
+  const isLoading = questions === null;
+  // Not while the saved session is checked, so it never flashes
+  const isLocked = mustSignInToAnswer(auth);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isMarked, setIsMarked] = useState(false);
   const [hasTimedOut, setHasTimedOut] = useState(false);
@@ -76,12 +85,13 @@ export const PaperAnswers = ({
   const countdown = useCountdown(durationSeconds, handleExpire);
   const { start } = countdown;
 
+  // A timed paper's clock starts once its questions are on screen
   useEffect(() => {
-    if (startsOnOpen) start();
-  }, [startsOnOpen, start]);
+    if (startsOnOpen && !isLoading) start();
+  }, [startsOnOpen, isLoading, start]);
 
   const answeredCount = Object.keys(answers).length;
-  const score = questions.filter(
+  const score = (questions ?? []).filter(
     question => answers[question.id] === question.answer,
   ).length;
   const isFullMarks = isMarked && score === total;
@@ -131,89 +141,115 @@ export const PaperAnswers = ({
         {instruction}
       </Text>
 
-      <ol className={cn('questions')}>
-        {questions.map((question, index) => {
-          const promptId = `${paperId}-${question.id}`;
-          const chosen = answers[question.id];
-          const correctOption = question.options.find(
-            option => option.key === question.answer,
-          );
+      {/* Visitors see the questions blurred, with sign-up on top */}
+      <div className={cn('questionsArea')}>
+        {isLoading ? (
+          <div className={cn('questionsLoading')}>
+            <PaperLoading />
+          </div>
+        ) : null}
+        <ol
+          className={cn('questions', { questionsLocked: isLocked })}
+          hidden={isLoading}
+          inert={isLocked}
+        >
+          {(questions ?? []).map((question, index) => {
+            const promptId = `${paperId}-${question.id}`;
+            const chosen = answers[question.id];
+            const correctOption = question.options.find(
+              option => option.key === question.answer,
+            );
 
-          return (
-            <li key={question.id} className={cn('question')}>
-              <div className={cn('questionHead')}>
-                <Text variant="numeralSm">
-                  {String(index + 1).padStart(2, '0')}
-                </Text>
-                <Text variant="strong" id={promptId} className={cn('prompt')}>
-                  {question.prompt}
-                </Text>
-                <Text variant="label" tone="muted">
-                  {TEXT.marksLabel}
-                </Text>
-              </div>
-              {question.figure ? (
-                <QuestionFigure figure={question.figure} />
-              ) : null}
+            return (
+              <li key={question.id} className={cn('question')}>
+                <div className={cn('questionHead')}>
+                  <Text variant="numeralSm">
+                    {String(index + 1).padStart(2, '0')}
+                  </Text>
+                  <Text variant="strong" id={promptId} className={cn('prompt')}>
+                    {question.prompt}
+                  </Text>
+                  <Text variant="label" tone="muted">
+                    {TEXT.marksLabel}
+                  </Text>
+                </div>
+                {question.figure ? (
+                  <QuestionFigure figure={question.figure} />
+                ) : null}
 
-              <div
-                role="radiogroup"
-                aria-labelledby={promptId}
-                className={cn('options')}
-              >
-                {question.options.map(option => {
-                  const isChosen = chosen === option.key;
-                  const isAnswer = option.key === question.answer;
-
-                  return (
-                    <label
-                      key={option.key}
-                      className={cn('option', {
-                        optionMarked: isMarked,
-                        optionCorrect: isMarked && isAnswer,
-                        optionWrong: isMarked && isChosen && !isAnswer,
-                      })}
-                    >
-                      <input
-                        type="radio"
-                        name={`${paperId}-${question.id}-${attempt}`}
-                        value={option.key}
-                        checked={isChosen}
-                        disabled={isMarked}
-                        onChange={() => handleSelect(question.id, option.key)}
-                        className={cn('input')}
-                      />
-                      <span
-                        className={cn('bubble', { bubbleSelected: isChosen })}
-                        aria-hidden="true"
-                      >
-                        {option.key}
-                      </span>
-                      <Text variant="small">{option.label}</Text>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {isMarked ? (
-                <Text
-                  as="p"
-                  variant="small"
-                  tone={chosen === question.answer ? 'success' : 'danger'}
-                  className={cn('feedback')}
+                <div
+                  role="radiogroup"
+                  aria-labelledby={promptId}
+                  className={cn('options')}
                 >
-                  {chosen === question.answer
-                    ? TEXT.correct
-                    : `${chosen ? '' : `${TEXT.notAnswered} · `}${TEXT.correctAnswer(
-                        question.answer,
-                        correctOption?.label ?? '',
-                      )}`}
-                </Text>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
+                  {question.options.map(option => {
+                    const isChosen = chosen === option.key;
+                    const isAnswer = option.key === question.answer;
+
+                    return (
+                      <label
+                        key={option.key}
+                        className={cn('option', {
+                          optionMarked: isMarked,
+                          optionCorrect: isMarked && isAnswer,
+                          optionWrong: isMarked && isChosen && !isAnswer,
+                        })}
+                      >
+                        <input
+                          type="radio"
+                          name={`${paperId}-${question.id}-${attempt}`}
+                          value={option.key}
+                          checked={isChosen}
+                          disabled={isMarked}
+                          onChange={() => handleSelect(question.id, option.key)}
+                          className={cn('input')}
+                        />
+                        <span
+                          className={cn('bubble', { bubbleSelected: isChosen })}
+                          aria-hidden="true"
+                        >
+                          {option.key}
+                        </span>
+                        <Text variant="small">{option.label}</Text>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {isMarked ? (
+                  <Text
+                    as="p"
+                    variant="small"
+                    tone={chosen === question.answer ? 'success' : 'danger'}
+                    className={cn('feedback')}
+                  >
+                    {chosen === question.answer
+                      ? TEXT.correct
+                      : `${chosen ? '' : `${TEXT.notAnswered} · `}${TEXT.correctAnswer(
+                          question.answer,
+                          correctOption?.label ?? '',
+                        )}`}
+                  </Text>
+                ) : null}
+                {isMarked && question.explanation ? (
+                  <Text
+                    as="p"
+                    variant="small"
+                    tone="muted"
+                    className={cn('explanation')}
+                  >
+                    {TEXT.why(question.explanation)}
+                  </Text>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+
+        {isLocked ? (
+          <PaperLock layout={scrollsInside ? 'compact' : 'wide'} />
+        ) : null}
+      </div>
 
       <div className={cn('result')} role="status" aria-live="polite">
         {isMarked ? (
@@ -260,7 +296,10 @@ export const PaperAnswers = ({
             {TEXT.tryAgain}
           </Button>
         ) : (
-          <Button disabled={answeredCount === 0} onClick={handleSubmit}>
+          <Button
+            disabled={answeredCount === 0 || isLocked}
+            onClick={handleSubmit}
+          >
             {TEXT.submit}
           </Button>
         )}

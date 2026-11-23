@@ -135,40 +135,17 @@ export const LEARNING_JOURNEY_TEXT = {
   ],
 } as const;
 
-export const MODEL_PAPER_DISCOVERY_TEXT = {
-  eyebrow: '05 / Examination Preparation',
-  title: 'Past board papers.',
-  titleEmphasis: 'And AI model papers.',
-  description:
-    'We draw a strict distinction between authentic past-year board questions and predictive, teacher-reviewed AI model papers',
-  pyqBadge: 'Authentic Archives',
-  pyqTitle: "Past 5 Years' Board Questions",
-  pyqDescription:
-    'Class 11 & 12 CBSE, ISC, and Foundation examination papers indexed topic-by-topic. Students practise actual historical questions after mastering each individual topic.',
-  pyqItems: [
-    'Indexed by topic and examination year',
-    'Official marking schemes and step marks',
-    'Included in topic practice materials',
-  ],
-  pyqAction: 'Explore Topics with PYQs',
-  modelPaperBadge: 'In Development · Waitlist Open',
-  modelPaperTitle: 'AI-Synthesised Model Papers',
-  modelPaperDescription:
-    'Prepared from five years of question pattern analysis and textbook weightage, vetted by subject teachers, and delivered seven days before exams.',
-  modelPaperItems: [
-    'Weighted to current exam blueprints',
-    'Vetted by senior subject faculty',
-    'Delivered 7 days before examinations',
-  ],
-  modelPaperAction: 'Join Model Paper Waitlist',
-} as const;
-
 export const AI_TEST_TEXT = {
-  eyebrow: '02 / Assessment Experience',
+  eyebrow: '02 / Practice papers',
   title: 'Test your understanding.',
-  titleEmphasis: 'Without repetition.',
+  titleEmphasis: 'Marked instantly.',
   description:
-    'Test papers are generated dynamically from subject material using in-house SriDha tools. Each student receives a unique paper for their topic, followed by instant marking, step-by-step explanations, and percentile feedback',
+    'Twenty-question papers for every class and exam, marked the moment you submit. Make a free account with your first answer',
+  features: [
+    'Real Class 12 board, JEE Advanced and NEET questions',
+    'Every right answer shown after marking',
+    'Twenty-minute clock, one mark a question',
+  ],
   action: 'Start sample test',
 } as const;
 
@@ -181,11 +158,12 @@ export const TOPICS_TEXT = {
   seeAll: (count: number) => `See all ${count} topics`,
 } as const;
 
+// The three things SriDha Academy offers today
 export const PROGRAMS_TEXT = {
   title: 'The',
   titleEmphasis: 'three paths.',
   description:
-    'SriDha Academy brings three services together: topic-wise online classes, AI test papers and AI model papers',
+    'SriDha Academy brings three things together: topic-wise online classes, past-paper practice and topic tests',
   items: [
     {
       tag: '01 / Classes',
@@ -194,22 +172,25 @@ export const PROGRAMS_TEXT = {
       description:
         'Topic-wise live classes delivered online, with up to 100 students per batch. Each batch lists the exact lessons it covers.',
       action: 'Browse classes',
+      to: APP_ROUTES.TOPICS,
     },
     {
-      tag: '02 / Assessment',
-      title: 'AI Test',
+      tag: '02 / Practice',
+      title: 'PYQ Test',
       titleEnd: 'Paper',
       description:
-        'Students create a profile, take a generated paper and receive marking in percentile after completion',
-      action: 'See test flow',
+        'Twenty questions from real Class 12 board, JEE Advanced and NEET papers, with a twenty-minute clock and instant marking.',
+      action: 'Practise past papers',
+      to: APP_ROUTES.AI_TEST,
     },
     {
-      tag: '03 / Prediction',
-      title: 'AI Model',
+      tag: '03 / Topic tests',
+      title: 'Topic Test',
       titleEnd: 'Paper',
       description:
-        'Model papers prepared from the last five years of papers and the subject book, reviewed by teachers and planned for delivery seven days before the exam',
-      action: 'Join waitlist',
+        'Twenty hard questions on one topic, two hours on the clock, and every answer shown once the paper is marked.',
+      action: 'Take a topic test',
+      to: APP_ROUTES.TOPIC_TESTS,
     },
   ],
 } as const;

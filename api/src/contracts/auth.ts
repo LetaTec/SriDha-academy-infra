@@ -58,6 +58,12 @@ export type SignUpRequest = {
   password: string;
 };
 
+// A signed-in student changes their password; other devices sign out
+export type ChangePasswordRequest = {
+  currentPassword: string;
+  newPassword: string;
+};
+
 export type LoginRequest = {
   email: string;
   password: string;

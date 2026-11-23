@@ -1,0 +1,8 @@
+/* Holds roughly a question's height so the sheet does not jump */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5);
+  min-height: var(--height-topic-preview);
+}
