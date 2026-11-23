@@ -13,6 +13,20 @@ const BATCH_PAGE_COUNT = 2;
 // The book opens one topic, then its batches on the next turn; every topic
 // is listed in the topics section and on the Topics page.
 const TOPIC_PAGE_COUNT = 1;
+// The first featured topic already leads the hero and the topic cards, so
+// the book opens the next one
+const BOOK_FEATURED_POSITION = 1;
+
+// Featured topics in rank order first, then the rest in catalogue order
+const orderForBook = (topics: TopicContext[]): TopicContext[] => {
+  const featured = topics
+    .filter(context => context.topic.featuredRank !== null)
+    .sort(
+      (a, b) => Number(a.topic.featuredRank) - Number(b.topic.featuredRank),
+    );
+  const lead = featured[BOOK_FEATURED_POSITION] ?? featured[0] ?? topics[0];
+  return lead ? [lead, ...topics.filter(context => context !== lead)] : [];
+};
 
 export type BookChapterContent = {
   label: string;
@@ -64,7 +78,7 @@ const getCataloguePages = ({
   if (isLoading) return [{ kind: 'status', key: 'loading', status: 'loading' }];
   if (hasError) return [{ kind: 'status', key: 'error', status: 'error' }];
 
-  const topics = listTopics(subjects);
+  const topics = orderForBook(listTopics(subjects));
   const topicPages: BookPageContent[] = topics
     .slice(0, TOPIC_PAGE_COUNT)
     .map(context => ({

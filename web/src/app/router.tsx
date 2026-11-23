@@ -21,7 +21,8 @@ const BatchesPage = lazy(() => import('@pages/batches/BatchesPage'));
 const TopicsPage = lazy(() => import('@pages/topics/TopicsPage'));
 const AboutPage = lazy(() => import('@pages/about/AboutPage'));
 const AiTestPage = lazy(() => import('@pages/ai-test/AiTestPage'));
-const ModelPaperPage = lazy(() => import('@pages/model-paper/ModelPaperPage'));
+const TopicTestsPage = lazy(() => import('@pages/topic-tests/TopicTestsPage'));
+const TopicTestPage = lazy(() => import('@pages/topic-test/TopicTestPage'));
 const AdminSignInPage = lazy(
   () => import('@pages/admin-sign-in/AdminSignInPage'),
 );
@@ -75,6 +76,11 @@ export const routes: RouteObject[] = [
     path,
     element: <Navigate to={APP_ROUTES.HOME} replace />,
   })),
+  // Model papers became topic tests; old links open them
+  {
+    path: APP_ROUTES.MODEL_PAPER,
+    element: <Navigate to={APP_ROUTES.TOPIC_TESTS} replace />,
+  },
   {
     element: <SiteShell />,
     errorElement: <RouteErrorBoundary />,
@@ -87,7 +93,8 @@ export const routes: RouteObject[] = [
           { path: APP_ROUTES.TOPICS, element: <TopicsPage /> },
           { path: APP_ROUTES.ABOUT, element: <AboutPage /> },
           { path: APP_ROUTES.AI_TEST, element: <AiTestPage /> },
-          { path: APP_ROUTES.MODEL_PAPER, element: <ModelPaperPage /> },
+          { path: APP_ROUTES.TOPIC_TESTS, element: <TopicTestsPage /> },
+          { path: APP_ROUTES.TOPIC_TEST, element: <TopicTestPage /> },
           // Open to everyone; paying needs no account
           { path: APP_ROUTES.CHECKOUT, element: <CheckoutPage /> },
           {

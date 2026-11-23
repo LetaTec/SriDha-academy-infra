@@ -33,6 +33,21 @@ describe('buildBookLayout', () => {
     expect(pages.length % 2).toBe(0);
   });
 
+  it('opens the second featured topic, as the first leads the hero', () => {
+    const pages = readPages(
+      buildBookLayout({
+        subjects: catalogueFixture,
+        isLoading: false,
+        hasError: false,
+      }),
+    );
+    const topicPage = pages.find(page => page.kind === 'topic');
+
+    expect(topicPage?.kind === 'topic' && topicPage.context.topic.id).toBe(
+      'topic_chemistry_bonding_class_11',
+    );
+  });
+
   it('lists at most four batches, two per page, with the link on the last page', () => {
     const extraBatches = Array.from({ length: 4 }, (_, index) => ({
       ...openBatch,

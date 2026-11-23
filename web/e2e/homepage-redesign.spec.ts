@@ -75,19 +75,10 @@ test.describe('Homepage Redesign Responsiveness and Quality', () => {
       await expect(journeySection).toBeVisible();
       await expect(
         journeySection.getByRole('heading', { level: 2 }),
-      ).toContainText('How true mastery happens');
-
-      // Click learning journey stage 4 (Topic assessment)
-      const stage4Tab = page.getByRole('tab', {
-        name: /4\. Topic assessment/i,
-      });
-      await stage4Tab.click();
+      ).toContainText('How it works');
       await expect(
-        journeySection.getByRole('heading', {
-          level: 3,
-          name: /Take a topic-wise assessment/i,
-        }),
-      ).toBeVisible();
+        journeySection.getByRole('link', { name: 'Topic Test Paper' }),
+      ).toHaveAttribute('href', '/topic-tests');
 
       // Verify Model Paper Discovery section
       const modelPaperSection = page.locator('section#model-paper');

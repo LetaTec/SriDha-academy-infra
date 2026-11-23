@@ -1,0 +1,195 @@
+.instruction {
+  margin: var(--space-1) 0 var(--space-0-5);
+  font-size: var(--text-xs);
+  font-style: italic;
+}
+
+.questions {
+  list-style: none;
+}
+
+/* In a compact paper the questions scroll inside the sheet, so the page
+   around it stays short */
+.scrollsInside .questions {
+  max-height: var(--height-test-questions);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.question {
+  padding: var(--space-1) 0;
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
+}
+
+.questionHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-1-5);
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--space-2);
+  margin-top: var(--space-0-5);
+  padding-left: var(--space-4);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-0-5);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.option:hover:not(.optionMarked) {
+  background: var(--color-bg-subtle);
+}
+
+.optionMarked {
+  cursor: default;
+}
+
+/* The native radio stays in the page for keyboards and screen readers */
+.input {
+  position: absolute;
+  width: var(--size-visually-hidden);
+  height: var(--size-visually-hidden);
+  opacity: 0;
+}
+
+/* OMR-style answer bubble */
+.bubble {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-option-bubble);
+  height: var(--size-option-bubble);
+  border: var(--border-width-base) solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-none);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.input:focus-visible + .bubble {
+  outline: var(--focus-ring-width) solid var(--color-border-focus);
+  outline-offset: var(--border-width-base);
+}
+
+.bubbleSelected {
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+}
+
+.optionCorrect .bubble {
+  border-color: var(--color-status-positive);
+  background: var(--color-status-positive);
+  color: var(--color-text-inverse);
+}
+
+.optionWrong .bubble {
+  border-color: var(--color-status-negative);
+  background: var(--color-status-negative);
+  color: var(--color-text-inverse);
+}
+
+.feedback {
+  margin-top: var(--space-0-5);
+  padding-left: var(--space-4);
+}
+
+.result {
+  display: grid;
+  gap: var(--space-0-5);
+  margin-top: var(--space-2);
+}
+
+.result:empty {
+  display: none;
+}
+
+.celebration {
+  justify-self: start;
+  font-family: var(--font-serif);
+  font-size: var(--text-display-xs);
+  font-style: italic;
+  color: var(--color-text-accent);
+  animation: pop var(--transition-reveal) both;
+}
+
+/* Answered count, clock and the submit button */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.barText {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-0-5) var(--space-3);
+}
+
+/* When the page scrolls, the bar sticks to the bottom of the screen until
+   the end of the paper reaches it */
+.answers:not(.scrollsInside) .bar {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-content);
+  padding: var(--space-1-5) 0;
+  border-top: var(--border-width-base) solid var(--color-border-strong);
+  background: var(--color-bg-page);
+}
+
+.clock {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    scale: 0.6;
+  }
+
+  60% {
+    opacity: 1;
+    scale: 1.08;
+  }
+
+  100% {
+    scale: 1;
+  }
+}
+
+@media (--viewport-sm) {
+  .options,
+  .feedback {
+    padding-left: 0;
+  }
+
+  .options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (--reduced-motion) {
+  .celebration {
+    animation: none;
+  }
+
+  .option,
+  .bubble {
+    transition: none;
+  }
+}

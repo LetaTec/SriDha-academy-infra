@@ -213,6 +213,8 @@
   --icon-size-lg: 24px;
   --opacity-disabled: 0.5;
   --opacity-grain: 0.18;
+  /* Cards for things not ready yet, such as topic tests still being written */
+  --opacity-muted: 0.6;
   --blur-header: 12px;
   --blur-book-shadow: 22px;
   --opacity-pulse-min: 0.4;
@@ -229,6 +231,17 @@
   --shadow-book: 18px 22px 35px rgb(32 60 57 / 0.16);
   --shadow-sheet: 0 9px 24px rgb(23 48 46 / 0.08);
   --shadow-spine: 0 0 9px rgb(23 48 46 / 0.15);
+  /* Edges of the pages underneath, stacked toward the outer corner */
+  --shadow-page-stack-left:
+    -1px 1px 0 var(--color-border-sheet), -2px 2px 0 var(--color-bg-sheet),
+    -3px 3px 0 var(--color-border-sheet), -4px 4px 0 var(--color-bg-sheet),
+    -5px 5px 0 var(--color-border-sheet);
+  --shadow-page-stack-right:
+    1px 1px 0 var(--color-border-sheet), 2px 2px 0 var(--color-bg-sheet),
+    3px 3px 0 var(--color-border-sheet), 4px 4px 0 var(--color-bg-sheet),
+    5px 5px 0 var(--color-border-sheet);
+  /* A pressed rule round the cloth cover */
+  --shadow-cover-emboss: inset 0 0 0 3px rgb(255 255 255 / 0.06);
 
   /* Motion */
   --ease-editorial: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -264,10 +277,15 @@
   --scale-photo-start: 1.08;
   --book-aspect-ratio: 820 / 540;
   --book-aspect-ratio-narrow: 1 / 0.95;
-  --book-tilt: rotateX(3deg) rotateZ(-0.6deg);
+  /* The book lies straight, facing the reader */
+  --book-tilt: none;
   --book-perspective: 1600px;
   --book-cover-depth: -10px;
-  --book-shadow-tilt: -4deg;
+  --book-shadow-tilt: 0deg;
+  /* The hardcover shows this much round the pages */
+  --book-cover-edge: 12px;
+  --radius-book-cover: 6px;
+  --radius-book-page: 3px;
   --width-spine: 8px;
   --width-page-shade: 35px;
   --space-sheet-y: clamp(14px, 7cqi, 58px);

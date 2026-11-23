@@ -88,7 +88,8 @@ export const BookPage = ({
             variant="sheet"
             className={cn('heading', 'headingCompact')}
           >
-            {topic.title}
+            {/* The label above already gives the class */}
+            {topic.shortTitle}
           </Heading>
           <Text as="div" variant="sheetLabel" tone="sheetMuted">
             {BOOK_TEXT.lessonsHeading}

@@ -31,7 +31,10 @@
 
 .frame {
   container: book / inline-size;
+  box-sizing: border-box;
   width: min(var(--width-book), 100%);
+  /* Room for the hardcover round the pages */
+  padding: var(--book-cover-edge);
   perspective: var(--book-perspective);
 }
 
@@ -48,9 +51,10 @@
 
 .coverBack {
   position: absolute;
-  inset: 0;
+  inset: calc(var(--book-cover-edge) * -1);
+  border-radius: var(--radius-book-cover);
   background: var(--color-bg-inverse);
-  box-shadow: var(--shadow-book);
+  box-shadow: var(--shadow-book), var(--shadow-cover-emboss);
   transform: translateZ(var(--book-cover-depth));
 }
 
@@ -88,14 +92,19 @@
 .leftBase {
   left: 0;
   border-right: 0;
-  box-shadow: inset calc(var(--space-2) * -1) 0 var(--space-3)
-    var(--color-sheet-fold);
+  border-radius: var(--radius-book-page) 0 0 var(--radius-book-page);
+  box-shadow:
+    inset calc(var(--space-2) * -1) 0 var(--space-3) var(--color-sheet-fold),
+    var(--shadow-page-stack-left);
 }
 
 .rightBase {
   right: 0;
   border-left: 0;
-  box-shadow: inset var(--space-2) 0 var(--space-3) var(--color-sheet-fold);
+  border-radius: 0 var(--radius-book-page) var(--radius-book-page) 0;
+  box-shadow:
+    inset var(--space-2) 0 var(--space-3) var(--color-sheet-fold),
+    var(--shadow-page-stack-right);
 }
 
 .leaf {
@@ -120,7 +129,13 @@
   box-shadow: var(--shadow-sheet);
 }
 
+.front {
+  border-radius: 0 var(--radius-book-page) var(--radius-book-page) 0;
+}
+
+/* Turned over, the back's outer edge is on its left */
 .back {
+  border-radius: var(--radius-book-page) 0 0 var(--radius-book-page);
   transform: rotateY(180deg);
 }
 
@@ -148,8 +163,8 @@
 
 .spine {
   position: absolute;
-  top: calc(var(--space-0-5) * -1);
-  bottom: calc(var(--space-0-5) * -1);
+  top: calc(var(--book-cover-edge) * -1);
+  bottom: calc(var(--book-cover-edge) * -1);
   left: 50%;
   z-index: var(--z-book-spine);
   width: var(--width-spine);

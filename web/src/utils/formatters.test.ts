@@ -26,6 +26,13 @@ describe('formatters', () => {
     expect(formatCountdown(0.4)).toBe('00:01');
     expect(formatCountdown(-3)).toBe('00:00');
   });
+
+  it('puts hours in front of countdowns of an hour or more', () => {
+    expect(formatCountdown(7200)).toBe('2:00:00');
+    expect(formatCountdown(3599.2)).toBe('1:00:00');
+    expect(formatCountdown(3725)).toBe('1:02:05');
+    expect(formatCountdown(3599)).toBe('59:59');
+  });
 });
 
 describe('resolveInternalPath', () => {

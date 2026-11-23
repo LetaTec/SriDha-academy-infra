@@ -1,0 +1,57 @@
+/* Card on top, test details and action below */
+.topic {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ready:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-border-focus);
+  outline-offset: calc(var(--focus-ring-offset) * -1);
+}
+
+.card {
+  min-height: var(--height-topic-preview);
+  padding-bottom: var(--space-2);
+}
+
+/* Tests still being written sit back */
+.soon .card {
+  opacity: var(--opacity-muted);
+}
+
+.offer {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+/* Reads as a link: accent text with an arrow that moves on hover */
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-0-5);
+  padding-bottom: var(--space-0-5);
+  border-bottom: var(--border-width-base) solid currentcolor;
+  color: var(--color-text-accent);
+  transition:
+    color var(--transition-fast),
+    gap var(--transition-fast);
+}
+
+.ready:hover .action,
+.ready:focus-visible .action {
+  gap: var(--space-1-5);
+  color: var(--color-text-primary);
+}
+
+@media (--reduced-motion) {
+  .action {
+    transition: none;
+  }
+}
