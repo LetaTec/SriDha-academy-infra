@@ -8,11 +8,40 @@ export type SampleTestOption = {
   label: string;
 };
 
+type FigureRow = readonly string[];
+
+// Apparatus and diagrams drawn for questions whose papers show a figure
+export type SampleTestDiagram =
+  'photocell' | 'chargedBalls' | 'waterCooler' | 'metaphase';
+
+// What a question shows under its prompt: a table (lists to match, data),
+// matrices or determinants, a shaded feasible region, or a drawn diagram.
+export type SampleTestFigure =
+  | { kind: 'table'; head: FigureRow; rows: readonly FigureRow[] }
+  | {
+      kind: 'matrices';
+      items: readonly {
+        name: string;
+        rows: readonly FigureRow[];
+        // Drawn with straight bars (a determinant) instead of brackets
+        determinant?: boolean;
+      }[];
+    }
+  | {
+      kind: 'region';
+      // Corner points of the feasible region, in order round it
+      corners: readonly (readonly [number, number])[];
+      xMax: number;
+      yMax: number;
+    }
+  | { kind: 'diagram'; name: SampleTestDiagram };
+
 export type SampleTestQuestion = {
   id: string;
   prompt: string;
   options: readonly SampleTestOption[];
   answer: string;
+  figure?: SampleTestFigure;
 };
 
 type SampleTestSubject = {
@@ -146,6 +175,18 @@ export const SAMPLE_TEST_QUESTION_COUNT = 20;
 // A minute a question
 export const SAMPLE_TEST_DURATION_SECONDS = 20 * 60;
 
+// The AI Test page (from the header): the paper leads the page
+export const AI_TEST_PAGE_TEXT = {
+  eyebrow: 'PYQ Test Paper / Previous year questions',
+  title: 'Practise with',
+  titleEmphasis: 'real past papers.',
+  lead: 'Twenty questions from real Class 12 board, JEE Advanced and NEET papers. Pick a class or exam, beat the 20-minute clock and see your score straight away',
+  note: 'AI papers made for each student are on the way',
+  // The paper opens on the board and entrance exam questions
+  initialTrack: 'class12',
+  action: 'Browse topics',
+} as const;
+
 export const SAMPLE_TEST_TEXT = {
   brand: 'SriDha Academy / AI Assessment',
   count: (total: number) => `Q 01–${String(total).padStart(2, '0')}`,
@@ -176,5 +217,19 @@ export const SAMPLE_TEST_TEXT = {
   celebrationTitle: 'Congratulations!',
   paperLabel: 'Sample test paper',
   tracksLabel: 'Choose a class or exam',
+  // Read out for drawn figures
+  diagramLabel: {
+    photocell:
+      'A vacuum tube: light falls on a cathode plate on the left, electrons cross to a wire-mesh anode on the right, and a battery of potential difference V is connected across the two',
+    chargedBalls:
+      'A closed cylindrical chamber with conducting plates at the top and bottom, light balls resting on the bottom plate, a high voltage source across the plates and an ammeter in the circuit',
+    waterCooler:
+      'A cooler tank connected to a device by two pipes: cold water flows from the cooler to the device and hot water flows back',
+    metaphase:
+      'Two equally likely arrangements of two homologous chromosome pairs at Metaphase I, each giving gametes with different combinations of the chromosomes',
+  },
+  regionLabel: (corners: string) =>
+    `A shaded feasible region on x and y axes with corner points ${corners}`,
+  matricesLabel: 'Matrices for this question',
   subjectsLabel: 'Choose a subject',
 } as const;

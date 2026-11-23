@@ -70,67 +70,6 @@ export const getRoadmapProgress = (milestones: readonly Milestone[]) => {
   return { done, total: milestones.length, percent };
 };
 
-export const AI_TEST_ROADMAP: FeatureRoadmap = {
-  eyebrow: 'AI Test Paper / Coming soon',
-  title: 'Practice',
-  titleEmphasis: 'without repetition.',
-  lead: 'Test papers generated from the subject material, different for every student, marked automatically with a percentile result. We are building it now',
-  milestones: [
-    {
-      title: 'Question bank',
-      description: 'Questions drawn from the subject material, topic by topic',
-      status: 'done',
-    },
-    {
-      title: 'Paper generator',
-      description: 'Builds a full paper for any topic a student has studied',
-      status: 'done',
-    },
-    {
-      title: 'A different paper for everyone',
-      description: 'No two students in a batch receive the same questions',
-      status: 'active',
-    },
-    {
-      title: 'Marking and percentile',
-      description: 'Instant marking, with a percentile against the batch',
-      status: 'active',
-    },
-    {
-      title: 'Pilot with GST, Class 11',
-      description: 'First papers for students in the GST batches',
-      status: 'next',
-    },
-    {
-      title: 'Open to every student',
-      description: 'AI test papers for every topic on SriDha Academy',
-      status: 'next',
-    },
-  ],
-  steps: [
-    {
-      label: '01',
-      title: 'Finish a topic',
-      description: 'Complete the lessons in your topic batch',
-    },
-    {
-      label: '02',
-      title: 'Get your paper',
-      description: 'A paper is generated for you from the topic material',
-    },
-    {
-      label: '03',
-      title: 'Take the test',
-      description: 'Answer online, at your own pace',
-    },
-    {
-      label: '04',
-      title: 'See your percentile',
-      description: 'Marks and a percentile result as soon as you submit',
-    },
-  ],
-};
-
 export const MODEL_PAPER_ROADMAP: FeatureRoadmap = {
   eyebrow: 'AI Model Paper / Coming soon',
   title: 'Revise with',

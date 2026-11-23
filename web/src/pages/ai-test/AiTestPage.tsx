@@ -1,15 +1,51 @@
-import { SampleTestPaper } from '@components/assessment/SampleTestPaper/SampleTestPaper';
-import { FeatureInProgress } from '@components/roadmap/FeatureInProgress/FeatureInProgress';
-import { AI_TEST_ROADMAP } from '@constants/roadmap';
+import cx from 'classnames/bind';
 
-// AI test papers are not live yet: show what they will be and how far along
-// the build is.
+import { SampleTestPaper } from '@components/assessment/SampleTestPaper/SampleTestPaper';
+import { ButtonRouteLink } from '@components/ui/Button/Button';
+import { Heading } from '@components/ui/Heading/Heading';
+import { Section } from '@components/ui/Section/Section';
+import { Text } from '@components/ui/Text/Text';
+import { AI_TEST_PAGE_TEXT as TEXT } from '@constants/assessment';
+import { APP_ROUTES, HOME_SECTION_ID, toPageSection } from '@constants/routes';
+
+import styles from './AiTestPage.module.css';
+
+const cn = cx.bind(styles);
+
+const TITLE_ID = 'ai-test-page-title';
+const TOPICS_LINK = toPageSection(APP_ROUTES.HOME, HOME_SECTION_ID.topics);
+
+// The AI Test page: real past papers to take straight away, the paper
+// leading the page.
 const AiTestPage = () => (
-  <FeatureInProgress
-    id="ai-test"
-    roadmap={AI_TEST_ROADMAP}
-    visual={<SampleTestPaper />}
-  />
+  <Section labelledBy={TITLE_ID} className={cn('page')}>
+    <div className={cn('intro')}>
+      <Text as="div" variant="eyebrow">
+        {TEXT.eyebrow}
+      </Text>
+      <Heading level={1} variant="hero" id={TITLE_ID}>
+        {TEXT.title}
+        <br />
+        <em>{TEXT.titleEmphasis}</em>
+      </Heading>
+      <Text as="p" variant="lead" tone="muted" className={cn('lead')}>
+        {TEXT.lead}
+      </Text>
+    </div>
+
+    <div className={cn('paper')}>
+      <SampleTestPaper layout="wide" initialTrack={TEXT.initialTrack} />
+    </div>
+
+    <div className={cn('footer')}>
+      <Text as="p" tone="muted">
+        {TEXT.note}
+      </Text>
+      <ButtonRouteLink to={TOPICS_LINK} endIcon="arrowRight">
+        {TEXT.action}
+      </ButtonRouteLink>
+    </div>
+  </Section>
 );
 
 export default AiTestPage;

@@ -14,7 +14,7 @@ export const BRAND = {
 // isSection: a jump to a section of a page, never shown as the current page.
 export const NAV_LINKS = [
   { label: 'Topics', to: APP_ROUTES.TOPICS, isSection: false },
-  { label: 'AI Test', to: APP_ROUTES.AI_TEST, isSection: false },
+  { label: 'PYQ Test Paper', to: APP_ROUTES.AI_TEST, isSection: false },
   { label: 'Model Paper', to: APP_ROUTES.MODEL_PAPER, isSection: false },
   { label: 'About', to: APP_ROUTES.ABOUT, isSection: false },
 ] as const;
@@ -229,7 +229,7 @@ export const FOOTER_COLUMNS = [
     title: 'Explore',
     links: [
       { label: 'Topics', to: APP_ROUTES.TOPICS },
-      { label: 'AI Test', to: APP_ROUTES.AI_TEST },
+      { label: 'PYQ Test Paper', to: APP_ROUTES.AI_TEST },
       { label: 'Model Paper', to: APP_ROUTES.MODEL_PAPER },
     ],
   },

@@ -99,6 +99,9 @@
   --width-modal: 570px;
   --width-drawer: 460px;
   --width-test-sheet: 560px;
+  --width-test-sheet-wide: 880px;
+  --width-question-figure: 420px;
+  --width-matrix-bracket: 6px;
   --width-policy: 720px;
   --width-auth-copy: 540px;
   --width-auth-topics: 600px;
@@ -191,6 +194,7 @@
   --padding-control-y: 12px;
   --border-width-base: 1px;
   --border-width-accent: 3px;
+  --border-width-matrix: 1.5px;
   --radius-none: 0;
   --radius-full: 9999px;
   --size-dot: 6px;

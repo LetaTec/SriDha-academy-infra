@@ -1,0 +1,139 @@
+﻿/* Sits under the prompt, lined up with the options */
+.figure {
+  margin: var(--space-1) 0 var(--space-0-5);
+  padding-left: var(--space-4);
+}
+
+.drawing {
+  display: block;
+  width: 100%;
+  max-width: var(--width-question-figure);
+  height: auto;
+  color: var(--color-text-primary);
+}
+
+/* Tables: lists to match, data */
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--space-0-5) var(--space-1);
+  border: var(--border-width-base) solid var(--color-border-base);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  background: var(--color-bg-subtle);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-sheet);
+}
+
+/* Matrices and determinants */
+.matrices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+
+.matrixItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.matrixName {
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  font-style: italic;
+}
+
+.matrix {
+  position: relative;
+  display: inline-grid;
+  gap: var(--space-0-5) var(--space-2);
+  padding: var(--space-0-5) var(--space-1-5);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.cell {
+  min-width: var(--space-2);
+}
+
+.determinant {
+  border-inline: var(--border-width-matrix) solid currentcolor;
+}
+
+.brackets::before,
+.brackets::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--width-matrix-bracket);
+  border: var(--border-width-matrix) solid currentcolor;
+}
+
+.brackets::before {
+  left: 0;
+  border-right: 0;
+}
+
+.brackets::after {
+  right: 0;
+  border-left: 0;
+}
+
+/* The feasible region graph */
+.region {
+  fill: var(--color-accent);
+  fill-opacity: 0.22;
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+}
+
+.axis {
+  stroke: currentcolor;
+  stroke-width: 1.2;
+}
+
+.tick,
+.axisName,
+.cornerLabel {
+  fill: currentcolor;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  text-anchor: middle;
+}
+
+.tickY {
+  text-anchor: end;
+}
+
+.axisName {
+  font-style: italic;
+}
+
+.cornerLabel {
+  text-anchor: start;
+}
+
+.corner {
+  fill: currentcolor;
+}
+
+@media (--viewport-sm) {
+  .figure {
+    padding-left: 0;
+  }
+}

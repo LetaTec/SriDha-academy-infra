@@ -87,12 +87,22 @@
   font-style: italic;
 }
 
-/* Twenty questions scroll inside the paper, so the page stays short */
 .questions {
+  list-style: none;
+}
+
+/* In a compact paper the twenty questions scroll inside the sheet, so the
+   page around it stays short */
+.compact .questions {
   max-height: var(--height-test-questions);
   overflow-y: auto;
   overscroll-behavior: contain;
-  list-style: none;
+}
+
+/* A wide paper is the page: it uses the room and the page scrolls */
+.wide {
+  max-width: var(--width-test-sheet-wide);
+  padding: var(--space-6);
 }
 
 .question {
@@ -235,7 +245,8 @@
 }
 
 @media (--viewport-sm) {
-  .sheet {
+  .sheet,
+  .wide {
     padding: var(--space-4) var(--space-3);
   }
 
