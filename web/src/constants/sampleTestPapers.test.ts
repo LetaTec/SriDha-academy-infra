@@ -1,5 +1,5 @@
 import { SAMPLE_TEST_QUESTION_COUNT, SAMPLE_TEST_TRACKS } from './assessment';
-import { finishPrompt } from './sampleTestPapers';
+import { finishPrompt } from './paperRows';
 
 describe('finishPrompt', () => {
   it.each([

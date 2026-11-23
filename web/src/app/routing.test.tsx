@@ -779,20 +779,73 @@ describe('app routing', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
-  it('opens the model paper waitlist from the model paper page', async () => {
+  it('lists topic tests, ready ones first, and takes a two-hour topic test', async () => {
     vi.mocked(getCurrentSession).mockResolvedValue(student);
     const user = userEvent.setup();
-    renderApp('/model-paper');
+    // Old model paper links land on the topic tests
+    const router = renderApp('/model-paper');
 
-    await user.click(
+    expect(
       await screen.findByRole(
-        'button',
-        { name: 'Join the waitlist' },
+        'heading',
+        { level: 1, name: /one topic at a time/ },
         { timeout: LAZY_PAGE_TIMEOUT_MS },
       ),
-    );
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/topic-tests');
+    expect(
+      within(screen.getByRole('banner')).getAllByRole('link', {
+        name: 'Topic Test Paper',
+      })[0],
+    ).toHaveAttribute('href', '/topic-tests');
 
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    const ready = await screen.findByRole('region', {
+      name: 'Tests ready to take',
+    });
+    expect(within(ready).getAllByRole('link')).toHaveLength(3);
+    const soon = screen.getByRole('region', { name: 'Tests coming soon' });
+    expect(within(soon).getByText('Ecosystem')).toBeInTheDocument();
+    expect(within(soon).getByText('Test coming soon')).toBeInTheDocument();
+    expect(within(soon).queryByRole('link')).not.toBeInTheDocument();
+
+    await user.click(
+      within(ready).getByRole('link', {
+        name: 'Take the Ray optics test, Class 12',
+      }),
+    );
+    expect(
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: /Ray optics/ },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(
+      '/topic-tests/topic_physics_ray_optics_class_12',
+    );
+    // The clock waits for the student
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Start the test' }));
+    const paper = screen.getByRole('region', { name: 'Topic test paper' });
+    expect(within(paper).getAllByRole('radiogroup')).toHaveLength(20);
+    expect(within(paper).getByText(/^Time left (2:00:00|1:59:5\d)$/));
+  });
+
+  it('says when a topic’s test is not ready yet', async () => {
+    vi.mocked(getCurrentSession).mockResolvedValue(student);
+    renderApp('/topic-tests/topic_biology_ecosystem_class_12');
+
+    expect(
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: 'This test is not ready yet' },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'All topic tests' }),
+    ).toHaveAttribute('href', '/topic-tests');
   });
 
   it('signs a super admin in from an emailed link, confirming the link once', async () => {

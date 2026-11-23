@@ -175,6 +175,58 @@ export const SAMPLE_TEST_QUESTION_COUNT = 20;
 // A minute a question
 export const SAMPLE_TEST_DURATION_SECONDS = 20 * 60;
 
+// Topic tests are harder: two hours for the twenty questions
+export const TOPIC_TEST_DURATION_SECONDS = 2 * 60 * 60;
+
+const TOPIC_TEST_HOURS = `${TOPIC_TEST_DURATION_SECONDS / 3600} hours`;
+
+// The Topic Test Paper page (from the header): every topic, with a test to
+// take on the topics that have one
+export const TOPIC_TESTS_PAGE_TEXT = {
+  eyebrow: 'Topic Test Paper / One topic at a time',
+  title: 'Test yourself,',
+  titleEmphasis: 'one topic at a time.',
+  lead: `Twenty hard questions on a single topic, with ${TOPIC_TEST_HOURS} on the clock. Pick a topic, start when you are ready and see every answer once the paper is marked`,
+  readyTitle: 'Tests ready to take',
+  soonTitle: 'Tests coming soon',
+  takeAction: 'Take the test',
+  readyStatus: (count: number) => `${count} questions · ${TOPIC_TEST_HOURS}`,
+  soonStatus: 'Test coming soon',
+  actionLabel: (title: string, level: string) =>
+    `Take the ${title} test, ${level}`,
+  count: (shown: number, ready: number) =>
+    `${shown} topics · ${ready} tests ready`,
+  emptyTitle: 'No topics match',
+  emptyMessage: 'Try another word, or clear the search',
+  clearSearch: 'Clear search',
+} as const;
+
+// One topic's test: the rules, then the paper once the student starts
+export const TOPIC_TEST_TEXT = {
+  eyebrow: (level: string) => `Topic Test Paper / ${level}`,
+  titleEmphasis: 'Topic test.',
+  rules: (count: number) => [
+    `${count} questions, 1 mark each`,
+    `${TOPIC_TEST_HOURS} on the clock, starting when you press start`,
+    'The paper submits itself when the time runs out',
+    'The right answers and your score show once it is marked',
+  ],
+  rulesLabel: 'Before you start',
+  start: 'Start the test',
+  instruction:
+    'Choose the correct option. Each question carries 1 mark. The paper submits itself when the clock runs out',
+  meta: (level: string, topic: string, total: number) => [
+    level,
+    topic,
+    `Max. marks ${total}`,
+    TOPIC_TEST_HOURS,
+  ],
+  paperLabel: 'Topic test paper',
+  back: 'All topic tests',
+  notReadyTitle: 'This test is not ready yet',
+  notReadyMessage: 'Pick a topic whose test is ready to take',
+} as const;
+
 // The AI Test page (from the header): the paper leads the page
 export const AI_TEST_PAGE_TEXT = {
   eyebrow: 'PYQ Test Paper / Previous year questions',
@@ -206,6 +258,8 @@ export const SAMPLE_TEST_TEXT = {
   submit: 'Submit answers',
   tryAgain: 'Try again',
   score: (score: number, total: number) => `Score ${score} / ${total}`,
+  // The bar under the paper once it is marked
+  marked: (score: number, total: number) => `Marked: ${score} of ${total}`,
   correct: 'Correct',
   correctAnswer: (key: string, label: string) =>
     `Correct answer: (${key}) ${label}`,

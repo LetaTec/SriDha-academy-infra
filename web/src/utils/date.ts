@@ -23,11 +23,16 @@ export const formatWallClockTime = (value: string): string => {
   }).format(date)} IST`;
 };
 
-// A countdown as minutes and seconds, e.g. 272 -> "04:32".
+const pad = (value: number) => String(value).padStart(2, '0');
+
+// A countdown as minutes and seconds, e.g. 272 -> "04:32", with hours in
+// front once it runs to an hour or more, e.g. 7200 -> "2:00:00".
 export const formatCountdown = (totalSeconds: number): string => {
   const seconds = Math.max(0, Math.ceil(totalSeconds));
-  const minutes = Math.floor(seconds / 60);
-  return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const clock = `${pad(minutes)}:${pad(seconds % 60)}`;
+  return hours > 0 ? `${hours}:${clock}` : clock;
 };
 
 // Moments ("2026-10-28T13:45:00Z"), such as when an order was placed, shown

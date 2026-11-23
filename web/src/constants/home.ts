@@ -1,4 +1,9 @@
-import { ABOUT_SECTION_ID, APP_ROUTES, toPageSection } from './routes';
+import {
+  ABOUT_SECTION_ID,
+  APP_ROUTES,
+  HOME_SECTION_ID,
+  toPageSection,
+} from './routes';
 import type { HeroSceneName } from '@components/brand/HeroScene/HeroScene';
 
 import { POLICY_LINKS, POLICY_LINKS_TITLE } from './policies';
@@ -15,7 +20,7 @@ export const BRAND = {
 export const NAV_LINKS = [
   { label: 'Topics', to: APP_ROUTES.TOPICS, isSection: false },
   { label: 'PYQ Test Paper', to: APP_ROUTES.AI_TEST, isSection: false },
-  { label: 'Model Paper', to: APP_ROUTES.MODEL_PAPER, isSection: false },
+  { label: 'Topic Test Paper', to: APP_ROUTES.TOPIC_TESTS, isSection: false },
   { label: 'About', to: APP_ROUTES.ABOUT, isSection: false },
 ] as const;
 
@@ -93,19 +98,41 @@ export const CONCEPT_MAP_TEXT = {
   switchSubjectLabel: 'Switch subject:',
 } as const;
 
+// How studying with SriDha works, in four steps, each one live on the site
 export const LEARNING_JOURNEY_TEXT = {
-  eyebrow: '04 / The SriDha Learning Model',
-  title: 'How true mastery happens.',
-  titleEmphasis: 'Step by step.',
+  title: 'How it works.',
+  titleEmphasis: 'Four simple steps.',
   description:
-    'SriDha breaks difficult subjects into manageable single-topic batches. Here is the continuous learning cycle every student follows:',
-  cycleLabels: [
-    'Understand',
-    'Learn',
-    'Practise',
-    'Assess',
-    'Review',
-    'Improve',
+    'Study one topic at a time, from the first class to the final test',
+  steps: [
+    {
+      title: 'Pick a topic',
+      description:
+        'Choose just the topic you need, not a whole subject, and see its lessons and batches',
+      action: 'Browse topics',
+      to: APP_ROUTES.TOPICS,
+    },
+    {
+      title: 'Join the live classes',
+      description:
+        'Two online sessions on that topic with your tutor, in a batch of up to 100 students',
+      action: 'See open batches',
+      to: toPageSection(APP_ROUTES.HOME, HOME_SECTION_ID.topics),
+    },
+    {
+      title: 'Practise past papers',
+      description:
+        'Twenty questions from real Class 12 board, JEE Advanced and NEET papers, marked straight away',
+      action: 'PYQ Test Paper',
+      to: APP_ROUTES.AI_TEST,
+    },
+    {
+      title: 'Take the topic test',
+      description:
+        'Twenty hard questions on your topic, two hours on the clock and every answer at the end',
+      action: 'Topic Test Paper',
+      to: APP_ROUTES.TOPIC_TESTS,
+    },
   ],
 } as const;
 
@@ -231,7 +258,7 @@ export const FOOTER_COLUMNS = [
     links: [
       { label: 'Topics', to: APP_ROUTES.TOPICS },
       { label: 'PYQ Test Paper', to: APP_ROUTES.AI_TEST },
-      { label: 'Model Paper', to: APP_ROUTES.MODEL_PAPER },
+      { label: 'Topic Test Paper', to: APP_ROUTES.TOPIC_TESTS },
     ],
   },
   {
@@ -264,8 +291,8 @@ export const BOOK_TEXT = {
       'Every subject is broken into topics. Turn the page to see the topics, lessons and batches open right now.',
     items: [
       '01 — Topic-wise classes',
-      '02 — Practice & tests',
-      '03 — Model papers',
+      '02 — PYQ test papers',
+      '03 — Topic test papers',
     ],
   },
   topicLabel: (level: string | null) => (level ? `Topic / ${level}` : 'Topic'),
@@ -278,26 +305,31 @@ export const BOOK_TEXT = {
   loadingTitleEmphasis: 'topics.',
   errorTitle: 'Topics',
   errorTitleEmphasis: 'unavailable.',
+  // Only what students can use today
   closingPages: [
     {
       label: 'Chapter / 02',
-      title: 'Test your',
-      titleEmphasis: 'progress.',
+      title: 'Real past',
+      titleEmphasis: 'papers.',
       description:
-        'Build a profile and receive a different test generated from your learning material',
+        'Twenty questions from Class 12 board, JEE Advanced and NEET papers, marked when you submit',
       items: [
-        'AI Test Paper',
-        'Daily paper generation',
-        'Performance percentile',
+        'Class 12 board papers',
+        'JEE Advanced and NEET',
+        'Right answers shown after marking',
       ],
     },
     {
       label: 'Chapter / 03',
-      title: 'Prepare for',
-      titleEmphasis: "what's next.",
+      title: 'One topic,',
+      titleEmphasis: 'one test.',
       description:
-        'AI model papers are planned for delivery before examinations, with teacher review',
-      items: ["Last 5 years' papers", 'Subject material', 'Exam preparation'],
+        'Twenty hard questions on a single topic, with two hours on the clock',
+      items: [
+        '20 questions per topic',
+        'A two-hour timed paper',
+        'Your score and every answer at the end',
+      ],
     },
     {
       label: 'Chapter / 04',
@@ -305,7 +337,7 @@ export const BOOK_TEXT = {
       titleEmphasis: 'chapter.',
       description:
         'Choose your first topic and start building a stronger study routine',
-      items: ['Classes', 'Assessment', 'Model papers'],
+      items: ['Topic-wise classes', 'PYQ test papers', 'Topic test papers'],
     },
   ],
 } as const;

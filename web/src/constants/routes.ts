@@ -4,6 +4,9 @@ export const APP_ROUTES = {
   TOPICS: '/topics',
   ABOUT: '/about',
   AI_TEST: '/ai-test',
+  TOPIC_TESTS: '/topic-tests',
+  TOPIC_TEST: '/topic-tests/:topicId',
+  // Retired: model papers became topic tests; old links land on them
   MODEL_PAPER: '/model-paper',
   CHECKOUT: '/checkout',
   // Retired student-account pages, kept so old links still land somewhere
@@ -39,6 +42,10 @@ export const HOME_SECTION_ID = {
 export const ABOUT_SECTION_ID = {
   tutors: 'tutors',
 } as const;
+
+// One topic's test, by its catalogue id
+export const toTopicTest = (topicId: string) =>
+  APP_ROUTES.TOPIC_TEST.replace(':topicId', encodeURIComponent(topicId));
 
 export const toSectionHref = (sectionId: string) => `#${sectionId}`;
 
