@@ -8,14 +8,20 @@ import type {
 } from '../../contracts/auth.js';
 import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
+import { logger } from '../../logging/logger.js';
 import {
+  claimPasswordlessStudent,
   claimSignInLink,
+  countResetCodeAttempt,
+  findAccountByEmail,
   findAuthUserRow,
   findCredentialsByEmail,
-  findPasswordResetToken,
+  findLatestResetCode,
   findSignInLink,
   findUserIdByEmail,
   findUserRole,
+  insertResetCode,
+  insertSignedUpStudent,
   insertStudent,
   insertToken,
   markPasswordResetTokenUsed,
@@ -23,17 +29,30 @@ import {
   TOKEN_TABLE,
   updatePasswordHash,
 } from './auth.repository.js';
-import type { LoginInput, RegisterInput } from './auth.schema.js';
+import type {
+  LoginInput,
+  PasswordResetConfirmInput,
+  RegisterInput,
+  SignUpInput,
+} from './auth.schema.js';
 import {
   hashPassword,
   verifyAgainstDummyHash,
   verifyPassword,
 } from './password.js';
-import { isStaffRole, toUserRole } from './roles.js';
+import { isStaffRole, toUserRole, USER_ROLE } from './roles.js';
 import { deleteUserSessions } from './session.js';
-import { generateToken, hashToken } from './tokens.js';
+import {
+  generateCode,
+  generateToken,
+  hashCode,
+  hashToken,
+  isSameHash,
+} from './tokens.js';
 
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+// A reset code works for 15 minutes and allows 5 tries
+const RESET_CODE_TTL_MS = 15 * 60 * 1000;
+const RESET_CODE_MAX_ATTEMPTS = 5;
 const SIGN_IN_LINK_TTL_MS = 15 * 60 * 1000;
 
 // The authenticated account (users.id) is the canonical identity. Every
@@ -91,16 +110,20 @@ export const getAuthUser = async (
 
   const role = toUserRole(row.role);
 
-  // A student account without its profile is incomplete; only staff may
-  // exist without one.
-  if (row.student_id === null && !isStaffRole(role)) {
+  // A student needs a profile (older accounts) or a password from
+  // sign-up; a checkout buyer's password-less record cannot sign in. Staff
+  // need neither.
+  if (row.student_id === null && !row.has_password && !isStaffRole(role)) {
     return null;
   }
+
+  const name = row.full_name ?? row.account_name;
 
   return {
     id: String(row.id),
     email: String(row.email),
     role,
+    name: name === null ? null : String(name),
     student:
       row.student_id === null
         ? null
@@ -167,6 +190,60 @@ export const registerStudent = async (
   return user;
 };
 
+// Students sign up with a name, email and password; nothing is emailed to
+// check the address yet. A billing email that checkout already recorded
+// (with no password) becomes this account. An email that already has a
+// password, or belongs to staff, must sign in instead.
+export const signUpStudent = async (
+  context: AppContext,
+  input: SignUpInput,
+): Promise<AuthUser> => {
+  const { db } = context;
+  const passwordHash = await hashPassword(input.password);
+  const timestamp = context.now().toISOString();
+  const existing = await findAccountByEmail(db, input.email);
+  let userId: string;
+
+  if (!existing) {
+    userId = randomUUID();
+    try {
+      await insertSignedUpStudent(db, {
+        id: userId,
+        email: input.email,
+        fullName: input.fullName,
+        passwordHash,
+        role: USER_ROLE.student,
+        timestamp,
+      });
+    } catch (error) {
+      // Two sign-ups for one email at once: the second gets the same answer
+      if (isUniqueViolation(error)) throw emailAlreadyRegistered();
+      throw error;
+    }
+  } else {
+    userId = String(existing.id);
+    const isClaimed = await claimPasswordlessStudent(db, {
+      userId,
+      fullName: input.fullName,
+      passwordHash,
+      role: USER_ROLE.student,
+      timestamp,
+    });
+    if (!isClaimed) throw emailAlreadyRegistered();
+  }
+
+  const user = await getAuthUser(context, userId);
+  if (!user) {
+    throw new Error(`Signed-up account ${userId} could not be loaded`);
+  }
+
+  logger.info('auth.student_signed_up', {
+    userId,
+    fromCheckout: Boolean(existing),
+  });
+  return user;
+};
+
 export const authenticateStudent = async (
   context: AppContext,
   input: LoginInput,
@@ -193,6 +270,10 @@ export const authenticateStudent = async (
   return user;
 };
 
+// "Forgot password": emails a 6-digit code to a student account. Staff sign
+// in with emailed links and never get a password. A checkout buyer with no
+// password yet can use it to set one, since the code proves the email is
+// theirs.
 export const requestPasswordReset = async (
   context: AppContext,
   email: string,
@@ -205,52 +286,90 @@ export const requestPasswordReset = async (
     );
   }
 
-  const userId = await findUserIdByEmail(context.db, email);
+  const account = await findAccountByEmail(context.db, email);
 
   // Always respond the same way so the endpoint cannot be used to discover
   // which emails are registered.
-  if (!userId) {
+  if (!account || account.role !== USER_ROLE.student) {
     return;
   }
 
-  const token = await issueToken(
-    context,
-    TOKEN_TABLE.passwordReset,
-    userId,
-    RESET_TOKEN_TTL_MS,
-  );
-
-  const resetUrl = new URL('/reset-password', context.config.webOrigin);
-  resetUrl.searchParams.set('token', token);
-  await context.mailer.sendPasswordReset(email, resetUrl.toString());
-};
-
-export const confirmPasswordReset = async (
-  context: AppContext,
-  token: string,
-  password: string,
-) => {
-  const tokenId = hashToken(token);
+  const userId = String(account.id);
+  const code = generateCode();
+  const codeId = randomUUID();
   const now = context.now();
-  const row = await findPasswordResetToken(context.db, tokenId);
-
-  if (!row || row.used_at !== null || new Date(String(row.expires_at)) <= now) {
-    throw new ApiError(
-      400,
-      ERROR_CODE.invalidResetToken,
-      'This reset link is invalid or has expired. Request a new one.',
-    );
-  }
-
-  const userId = String(row.user_id);
-  const passwordHash = await hashPassword(password);
 
   await transaction(context.db, async tx => {
+    // Only the newest code works
+    await revokeUnusedTokens(
+      tx,
+      TOKEN_TABLE.passwordReset,
+      userId,
+      now.toISOString(),
+    );
+    await insertResetCode(tx, {
+      id: codeId,
+      userId,
+      codeHash: hashCode(codeId, code),
+      createdAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + RESET_CODE_TTL_MS).toISOString(),
+    });
+  });
+
+  await context.mailer.sendPasswordResetCode(email, code);
+  logger.info('auth.password_reset_code_sent', { userId });
+};
+
+const invalidResetCode = () =>
+  new ApiError(
+    400,
+    ERROR_CODE.invalidResetToken,
+    'That code is wrong or has expired. Check the email, or ask for a new code.',
+  );
+
+// Sets the new password if the code matches, signs the account out
+// everywhere else, and returns it so the student can be signed in here.
+export const confirmPasswordReset = async (
+  context: AppContext,
+  input: PasswordResetConfirmInput,
+): Promise<AuthUser> => {
+  const now = context.now();
+  const account = await findAccountByEmail(context.db, input.email);
+  if (!account || account.role !== USER_ROLE.student) {
+    throw invalidResetCode();
+  }
+
+  const userId = String(account.id);
+  const row = await findLatestResetCode(context.db, userId);
+  if (!row || new Date(String(row.expires_at)) <= now) {
+    throw invalidResetCode();
+  }
+
+  const attempts = await countResetCodeAttempt(context.db, String(row.id));
+  const isMatch =
+    attempts <= RESET_CODE_MAX_ATTEMPTS &&
+    isSameHash(hashCode(String(row.id), input.code), String(row.code_hash));
+
+  if (!isMatch) {
+    logger.warn('auth.password_reset_code_rejected', { userId, attempts });
+    throw invalidResetCode();
+  }
+
+  const passwordHash = await hashPassword(input.password);
+  await transaction(context.db, async tx => {
     await updatePasswordHash(tx, userId, passwordHash, now.toISOString());
-    await markPasswordResetTokenUsed(tx, tokenId, now.toISOString());
+    await markPasswordResetTokenUsed(tx, String(row.id), now.toISOString());
     // A password change signs the account out everywhere.
     await deleteUserSessions(context, userId, tx);
   });
+
+  const user = await getAuthUser(context, userId);
+  if (!user) {
+    throw new Error(`Account ${userId} could not be loaded after a reset`);
+  }
+
+  logger.info('auth.password_reset', { userId });
+  return user;
 };
 
 const signInLinkUnavailable = () =>

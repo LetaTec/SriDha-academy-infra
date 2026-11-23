@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import type { AppContext } from '../../app/context.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
+import type { AuthUserResponse } from '../../contracts/auth.js';
 import { validate } from '../../http/validate.js';
 import {
   adminSignInConfirmSchema,
@@ -10,6 +11,7 @@ import {
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
   registerSchema,
+  signUpSchema,
 } from './auth.schema.js';
 import {
   authenticateStudent,
@@ -19,6 +21,7 @@ import {
   registerStudent,
   requestAdminSignIn,
   requestPasswordReset,
+  signUpStudent,
 } from './auth.service.js';
 import {
   clearSessionCookie,
@@ -38,6 +41,19 @@ export const createAuthRouter = (context: AppContext) => {
     const session = await createSession(context, user.id, false);
     setSessionCookie(context, res, session);
     res.status(201).json({ user });
+  });
+
+  // The website's sign-up: name, email and password. Students stay signed
+  // in on this device.
+  router.post('/sign-up', async (req, res) => {
+    const input = validate(signUpSchema, req.body);
+    const user = await signUpStudent(context, input);
+    if (req.auth) {
+      await deleteSession(context, req.auth.sessionId);
+    }
+    const session = await createSession(context, user.id, true);
+    setSessionCookie(context, res, session);
+    res.status(201).json({ user } satisfies AuthUserResponse);
   });
 
   router.post('/login', async (req, res) => {
@@ -82,15 +98,17 @@ export const createAuthRouter = (context: AppContext) => {
     await requestPasswordReset(context, email);
     res.status(202).json({
       message:
-        "If an account exists for that email, you'll receive a reset link shortly",
+        "If an account exists for that email, you'll receive a 6-digit code shortly",
     });
   });
 
+  // A right code sets the new password and signs the student in here
   router.post('/password-reset/confirm', async (req, res) => {
-    const { token, password } = validate(passwordResetConfirmSchema, req.body);
-    await confirmPasswordReset(context, token, password);
-    clearSessionCookie(context, res);
-    res.status(204).end();
+    const input = validate(passwordResetConfirmSchema, req.body);
+    const user = await confirmPasswordReset(context, input);
+    const session = await createSession(context, user.id, true);
+    setSessionCookie(context, res, session);
+    res.json({ user } satisfies AuthUserResponse);
   });
 
   // Password-free sign-in for super admins: request an emailed link, then

@@ -7,6 +7,7 @@ import type {
   PasswordResetConfirmRequest,
   PasswordResetRequest,
   RegisterRequest,
+  SignUpRequest,
   StudentStandard,
   StudentStream,
 } from '../../contracts/auth.js';
@@ -101,6 +102,12 @@ export const registerSchema = z
     streamOther: input.stream === OTHER_STREAM ? input.streamOther : null,
   })) satisfies z.ZodType<RegisterRequest>;
 
+export const signUpSchema = z.strictObject({
+  fullName: z.string().trim().min(2, 'Enter your full name').max(120),
+  email: emailSchema,
+  password: passwordSchema,
+}) satisfies z.ZodType<SignUpRequest>;
+
 export const loginSchema = z.strictObject({
   email: emailSchema,
   password: z.string().min(1, 'Enter your password').max(PASSWORD_MAX_LENGTH),
@@ -112,7 +119,11 @@ export const passwordResetRequestSchema = z.strictObject({
 }) satisfies z.ZodType<PasswordResetRequest>;
 
 export const passwordResetConfirmSchema = z.strictObject({
-  token: z.string().min(1).max(256),
+  email: emailSchema,
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Enter the 6-digit code from the email'),
   password: passwordSchema,
 }) satisfies z.ZodType<PasswordResetConfirmRequest>;
 
@@ -126,3 +137,7 @@ export const adminSignInConfirmSchema = z.strictObject({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type SignUpInput = z.infer<typeof signUpSchema>;
+export type PasswordResetConfirmInput = z.infer<
+  typeof passwordResetConfirmSchema
+>;

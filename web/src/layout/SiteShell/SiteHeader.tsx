@@ -3,8 +3,9 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import cx from 'classnames/bind';
 
 import { canViewRefunds, canViewTeamOrders } from '@/access/team';
+import { ProfileMenu } from '@components/auth/ProfileMenu/ProfileMenu';
 import { BrandLogo } from '@components/brand/BrandLogo/BrandLogo';
-import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
+import { ButtonRouteLink } from '@components/ui/Button/Button';
 import { Container } from '@components/ui/Container/Container';
 import { IconButton } from '@components/ui/IconButton/IconButton';
 import { AUTH_TEXT } from '@constants/auth';
@@ -61,10 +62,10 @@ export const SiteHeader = () => {
     }
   };
 
-  // Students never sign in; a signed-in team member reaches orders and
-  // signs out here
-  const accountActions =
-    status === 'authenticated' ? (
+  // The team's pages; everyone signs out from the profile menu
+  const teamLinks =
+    status === 'authenticated' &&
+    (canViewTeamOrders(auth) || canViewRefunds(auth)) ? (
       <>
         {canViewTeamOrders(auth) ? (
           <ButtonRouteLink
@@ -84,13 +85,6 @@ export const SiteHeader = () => {
             {HEADER_TEXT.teamRefunds}
           </ButtonRouteLink>
         ) : null}
-        <Button
-          variant="secondary"
-          loading={isLoggingOut}
-          onClick={handleLogout}
-        >
-          {HEADER_TEXT.logout}
-        </Button>
       </>
     ) : null;
 
@@ -135,22 +129,26 @@ export const SiteHeader = () => {
               </NavLink>
             ),
           )}
-          {accountActions ? (
-            <div className={cn('menuActions')}>{accountActions}</div>
+          {teamLinks ? (
+            <div className={cn('menuActions')}>{teamLinks}</div>
           ) : null}
         </nav>
 
-        <div className={cn('actions')}>{accountActions}</div>
-
-        <IconButton
-          icon={isMenuOpen ? 'close' : 'menu'}
-          size="lg"
-          label={isMenuOpen ? HEADER_TEXT.closeMenu : HEADER_TEXT.openMenu}
-          aria-expanded={isMenuOpen}
-          aria-controls={navId}
-          className={cn('menuButton')}
-          onClick={() => setIsMenuOpen(open => !open)}
-        />
+        <div className={cn('actions')}>
+          {teamLinks ? (
+            <div className={cn('teamLinks')}>{teamLinks}</div>
+          ) : null}
+          <ProfileMenu onSignOut={handleLogout} isSigningOut={isLoggingOut} />
+          <IconButton
+            icon={isMenuOpen ? 'close' : 'menu'}
+            size="lg"
+            label={isMenuOpen ? HEADER_TEXT.closeMenu : HEADER_TEXT.openMenu}
+            aria-expanded={isMenuOpen}
+            aria-controls={navId}
+            className={cn('menuButton')}
+            onClick={() => setIsMenuOpen(open => !open)}
+          />
+        </div>
       </Container>
     </header>
   );

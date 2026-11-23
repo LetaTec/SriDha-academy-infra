@@ -1405,4 +1405,25 @@ export const MIGRATIONS: readonly Migration[] = [
       END $$;
     `,
   },
+  {
+    // Students sign up with only a name, email and password, so the name
+    // lives on the account (the old full profile is no longer asked for).
+    // Existing accounts keep NULL: staff and checkout buyers have no name
+    // here, and older students have one on their profile.
+    id: '024_user_full_name',
+    sql: `
+      ALTER TABLE users ADD COLUMN full_name TEXT;
+    `,
+  },
+  {
+    // "Forgot password" emails a 6-digit code instead of a link. The code
+    // is stored as a salted hash and allows a few tries; reset links
+    // issued before this have no code and simply stop working.
+    id: '025_password_reset_codes',
+    sql: `
+      ALTER TABLE password_reset_tokens ADD COLUMN code_hash TEXT;
+      ALTER TABLE password_reset_tokens
+        ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

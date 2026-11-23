@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import cx from 'classnames/bind';
 
+import { canAnswerPapers, mustSignInToAnswer } from '@/access/papers';
 import { PaperAnswers } from '@components/assessment/PaperAnswers/PaperAnswers';
 import { PaperSheet } from '@components/assessment/PaperSheet/PaperSheet';
+import { AccountDialog } from '@components/auth/AccountDialog/AccountDialog';
 import { TopicsStatus } from '@components/catalogue/TopicsStatus/TopicsStatus';
 import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Heading } from '@components/ui/Heading/Heading';
@@ -17,6 +19,7 @@ import {
 } from '@constants/assessment';
 import { APP_ROUTES } from '@constants/routes';
 import { findTopicTest } from '@constants/topicTestPapers';
+import { useAuth } from '@context/AuthContext';
 import { useTopicPreviews } from '@hooks/useTopicPreviews';
 import type { TopicPreview } from '@services/catalogue';
 
@@ -32,7 +35,8 @@ const BackLink = () => (
   </ButtonRouteLink>
 );
 
-// The rules first; the clock starts only when the student presses start
+// The rules first; the clock starts only when the student presses start.
+// A visitor signs up first, so the two hours never run during sign-up.
 const TopicTest = ({
   preview,
   questions,
@@ -40,7 +44,23 @@ const TopicTest = ({
   preview: TopicPreview;
   questions: readonly SampleTestQuestion[];
 }) => {
+  const auth = useAuth();
   const [isStarted, setIsStarted] = useState(false);
+  // Start was pressed before signing up, or while the session loaded
+  const [wantsToStart, setWantsToStart] = useState(false);
+  const canStart = canAnswerPapers(auth);
+
+  useEffect(() => {
+    if (wantsToStart && canStart) {
+      setIsStarted(true);
+      setWantsToStart(false);
+    }
+  }, [wantsToStart, canStart]);
+
+  const handleStart = () => {
+    if (canStart) setIsStarted(true);
+    else setWantsToStart(true);
+  };
 
   return (
     <>
@@ -76,7 +96,7 @@ const TopicTest = ({
           <RuledList items={TEXT.rules(questions.length)} />
           <Button
             endIcon="arrowRight"
-            onClick={() => setIsStarted(true)}
+            onClick={handleStart}
             className={cn('start')}
           >
             {TEXT.start}
@@ -87,6 +107,12 @@ const TopicTest = ({
       <div className={cn('footer')}>
         <BackLink />
       </div>
+
+      <AccountDialog
+        open={wantsToStart && mustSignInToAnswer(auth)}
+        onClose={() => setWantsToStart(false)}
+        onSignedIn={() => setIsStarted(true)}
+      />
     </>
   );
 };

@@ -25,6 +25,8 @@ export type AuthUser = {
   id: string;
   email: string;
   role: UserRole;
+  // The name to greet them by: from sign-up, or an older student profile
+  name: string | null;
   student: {
     id: string;
     fullName: string;
@@ -49,6 +51,13 @@ export type RegisterRequest = {
   address: string | null;
 };
 
+// Students sign up with just these; no email check for now
+export type SignUpRequest = {
+  fullName: string;
+  email: string;
+  password: string;
+};
+
 export type LoginRequest = {
   email: string;
   password: string;
@@ -57,8 +66,10 @@ export type LoginRequest = {
 
 export type PasswordResetRequest = { email: string };
 
+// The 6-digit code emailed by "Forgot password", and the new password
 export type PasswordResetConfirmRequest = {
-  token: string;
+  email: string;
+  code: string;
   password: string;
 };
 

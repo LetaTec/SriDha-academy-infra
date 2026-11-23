@@ -42,6 +42,7 @@ const financeAdmin = {
   id: 'user_fa_001',
   email: 'finance@sridha.test',
   role: 'FINANCE_ADMIN' as const,
+  name: null,
   student: null,
 };
 
@@ -49,6 +50,7 @@ const studentUser = {
   id: 'user_st_001',
   email: 'student@example.com',
   role: 'STUDENT' as const,
+  name: 'Rahul Sharma',
   student: {
     id: 'st_001',
     fullName: 'Rahul Sharma',

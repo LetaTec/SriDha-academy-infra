@@ -13,7 +13,7 @@ export type PaymentConfirmation = {
 };
 
 export type Mailer = {
-  sendPasswordReset: (email: string, resetUrl: string) => Promise<void>;
+  sendPasswordResetCode: (email: string, code: string) => Promise<void>;
   sendAdminSignInLink: (email: string, signInUrl: string) => Promise<void>;
   // idempotencyKey: the same key always means the same email, so the
   // provider delivers it once even if it is sent again (Resend keeps keys
@@ -31,8 +31,9 @@ const describePayment = ({ topic, batch, amount }: PaymentConfirmation) =>
     : `We have received your payment of ${amount} to pre-register for ${topic}. We will email you as soon as its first batch opens.`;
 
 const consoleMailer: Mailer = {
-  sendPasswordReset: async (email, resetUrl) => {
-    logger.info('mail.console_password_reset', { email, resetUrl });
+  // Development only: production refuses the console transport
+  sendPasswordResetCode: async (email, code) => {
+    logger.info('mail.console_password_reset_code', { email, code });
   },
   sendAdminSignInLink: async (email, signInUrl) => {
     logger.info('mail.console_admin_sign_in', { email, signInUrl });
@@ -46,27 +47,34 @@ const consoleMailer: Mailer = {
   },
 };
 
+// An email leads to a button, or shows a one-time code
 type EmailContent = {
   subject: string;
   intro: string;
-  action: string;
-  url: string;
   note: string;
-};
+} & ({ action: string; url: string } | { code: string });
 
-const renderEmail = ({ intro, action, url, note }: EmailContent) => `
+const renderCall = (content: EmailContent) =>
+  'code' in content
+    ? `<p style="margin: 24px 0; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #111;">${content.code}</p>`
+    : `<p style="margin: 24px 0;">
+      <a href="${content.url}" style="background-color: #0b57d0; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 500;">${content.action}</a>
+    </p>`;
+
+const renderEmail = (content: EmailContent) => {
+  const { intro, note } = content;
+  return `
   <div style="font-family: sans-serif; line-height: 1.5; color: #333; max-width: 560px; margin: 0 auto; padding: 24px;">
     <h2 style="color: #111;">SriDha Academy</h2>
     <p>Hello,</p>
     <p>${intro}</p>
-    <p style="margin: 24px 0;">
-      <a href="${url}" style="background-color: #0b57d0; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 500;">${action}</a>
-    </p>
+    ${renderCall(content)}
     <p style="font-size: 14px; color: #666;">${note}</p>
     <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
     <p style="font-size: 12px; color: #999;">SriDha Academy</p>
   </div>
 `;
+};
 
 const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
   const send = async (
@@ -103,14 +111,13 @@ const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
   };
 
   return {
-    sendPasswordReset: (email, resetUrl) =>
+    sendPasswordResetCode: (email, code) =>
       send(email, {
-        subject: 'Reset your SriDha Academy password',
+        subject: `${code} is your SriDha Academy code`,
         intro:
-          'We received a request to reset the password for your SriDha Academy account.',
-        action: 'Reset Password',
-        url: resetUrl,
-        note: 'This link is valid for 1 hour. If you did not request a password reset, you can safely ignore this email.',
+          'Enter this code on SriDha Academy to choose a new password for your account.',
+        code,
+        note: 'The code works for 15 minutes. If you did not ask to reset your password, you can safely ignore this email.',
       }),
     sendAdminSignInLink: (email, signInUrl) =>
       send(email, {

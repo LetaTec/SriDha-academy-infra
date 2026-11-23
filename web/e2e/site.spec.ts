@@ -34,7 +34,7 @@ test.describe('open site', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: /search your\s*topic/i }),
     ).toBeVisible();
-    // Students have no accounts, so the header has no account links
+    // Browsing needs no account, so there is no account page to visit
     await expect(
       page.getByRole('banner').getByRole('link', { name: 'My learning' }),
     ).toHaveCount(0);
@@ -295,6 +295,68 @@ test.describe('student journey', () => {
     await dialog.getByRole('button', { name: /join waitlist/i }).click();
     await expect(
       page.getByText('You have been added to the model paper waitlist'),
+    ).toBeVisible();
+  });
+});
+
+test.describe('student account', () => {
+  test('a visitor signs up on their first answer, then signs out and back in', async ({
+    page,
+  }, testInfo) => {
+    const email = uniqueEmail(`${testInfo.project.name}-account`);
+    const password = 'correct-horse-1';
+    await page.goto('/ai-test');
+
+    // Reading needs no account; answering does
+    const paper = page.getByRole('region', { name: 'Sample test paper' });
+    const firstQuestion = paper.getByRole('radiogroup').first();
+    // Clicking the option as a student would; the answer is held back
+    // until the account exists
+    await firstQuestion.locator('label').first().click();
+    const signUp = page.getByRole('dialog', { name: /Create your/ });
+    await expect(signUp).toBeVisible();
+    await expect(paper.getByText('Answered 0 of 20')).toBeVisible();
+
+    await signUp.getByLabel('Full name').fill('Meera Iyer');
+    await signUp.getByLabel('Email ID').fill(email);
+    await signUp.getByLabel('Create a password').fill(password);
+    await signUp.getByRole('button', { name: 'Create account' }).click();
+
+    // The answer they clicked counts, and the clock is running
+    await expect(signUp).toBeHidden();
+    await expect(paper.getByText('Answered 1 of 20')).toBeVisible();
+    await expect(firstQuestion.getByRole('radio').first()).toBeChecked();
+
+    // The profile button shows who is signed in
+    const header = page.getByRole('banner');
+    await header.getByRole('button', { name: 'Your account' }).click();
+    await expect(header.getByText('Meera Iyer')).toBeVisible();
+    await expect(header.getByText(email)).toBeVisible();
+
+    // Still signed in after a reload
+    await page.reload();
+    await expect(
+      header.getByRole('button', { name: 'Your account' }),
+    ).toBeVisible();
+
+    await header.getByRole('button', { name: 'Your account' }).click();
+    await header.getByRole('button', { name: 'Sign out' }).click();
+    await expect(
+      header.getByRole('button', { name: 'Sign in or create an account' }),
+    ).toBeVisible();
+
+    // Back again: sign in with the password, no code to type
+    await header
+      .getByRole('button', { name: 'Sign in or create an account' })
+      .click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Sign in' }).click();
+    await dialog.getByLabel('Email ID').fill(email);
+    await dialog.getByLabel('Password', { exact: true }).fill(password);
+    await dialog.getByRole('button', { name: 'Sign in' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(
+      header.getByRole('button', { name: 'Your account' }),
     ).toBeVisible();
   });
 });

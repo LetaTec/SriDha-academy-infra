@@ -8,7 +8,8 @@ import type { DatabaseClient, Row } from '../../db/client.js';
 
 export const findAuthUserRow = (db: DatabaseClient, userId: string) =>
   db.get<Row>(
-    `SELECT u.id, u.email, u.role, s.id AS student_id, s.full_name, s.standard, s.stream, s.stream_other
+    `SELECT u.id, u.email, u.role, u.full_name AS account_name, u.password_hash IS NOT NULL AS has_password,
+       s.id AS student_id, s.full_name, s.standard, s.stream, s.stream_other
      FROM users u
      LEFT JOIN student_profiles s ON s.user_id = u.id
      WHERE u.id = $1`,
@@ -48,6 +49,65 @@ export const findCredentialsByEmail = (db: DatabaseClient, email: string) =>
     'SELECT id, password_hash FROM users WHERE LOWER(email) = LOWER($1)',
     [email],
   );
+
+// What sign-up needs to know about an email already on file
+export const findAccountByEmail = (db: DatabaseClient, email: string) =>
+  db.get<{ id: string; role: string; password_hash: string | null }>(
+    'SELECT id, role, password_hash FROM users WHERE LOWER(email) = LOWER($1)',
+    [email],
+  );
+
+export const insertSignedUpStudent = (
+  db: DatabaseClient,
+  student: {
+    id: string;
+    email: string;
+    fullName: string;
+    passwordHash: string;
+    role: string;
+    timestamp: string;
+  },
+) =>
+  db.query(
+    `INSERT INTO users (id, email, password_hash, role, full_name, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $6)`,
+    [
+      student.id,
+      student.email,
+      student.passwordHash,
+      student.role,
+      student.fullName,
+      student.timestamp,
+    ],
+  );
+
+// Gives a password and name to a student record checkout made for a
+// billing email. Only password-less student records qualify, never staff;
+// returns whether a row changed.
+export const claimPasswordlessStudent = async (
+  db: DatabaseClient,
+  claim: {
+    userId: string;
+    fullName: string;
+    passwordHash: string;
+    role: string;
+    timestamp: string;
+  },
+) => {
+  const row = await db.get<{ id: string }>(
+    `UPDATE users SET password_hash = $1, full_name = $2, updated_at = $3
+     WHERE id = $4 AND role = $5 AND password_hash IS NULL
+     RETURNING id`,
+    [
+      claim.passwordHash,
+      claim.fullName,
+      claim.timestamp,
+      claim.userId,
+      claim.role,
+    ],
+  );
+  return row !== null && row !== undefined;
+};
 
 export type NewStudent = {
   userId: string;
@@ -202,11 +262,52 @@ export const insertToken = (
     [token.id, token.userId, token.createdAt, token.expiresAt],
   );
 
-export const findPasswordResetToken = (db: DatabaseClient, tokenId: string) =>
-  db.get<Row>(
-    'SELECT user_id, expires_at, used_at FROM password_reset_tokens WHERE id = $1',
-    [tokenId],
+// Password-reset codes ("Forgot password")
+
+export const insertResetCode = (
+  db: DatabaseClient,
+  code: {
+    id: string;
+    userId: string;
+    codeHash: string;
+    createdAt: string;
+    expiresAt: string;
+  },
+) =>
+  db.query(
+    `INSERT INTO password_reset_tokens (id, user_id, code_hash, created_at, expires_at)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [code.id, code.userId, code.codeHash, code.createdAt, code.expiresAt],
   );
+
+// The account's newest unused code (issuing one revokes the others)
+export const findLatestResetCode = (db: DatabaseClient, userId: string) =>
+  db.get<{
+    id: string;
+    code_hash: string;
+    attempts: number;
+    expires_at: string;
+  }>(
+    `SELECT id, code_hash, attempts, expires_at FROM password_reset_tokens
+     WHERE user_id = $1 AND used_at IS NULL AND code_hash IS NOT NULL
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [userId],
+  );
+
+// Counts a try before checking it, so tries made at the same moment are
+// all counted; returns the new total
+export const countResetCodeAttempt = async (
+  db: DatabaseClient,
+  codeId: string,
+) => {
+  const row = await db.get<{ attempts: number }>(
+    `UPDATE password_reset_tokens SET attempts = attempts + 1
+     WHERE id = $1 RETURNING attempts`,
+    [codeId],
+  );
+  return Number(row?.attempts ?? Number.POSITIVE_INFINITY);
+};
 
 export const markPasswordResetTokenUsed = (
   db: DatabaseClient,

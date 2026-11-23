@@ -56,7 +56,8 @@
   width: 100%;
 }
 
-.actions {
+.actions,
+.teamLinks {
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -73,7 +74,9 @@
     grid-template-columns: 1fr auto;
   }
 
-  .actions {
+  /* The profile button stays beside the menu button; team links move
+     into the menu */
+  .teamLinks {
     display: none;
   }
 

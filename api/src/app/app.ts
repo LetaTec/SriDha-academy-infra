@@ -234,6 +234,7 @@ export const createApp = (context: AppContext) => {
 
     api.use('/auth/login', loginLimiter);
     api.use('/auth/register', registerLimiter);
+    api.use('/auth/sign-up', registerLimiter);
     api.use('/auth/password-reset/confirm', passwordResetConfirmLimiter);
     api.use('/auth/password-reset', passwordResetLimiter);
     api.use('/auth/admin-sign-in', passwordResetLimiter);
