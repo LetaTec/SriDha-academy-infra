@@ -262,11 +262,52 @@ export const insertToken = (
     [token.id, token.userId, token.createdAt, token.expiresAt],
   );
 
-export const findPasswordResetToken = (db: DatabaseClient, tokenId: string) =>
-  db.get<Row>(
-    'SELECT user_id, expires_at, used_at FROM password_reset_tokens WHERE id = $1',
-    [tokenId],
+// Password-reset codes ("Forgot password")
+
+export const insertResetCode = (
+  db: DatabaseClient,
+  code: {
+    id: string;
+    userId: string;
+    codeHash: string;
+    createdAt: string;
+    expiresAt: string;
+  },
+) =>
+  db.query(
+    `INSERT INTO password_reset_tokens (id, user_id, code_hash, created_at, expires_at)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [code.id, code.userId, code.codeHash, code.createdAt, code.expiresAt],
   );
+
+// The account's newest unused code (issuing one revokes the others)
+export const findLatestResetCode = (db: DatabaseClient, userId: string) =>
+  db.get<{
+    id: string;
+    code_hash: string;
+    attempts: number;
+    expires_at: string;
+  }>(
+    `SELECT id, code_hash, attempts, expires_at FROM password_reset_tokens
+     WHERE user_id = $1 AND used_at IS NULL AND code_hash IS NOT NULL
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [userId],
+  );
+
+// Counts a try before checking it, so tries made at the same moment are
+// all counted; returns the new total
+export const countResetCodeAttempt = async (
+  db: DatabaseClient,
+  codeId: string,
+) => {
+  const row = await db.get<{ attempts: number }>(
+    `UPDATE password_reset_tokens SET attempts = attempts + 1
+     WHERE id = $1 RETURNING attempts`,
+    [codeId],
+  );
+  return Number(row?.attempts ?? Number.POSITIVE_INFINITY);
+};
 
 export const markPasswordResetTokenUsed = (
   db: DatabaseClient,

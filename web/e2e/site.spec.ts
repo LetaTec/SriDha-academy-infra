@@ -310,7 +310,9 @@ test.describe('student account', () => {
     // Reading needs no account; answering does
     const paper = page.getByRole('region', { name: 'Sample test paper' });
     const firstQuestion = paper.getByRole('radiogroup').first();
-    await firstQuestion.getByRole('radio').first().check({ force: true });
+    // Clicking the option as a student would; the answer is held back
+    // until the account exists
+    await firstQuestion.locator('label').first().click();
     const signUp = page.getByRole('dialog', { name: /Create your/ });
     await expect(signUp).toBeVisible();
     await expect(paper.getByText('Answered 0 of 20')).toBeVisible();

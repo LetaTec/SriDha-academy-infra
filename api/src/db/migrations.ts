@@ -1415,4 +1415,15 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE users ADD COLUMN full_name TEXT;
     `,
   },
+  {
+    // "Forgot password" emails a 6-digit code instead of a link. The code
+    // is stored as a salted hash and allows a few tries; reset links
+    // issued before this have no code and simply stop working.
+    id: '025_password_reset_codes',
+    sql: `
+      ALTER TABLE password_reset_tokens ADD COLUMN code_hash TEXT;
+      ALTER TABLE password_reset_tokens
+        ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

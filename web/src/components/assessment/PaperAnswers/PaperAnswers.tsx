@@ -56,7 +56,8 @@ export const PaperAnswers = ({
 }: PaperAnswersProps) => {
   const paperId = useId();
   const auth = useAuth();
-  // The answer a visitor clicked before signing up
+  // An answer clicked before signing up, or while the saved session is
+  // still being checked
   const [waitingAnswer, setWaitingAnswer] = useState<{
     questionId: string;
     key: string;
@@ -92,12 +93,23 @@ export const PaperAnswers = ({
 
   const handleSelect = (questionId: string, key: string) => {
     if (isMarked) return;
-    if (mustSignInToAnswer(auth)) {
-      setWaitingAnswer({ questionId, key });
-      return;
-    }
     if (canAnswerPapers(auth)) recordAnswer(questionId, key);
+    else setWaitingAnswer({ questionId, key });
   };
+
+  // A click made while the session was loading counts once it turns out
+  // the student is signed in
+  const canAnswer = canAnswerPapers(auth);
+  const { isRunning } = countdown;
+  useEffect(() => {
+    if (!canAnswer || !waitingAnswer) return;
+    if (!isRunning) start();
+    setAnswers(current => ({
+      ...current,
+      [waitingAnswer.questionId]: waitingAnswer.key,
+    }));
+    setWaitingAnswer(null);
+  }, [canAnswer, waitingAnswer, isRunning, start]);
 
   const handleSubmit = () => {
     countdown.stop();
@@ -257,7 +269,7 @@ export const PaperAnswers = ({
       <Confetti burst={isFullMarks ? attempt : 0} />
 
       <AccountDialog
-        open={waitingAnswer !== null}
+        open={waitingAnswer !== null && mustSignInToAnswer(auth)}
         onClose={() => setWaitingAnswer(null)}
         onSignedIn={() => {
           if (waitingAnswer) {

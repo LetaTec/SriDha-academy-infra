@@ -12,13 +12,15 @@ import { logger } from '../../logging/logger.js';
 import {
   claimPasswordlessStudent,
   claimSignInLink,
+  countResetCodeAttempt,
   findAccountByEmail,
   findAuthUserRow,
   findCredentialsByEmail,
-  findPasswordResetToken,
+  findLatestResetCode,
   findSignInLink,
   findUserIdByEmail,
   findUserRole,
+  insertResetCode,
   insertSignedUpStudent,
   insertStudent,
   insertToken,
@@ -27,7 +29,12 @@ import {
   TOKEN_TABLE,
   updatePasswordHash,
 } from './auth.repository.js';
-import type { LoginInput, RegisterInput, SignUpInput } from './auth.schema.js';
+import type {
+  LoginInput,
+  PasswordResetConfirmInput,
+  RegisterInput,
+  SignUpInput,
+} from './auth.schema.js';
 import {
   hashPassword,
   verifyAgainstDummyHash,
@@ -35,9 +42,17 @@ import {
 } from './password.js';
 import { isStaffRole, toUserRole, USER_ROLE } from './roles.js';
 import { deleteUserSessions } from './session.js';
-import { generateToken, hashToken } from './tokens.js';
+import {
+  generateCode,
+  generateToken,
+  hashCode,
+  hashToken,
+  isSameHash,
+} from './tokens.js';
 
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+// A reset code works for 15 minutes and allows 5 tries
+const RESET_CODE_TTL_MS = 15 * 60 * 1000;
+const RESET_CODE_MAX_ATTEMPTS = 5;
 const SIGN_IN_LINK_TTL_MS = 15 * 60 * 1000;
 
 // The authenticated account (users.id) is the canonical identity. Every
@@ -255,6 +270,10 @@ export const authenticateStudent = async (
   return user;
 };
 
+// "Forgot password": emails a 6-digit code to a student account. Staff sign
+// in with emailed links and never get a password. A checkout buyer with no
+// password yet can use it to set one, since the code proves the email is
+// theirs.
 export const requestPasswordReset = async (
   context: AppContext,
   email: string,
@@ -267,52 +286,90 @@ export const requestPasswordReset = async (
     );
   }
 
-  const userId = await findUserIdByEmail(context.db, email);
+  const account = await findAccountByEmail(context.db, email);
 
   // Always respond the same way so the endpoint cannot be used to discover
   // which emails are registered.
-  if (!userId) {
+  if (!account || account.role !== USER_ROLE.student) {
     return;
   }
 
-  const token = await issueToken(
-    context,
-    TOKEN_TABLE.passwordReset,
-    userId,
-    RESET_TOKEN_TTL_MS,
-  );
-
-  const resetUrl = new URL('/reset-password', context.config.webOrigin);
-  resetUrl.searchParams.set('token', token);
-  await context.mailer.sendPasswordReset(email, resetUrl.toString());
-};
-
-export const confirmPasswordReset = async (
-  context: AppContext,
-  token: string,
-  password: string,
-) => {
-  const tokenId = hashToken(token);
+  const userId = String(account.id);
+  const code = generateCode();
+  const codeId = randomUUID();
   const now = context.now();
-  const row = await findPasswordResetToken(context.db, tokenId);
-
-  if (!row || row.used_at !== null || new Date(String(row.expires_at)) <= now) {
-    throw new ApiError(
-      400,
-      ERROR_CODE.invalidResetToken,
-      'This reset link is invalid or has expired. Request a new one.',
-    );
-  }
-
-  const userId = String(row.user_id);
-  const passwordHash = await hashPassword(password);
 
   await transaction(context.db, async tx => {
+    // Only the newest code works
+    await revokeUnusedTokens(
+      tx,
+      TOKEN_TABLE.passwordReset,
+      userId,
+      now.toISOString(),
+    );
+    await insertResetCode(tx, {
+      id: codeId,
+      userId,
+      codeHash: hashCode(codeId, code),
+      createdAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + RESET_CODE_TTL_MS).toISOString(),
+    });
+  });
+
+  await context.mailer.sendPasswordResetCode(email, code);
+  logger.info('auth.password_reset_code_sent', { userId });
+};
+
+const invalidResetCode = () =>
+  new ApiError(
+    400,
+    ERROR_CODE.invalidResetToken,
+    'That code is wrong or has expired. Check the email, or ask for a new code.',
+  );
+
+// Sets the new password if the code matches, signs the account out
+// everywhere else, and returns it so the student can be signed in here.
+export const confirmPasswordReset = async (
+  context: AppContext,
+  input: PasswordResetConfirmInput,
+): Promise<AuthUser> => {
+  const now = context.now();
+  const account = await findAccountByEmail(context.db, input.email);
+  if (!account || account.role !== USER_ROLE.student) {
+    throw invalidResetCode();
+  }
+
+  const userId = String(account.id);
+  const row = await findLatestResetCode(context.db, userId);
+  if (!row || new Date(String(row.expires_at)) <= now) {
+    throw invalidResetCode();
+  }
+
+  const attempts = await countResetCodeAttempt(context.db, String(row.id));
+  const isMatch =
+    attempts <= RESET_CODE_MAX_ATTEMPTS &&
+    isSameHash(hashCode(String(row.id), input.code), String(row.code_hash));
+
+  if (!isMatch) {
+    logger.warn('auth.password_reset_code_rejected', { userId, attempts });
+    throw invalidResetCode();
+  }
+
+  const passwordHash = await hashPassword(input.password);
+  await transaction(context.db, async tx => {
     await updatePasswordHash(tx, userId, passwordHash, now.toISOString());
-    await markPasswordResetTokenUsed(tx, tokenId, now.toISOString());
+    await markPasswordResetTokenUsed(tx, String(row.id), now.toISOString());
     // A password change signs the account out everywhere.
     await deleteUserSessions(context, userId, tx);
   });
+
+  const user = await getAuthUser(context, userId);
+  if (!user) {
+    throw new Error(`Account ${userId} could not be loaded after a reset`);
+  }
+
+  logger.info('auth.password_reset', { userId });
+  return user;
 };
 
 const signInLinkUnavailable = () =>

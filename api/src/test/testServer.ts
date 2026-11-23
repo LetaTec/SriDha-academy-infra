@@ -11,7 +11,7 @@ import type { PaymentGateway } from '../modules/payments/gateway.js';
 
 export const TEST_WEB_ORIGIN = 'http://localhost:5173';
 
-export type SentResetEmail = { email: string; resetUrl: string };
+export type SentResetEmail = { email: string; code: string };
 export type SentSignInLink = { email: string; signInUrl: string };
 
 export const TEST_SUPER_ADMIN_EMAIL = 'admin@sridha.test';
@@ -67,8 +67,8 @@ export const startTestServer = async ({
   }> = [];
   const mailer: Mailer | null = withMailer
     ? {
-        sendPasswordReset: async (email, resetUrl) => {
-          sentEmails.push({ email, resetUrl });
+        sendPasswordResetCode: async (email, code) => {
+          sentEmails.push({ email, code });
         },
         sendAdminSignInLink: async (email, signInUrl) => {
           sentSignInLinks.push({ email, signInUrl });

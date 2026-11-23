@@ -9,3 +9,9 @@
   align-items: center;
   gap: var(--space-1);
 }
+
+.links {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+}

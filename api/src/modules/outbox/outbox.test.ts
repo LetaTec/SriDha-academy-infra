@@ -204,7 +204,7 @@ describe('transactional email outbox', () => {
   it('retries with exponential backoff on provider failure', async () => {
     let nowTime = new Date('2026-11-01T10:00:00Z');
     const failingMailer: Mailer = {
-      sendPasswordReset: async () => {},
+      sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
       sendPaymentConfirmation: async () => {
         throw new Error('Resend 503: Service Unavailable');
@@ -266,7 +266,7 @@ describe('transactional email outbox', () => {
   it('marks email as FAILED once maximum retry attempts are exhausted', async () => {
     let nowTime = new Date('2026-11-01T12:00:00Z');
     const failingMailer: Mailer = {
-      sendPasswordReset: async () => {},
+      sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
       sendPaymentConfirmation: async () => {
         throw new Error('Permanent mailbox failure: 550 User not found');
@@ -322,7 +322,7 @@ describe('transactional email outbox', () => {
     const nowTime = new Date('2026-11-02T10:00:00Z');
     const sentIds: string[] = [];
     const trackingMailer: Mailer = {
-      sendPasswordReset: async () => {},
+      sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
       sendPaymentConfirmation: async (_email, confirmation) => {
         sentIds.push(confirmation.paymentReference);
@@ -400,7 +400,7 @@ describe('transactional email outbox', () => {
 
     const recoveredEmails: string[] = [];
     const recoveringMailer: Mailer = {
-      sendPasswordReset: async () => {},
+      sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
       sendPaymentConfirmation: async email => {
         recoveredEmails.push(email);
@@ -506,7 +506,7 @@ describe('transactional email outbox', () => {
       const keys: Array<string | undefined> = [];
       const seen = new Set<string>();
       const mailer: Mailer = {
-        sendPasswordReset: async () => {},
+        sendPasswordResetCode: async () => {},
         sendAdminSignInLink: async () => {},
         sendPaymentConfirmation: async (email, _confirmation, options) => {
           keys.push(options?.idempotencyKey);

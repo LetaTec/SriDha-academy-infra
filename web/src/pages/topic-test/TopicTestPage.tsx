@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import cx from 'classnames/bind';
 
@@ -46,11 +46,20 @@ const TopicTest = ({
 }) => {
   const auth = useAuth();
   const [isStarted, setIsStarted] = useState(false);
-  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  // Start was pressed before signing up, or while the session loaded
+  const [wantsToStart, setWantsToStart] = useState(false);
+  const canStart = canAnswerPapers(auth);
+
+  useEffect(() => {
+    if (wantsToStart && canStart) {
+      setIsStarted(true);
+      setWantsToStart(false);
+    }
+  }, [wantsToStart, canStart]);
 
   const handleStart = () => {
-    if (mustSignInToAnswer(auth)) setIsAccountOpen(true);
-    else if (canAnswerPapers(auth)) setIsStarted(true);
+    if (canStart) setIsStarted(true);
+    else setWantsToStart(true);
   };
 
   return (
@@ -100,8 +109,8 @@ const TopicTest = ({
       </div>
 
       <AccountDialog
-        open={isAccountOpen}
-        onClose={() => setIsAccountOpen(false)}
+        open={wantsToStart && mustSignInToAnswer(auth)}
+        onClose={() => setWantsToStart(false)}
         onSignedIn={() => setIsStarted(true)}
       />
     </>

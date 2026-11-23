@@ -1,8 +1,10 @@
 export {
   confirmAdminSignIn,
+  confirmPasswordReset,
   getCurrentSession,
   logoutStudent,
   requestAdminSignIn,
+  requestPasswordReset,
   signInStudent,
   signUpStudent,
 } from './api';
@@ -11,5 +13,7 @@ export type {
   AdminSignInRequest,
   AuthUser,
   LoginRequest,
+  PasswordResetConfirmRequest,
+  PasswordResetRequest,
   SignUpRequest,
 } from './types';

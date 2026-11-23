@@ -66,8 +66,10 @@ export type LoginRequest = {
 
 export type PasswordResetRequest = { email: string };
 
+// The 6-digit code emailed by "Forgot password", and the new password
 export type PasswordResetConfirmRequest = {
-  token: string;
+  email: string;
+  code: string;
   password: string;
 };
 

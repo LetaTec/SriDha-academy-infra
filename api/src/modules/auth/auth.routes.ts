@@ -98,15 +98,17 @@ export const createAuthRouter = (context: AppContext) => {
     await requestPasswordReset(context, email);
     res.status(202).json({
       message:
-        "If an account exists for that email, you'll receive a reset link shortly",
+        "If an account exists for that email, you'll receive a 6-digit code shortly",
     });
   });
 
+  // A right code sets the new password and signs the student in here
   router.post('/password-reset/confirm', async (req, res) => {
-    const { token, password } = validate(passwordResetConfirmSchema, req.body);
-    await confirmPasswordReset(context, token, password);
-    clearSessionCookie(context, res);
-    res.status(204).end();
+    const input = validate(passwordResetConfirmSchema, req.body);
+    const user = await confirmPasswordReset(context, input);
+    const session = await createSession(context, user.id, true);
+    setSessionCookie(context, res, session);
+    res.json({ user } satisfies AuthUserResponse);
   });
 
   // Password-free sign-in for super admins: request an emailed link, then

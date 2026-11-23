@@ -230,7 +230,7 @@ describe('auth', () => {
     assert.equal(allowed.status, 200);
   });
 
-  it('resets a password with a single-use token and signs out other sessions', async () => {
+  it('resets a password with a single-use emailed code and signs out other sessions', async () => {
     const existingSession = server.createClient();
     await existingSession.request('POST', '/api/auth/login', {
       email: 'asha@example.com',
@@ -250,21 +250,31 @@ describe('auth', () => {
     assert.deepEqual(unknown.body, request.body);
 
     assert.equal(server.sentEmails.length, 1);
-    const resetUrl = new URL(server.sentEmails[0].resetUrl);
-    assert.equal(resetUrl.origin, TEST_WEB_ORIGIN);
-    const token = resetUrl.searchParams.get('token');
+    const { code } = server.sentEmails[0];
+    assert.match(code, /^\d{6}$/);
+    // Only a salted hash of the code is stored
+    const stored = await server.db.get<{ code_hash: string }>(
+      `SELECT code_hash FROM password_reset_tokens
+       WHERE code_hash IS NOT NULL ORDER BY created_at DESC LIMIT 1`,
+    );
+    assert.ok(stored?.code_hash);
+    assert.ok(!String(stored.code_hash).includes(code));
 
     const confirm = await client.request(
       'POST',
       '/api/auth/password-reset/confirm',
-      { token, password: 'new-password-2' },
+      { email: 'ASHA@example.com', code, password: 'new-password-2' },
     );
-    assert.equal(confirm.status, 204);
+    assert.equal(confirm.status, 200);
+    // The right code signs the student in on this device
+    assert.equal(confirm.body.user.email, 'asha@example.com');
+    const here = await client.request('GET', '/api/auth/session');
+    assert.equal(here.status, 200);
 
     const reuse = await client.request(
       'POST',
       '/api/auth/password-reset/confirm',
-      { token, password: 'another-password-3' },
+      { email: 'asha@example.com', code, password: 'another-password-3' },
     );
     assert.equal(reuse.status, 400);
     assert.equal(reuse.body.code, 'INVALID_RESET_TOKEN');
