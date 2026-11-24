@@ -63,7 +63,7 @@ export const ABOUT_PAGE_TEXT = {
         label: '02',
         title: 'Learn it live',
         description:
-          'Join a scheduled online batch of up to 100 students, with every lesson listed in advance',
+          'Join a scheduled online batch of up to 300 students, with every lesson listed in advance',
       },
       {
         label: '03',
@@ -83,12 +83,12 @@ export const ABOUT_PAGE_TEXT = {
     title: 'Meet your',
     titleEmphasis: 'tutors.',
     description:
-      'Every topic is taught by a specialist in its subject. You see your tutor on the checkout page before you pay',
+      'The teachers taking this season’s batches, and the topics they teach. You see your teacher on the checkout page before you pay',
   },
   stats: [
     { value: '03', label: 'Learning paths' },
     { value: LIVE_TOPIC_COUNT, label: 'Topics ready' },
-    { value: '100', label: 'Students / batch' },
+    { value: '300', label: 'Students / batch' },
   ],
   cta: {
     eyebrow: 'Start here / 01',

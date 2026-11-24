@@ -13,8 +13,8 @@ import {
   type TestClient,
 } from '../../test/testServer.js';
 
-const DECEMBER_BATCH = 'batch_gst_class_11_december';
-const OPEN_TOPIC = 'topic_accounts_gst_class_11';
+const DECEMBER_BATCH = 'batch_accountancy_rectification_of_errors_class_11_b2';
+const OPEN_TOPIC = 'topic_accountancy_rectification_of_errors_class_11';
 const PRE_REGISTER_TOPIC = 'topic_physics_wave_optics_class_12';
 
 const BILLING = {
@@ -256,7 +256,7 @@ describe('payments', () => {
   it('asks for a real state and a city', async () => {
     const response = await student.request('POST', '/api/payments/checkout', {
       kind: 'ENROLMENT',
-      batchId: 'batch_gst_class_11_december',
+      batchId: 'batch_accountancy_rectification_of_errors_class_11_b2',
       ...BILLING,
       state: 'Atlantis',
       city: '',

@@ -114,7 +114,7 @@ export const LEARNING_JOURNEY_TEXT = {
     {
       title: 'Join the live classes',
       description:
-        'Two online sessions on that topic with your tutor, in a batch of up to 100 students',
+        'One or two live online sessions on that topic with your teacher, in a batch of up to 300 students',
       action: 'See open batches',
       to: toPageSection(APP_ROUTES.HOME, HOME_SECTION_ID.topics),
     },
@@ -170,7 +170,7 @@ export const PROGRAMS_TEXT = {
       title: 'Online',
       titleEnd: 'Classes',
       description:
-        'Topic-wise live classes delivered online, with up to 100 students per batch. Each batch lists the exact lessons it covers.',
+        'Topic-wise live classes delivered online, with up to 300 students per batch. Each batch lists the exact lessons it covers.',
       action: 'Browse classes',
       to: APP_ROUTES.TOPICS,
     },
@@ -205,24 +205,6 @@ export const ABOUT_TEXT = {
   ],
   note: 'Topic-wise online classes · AI assessment · AI model paper',
   readMore: 'Read our story',
-} as const;
-
-export const TEAM_TEXT = {
-  title: 'People behind',
-  titleEmphasis: 'the page.',
-  description:
-    'Faculty profiles will be published here as each topic team is confirmed',
-  meetTutors: 'Meet your tutors',
-  members: [
-    { initial: 'A', name: 'Accounts Faculty', role: 'Topic Faculty' },
-    { initial: 'E', name: 'Economics Faculty', role: 'Topic Faculty' },
-    { initial: 'M', name: 'Mathematics Faculty', role: 'Topic Faculty' },
-    {
-      initial: 'S',
-      name: 'SriDha Academy Team',
-      role: 'Education & Operations',
-    },
-  ],
 } as const;
 
 export const CTA_TEXT = {

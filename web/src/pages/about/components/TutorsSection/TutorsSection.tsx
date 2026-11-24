@@ -8,20 +8,15 @@ import { Text } from '@components/ui/Text/Text';
 import { ABOUT_PAGE_TEXT } from '@constants/about';
 import { ABOUT_SECTION_ID } from '@constants/routes';
 import { useTopicPreviews } from '@hooks/useTopicPreviews';
-import type { Tutor } from '@services/catalogue';
+import { listTeachers } from '@services/catalogue';
 
 const TITLE_ID = 'tutors-title';
 const { tutors } = ABOUT_PAGE_TEXT;
 
-// Every tutor who teaches a topic, once each, in catalogue order
+// Everyone teaching a batch, once each, with the topics they teach
 export const TutorsSection = () => {
   const { previews } = useTopicPreviews();
-  const tutorsById = new Map<string, Tutor>();
-  for (const { topic } of previews) {
-    if (topic.tutor && !tutorsById.has(topic.tutor.id)) {
-      tutorsById.set(topic.tutor.id, topic.tutor);
-    }
-  }
+  const teachers = listTeachers(previews);
 
   return (
     <Section id={ABOUT_SECTION_ID.tutors} divider labelledBy={TITLE_ID}>
@@ -37,16 +32,16 @@ export const TutorsSection = () => {
         description={tutors.description}
       />
       <CardGrid variant="columns" columns={4}>
-        {[...tutorsById.values()].map(tutor => (
+        {teachers.map(({ tutor, topics }) => (
           <Reveal key={tutor.id}>
             <Card
               variant="profile"
               media={<TutorPortrait tutor={tutor} />}
               title={tutor.name}
-              description={tutor.headline}
+              description={tutor.credentials.join(' · ') || null}
               footer={
                 <Text as="p" variant="small" tone="muted">
-                  {tutor.credentials.join(' · ')}
+                  {topics.join(' · ')}
                 </Text>
               }
             />

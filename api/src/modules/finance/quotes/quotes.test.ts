@@ -347,7 +347,7 @@ describe('Tax Quotes (Milestone 6)', () => {
           redemptionFor(quote, {
             pinCode: '400026',
             itemType: 'BATCH',
-            itemId: 'batch_gst_class_11_december',
+            itemId: 'batch_accountancy_rectification_of_errors_class_11_b2',
           }),
         ),
         ERROR_CODE.taxQuoteMismatch,

@@ -1,9 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const SCREENSHOT_DIR = 'test-results/screenshots';
-// The next GST batch still open; the November one started on 1 November
-const OPEN_BATCH = 'batch_gst_class_11_december';
-const GST_TOPIC = 'topic_accounts_gst_class_11';
+// A batch from the team's roster (Rectification of errors, Batch 1)
+const ROSTER_TOPIC = 'topic_accountancy_rectification_of_errors_class_11';
 
 const uniqueEmail = (label: string) =>
   `${label}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
@@ -40,19 +39,21 @@ test.describe('open site', () => {
     ).toHaveCount(0);
 
     const search = page.getByRole('searchbox', { name: 'Search your topic' });
-    await search.fill('gst');
+    await search.fill('rectification');
     const results = page
       .locator('#home')
       .getByRole('region', { name: 'Matching topics and batches' });
     await expect(
-      results.getByRole('button', { name: /^GST.*₹129/ }),
+      results.getByRole('button', { name: /^Rectification of errors.*₹129/ }),
     ).toBeVisible();
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/${testInfo.project.name}-search.png`,
     });
 
     await search.press('Enter');
-    await expect(page).toHaveURL(new RegExp(`/checkout\\?topic=${GST_TOPIC}`));
+    await expect(page).toHaveURL(
+      new RegExp(`/checkout\\?topic=${ROSTER_TOPIC}`),
+    );
     await expect(
       page.getByRole('heading', { level: 1, name: /review your\s*seat/i }),
     ).toBeVisible();
@@ -171,8 +172,9 @@ test.describe('interactive book', () => {
   }, testInfo) => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Turn to the next page' }).click();
+    // The book opens on the second featured topic, Alphabet test
     const selectInBook = book(page).getByRole('button', {
-      name: /select batch: learn gst for class 11, 8th & 9th december/i,
+      name: /select batch: learn alphabet test for class 8, 19th december/i,
     });
     await expect(selectInBook).toBeVisible();
     await page.waitForTimeout(1300);
@@ -185,14 +187,15 @@ test.describe('interactive book', () => {
       name: /review your\s*selection/i,
     });
     await expect(review).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`batch=${OPEN_BATCH}`));
+    // A roster batch, e.g. batch_..._b1
+    await expect(page).toHaveURL(/batch=batch_[a-z0-9_]+_b\d+/);
     await review.getByRole('button', { name: 'Close' }).click();
 
     await book(page)
       .getByRole('link', { name: /explore more batches/i })
       .click();
     await expect(page).toHaveURL(/\/batches$/);
-    await expect(page.getByText('8th & 9th December')).toBeVisible();
+    await expect(page.getByText(/Batch 1/).first()).toBeVisible();
   });
 });
 
@@ -200,25 +203,27 @@ test.describe('student journey', () => {
   test('reserve a seat with just the payment details, no account', async ({
     page,
   }, testInfo) => {
-    await page.goto('/#topics');
+    await page.goto('/topics?q=rectification');
     const enrol = page.getByRole('button', {
-      name: 'Enrol now: GST, Class 11',
+      name: 'Enrol now: Rectification of errors, Class 11',
     });
     await expect(enrol).toBeEnabled();
     await enrol.click();
 
     // Enrol now opens the checkout page
-    await expect(page).toHaveURL(/\/checkout\?topic=/);
+    await expect(page).toHaveURL(
+      new RegExp(`/checkout\\?topic=${ROSTER_TOPIC}`),
+    );
     await expect(
       page.getByRole('heading', { level: 1, name: /review your\s*seat/i }),
     ).toBeVisible();
     await expect(
-      page.getByRole('radio', { name: /December batch/ }),
+      page.getByRole('radio', { name: /^Batch 1 · / }),
     ).toBeChecked();
-    await expect(page.getByText('What is GST')).toBeVisible();
-    // Who teaches it, before paying
+    await expect(page.getByText('Types of errors')).toBeVisible();
+    // Who teaches it, from the roster, before paying
     await expect(
-      page.getByRole('region', { name: /^Your tutor, / }),
+      page.getByRole('region', { name: 'Your tutor, Richa Varyani' }),
     ).toBeVisible();
     // Nothing asks for a password or an account
     await expect(page.getByLabel('Password')).toHaveCount(0);
@@ -248,9 +253,11 @@ test.describe('student journey', () => {
   test('checkout still refuses an invalid PIN code and a missing address', async ({
     page,
   }, testInfo) => {
-    await page.goto('/#topics');
+    await page.goto('/topics?q=rectification');
     await page
-      .getByRole('button', { name: 'Enrol now: GST, Class 11' })
+      .getByRole('button', {
+        name: 'Enrol now: Rectification of errors, Class 11',
+      })
       .click();
     await expect(page).toHaveURL(/\/checkout\?topic=/);
     await page.getByLabel('Full name').fill('Asha Verma');
@@ -273,7 +280,9 @@ test.describe('student journey', () => {
   test('the About page introduces the tutors', async ({ page }, testInfo) => {
     await page.goto('/about#tutors');
     const tutors = page.locator('#tutors');
-    await expect(tutors.getByText('Accounts tutor')).toBeVisible();
+    // The roster's real teachers, with the topics they teach
+    await expect(tutors.getByText('Utkarsh Verma')).toBeVisible();
+    await expect(tutors.getByText('Kamini Jain')).toBeVisible();
     await expect(tutors.getByText(/coming soon/i)).toHaveCount(0);
     await tutors.scrollIntoViewIfNeeded();
     await page.waitForTimeout(900);

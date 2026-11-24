@@ -14,7 +14,7 @@ import {
 } from '../../test/testServer.js';
 
 const WEBHOOK_SECRET = 'whsec_test';
-const BATCH = 'batch_gst_class_11_december';
+const BATCH = 'batch_accountancy_rectification_of_errors_class_11_b2';
 const PRE_REGISTER_TOPIC = 'topic_physics_wave_optics_class_12';
 const BILLING = {
   fullName: 'Asha Verma',
@@ -106,8 +106,8 @@ describe('payment confirmations, pre-registrations and team orders', () => {
     assert.equal(server.sentPaymentConfirmations.length, 1);
     const [email] = server.sentPaymentConfirmations;
     assert.equal(email.email, BILLING.email);
-    assert.equal(email.topic, 'Learn GST for Class 11');
-    assert.equal(email.batch, 'December batch');
+    assert.equal(email.topic, 'Learn Rectification of errors for Class 11');
+    assert.equal(email.batch, 'Batch 2');
   });
 
   it("lists the student's own pre-registrations", async () => {
@@ -151,7 +151,7 @@ describe('payment confirmations, pre-registrations and team orders', () => {
     assert.equal(newest.seatStatus, 'PENDING_PAYMENT');
     assert.equal(older.kind, 'ENROLMENT');
     assert.equal(older.status, 'PAID');
-    assert.equal(older.batch, 'December batch');
+    assert.equal(older.batch, 'Batch 2');
     assert.equal(older.providerPaymentId, 'pay_email_1');
     assert.equal(older.student.accountEmail, 'asha@example.com');
     // Where the student lives, for the tax invoice

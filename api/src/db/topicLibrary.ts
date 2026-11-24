@@ -26,7 +26,8 @@ export type LibraryTopic = {
   // subject's icon
   icon?: string;
   // Featured topics lead every short list (the homepage shows eight, the
-  // sign-in page four, the footer six), in this order
+  // sign-in page four, the footer six), in this order. Only topics with
+  // live roster batches are featured, soonest first.
   featuredRank?: number;
 };
 
@@ -43,7 +44,6 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Journal entries of GST',
     ],
     icon: 'topicGst',
-    featuredRank: 1,
   },
   {
     id: 'topic_chemistry_bonding_class_11',
@@ -57,7 +57,6 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Molecular orbital theory',
     ],
     icon: 'topicBonding',
-    featuredRank: 2,
   },
   {
     id: 'topic_physics_ray_optics_class_12',
@@ -71,7 +70,6 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Microscopes and telescopes',
     ],
     icon: 'topicOptics',
-    featuredRank: 3,
   },
   {
     id: 'topic_maths_integrals_class_12',
@@ -85,7 +83,6 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Area under curves',
     ],
     icon: 'topicIntegrals',
-    featuredRank: 4,
   },
   {
     id: 'topic_chemistry_mole_concept_class_11',
@@ -99,7 +96,6 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Limiting reagent',
     ],
     icon: 'topicMole',
-    featuredRank: 5,
   },
   {
     id: 'topic_physics_current_electricity_class_12',
@@ -113,7 +109,6 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Wheatstone bridge',
     ],
     icon: 'topicCurrent',
-    featuredRank: 6,
   },
   {
     id: 'topic_physics_laws_of_motion_class_11',
@@ -127,7 +122,6 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Circular motion',
     ],
     icon: 'topicMotion',
-    featuredRank: 7,
   },
   {
     id: 'topic_accounts_partnership_class_12',
@@ -141,7 +135,6 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Retirement and death of a partner',
     ],
     icon: 'topicPartnership',
-    featuredRank: 8,
   },
   {
     id: 'topic_accountancy_introduction_to_accounting_class_11',
@@ -238,6 +231,7 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Suspense account',
       'Rectifying errors before and after',
     ],
+    featuredRank: 7,
   },
   {
     id: 'topic_accountancy_depreciation_class_11',
@@ -871,6 +865,7 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Foreign exchange rate',
       'Fixed and flexible rates',
     ],
+    featuredRank: 6,
   },
   {
     id: 'topic_physics_units_and_measurements_class_11',
@@ -1877,6 +1872,158 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
       'Loss of biodiversity',
       'In-situ conservation',
       'Ex-situ conservation',
+    ],
+  },
+  // Roster topics for December 2026 to January 2027 that were not
+  // on the website yet; their batches are in sessionOneRoster.ts
+  {
+    id: 'topic_mathematics_alphabet_test_class_8',
+    subject: 'mathematics',
+    level: 'Class 8',
+    title: 'Alphabet test',
+    lessons: [
+      'Alphabetical order',
+      'Letter positions',
+      'Letter series',
+      'Forming words from letters',
+    ],
+    featuredRank: 2,
+  },
+  {
+    id: 'topic_mathematics_coding_and_decoding_class_8',
+    subject: 'mathematics',
+    level: 'Class 8',
+    title: 'Coding and decoding',
+    lessons: [
+      'Letter coding',
+      'Number coding',
+      'Substitution coding',
+      'Mixed coding',
+    ],
+  },
+  {
+    id: 'topic_mathematics_polynomials_class_9',
+    subject: 'mathematics',
+    level: 'Class 9',
+    title: 'Polynomials',
+    lessons: [
+      'Polynomials and their degree',
+      'Zeroes of a polynomial',
+      'Remainder and factor theorems',
+      'Algebraic identities',
+    ],
+  },
+  {
+    id: 'topic_mathematics_quadratic_equations_class_10',
+    subject: 'mathematics',
+    level: 'Class 10',
+    title: 'Quadratic equations',
+    lessons: [
+      'Standard form',
+      'Solving by factorisation',
+      'The quadratic formula',
+      'Nature of roots',
+    ],
+  },
+  {
+    id: 'topic_mathematics_trigonometry_class_10',
+    subject: 'mathematics',
+    level: 'Class 10',
+    title: 'Trigonometry',
+    lessons: [
+      'Trigonometric ratios',
+      'Ratios of standard angles',
+      'Trigonometric identities',
+      'Heights and distances',
+    ],
+    featuredRank: 4,
+  },
+  {
+    id: 'topic_mathematics_time_and_work_ca_cpt',
+    subject: 'mathematics',
+    level: 'CA-CPT',
+    title: 'Time and work',
+    lessons: [
+      'Work and efficiency',
+      'Working together',
+      'Pipes and cisterns',
+      'Wages for shared work',
+    ],
+    featuredRank: 5,
+  },
+  {
+    id: 'topic_mathematics_logarithms_ca_cpt',
+    subject: 'mathematics',
+    level: 'CA-CPT',
+    title: 'Logarithms',
+    lessons: [
+      'Laws of logarithms',
+      'Change of base',
+      'Antilogarithms',
+      'Solving logarithmic equations',
+    ],
+    featuredRank: 3,
+  },
+  {
+    id: 'topic_economics_demand_class_11',
+    subject: 'economics',
+    level: 'Class 11',
+    title: 'Demand',
+    lessons: [
+      'The law of demand',
+      'Determinants of demand',
+      'Movement along and shifts of the curve',
+      'Price elasticity of demand',
+    ],
+    featuredRank: 8,
+  },
+  {
+    id: 'topic_economics_production_class_11',
+    subject: 'economics',
+    level: 'Class 11',
+    title: 'Production',
+    lessons: [
+      'The production function',
+      'Total, average and marginal product',
+      'The law of variable proportions',
+      'Returns to scale',
+    ],
+  },
+  {
+    id: 'topic_economics_market_class_11',
+    subject: 'economics',
+    level: 'Class 11',
+    title: 'Market',
+    lessons: [
+      'Forms of market',
+      'Perfect competition',
+      'Price determination',
+      'Shifts in demand and supply',
+    ],
+  },
+  {
+    id: 'topic_economics_business_cycles_ca_cpt',
+    subject: 'economics',
+    level: 'CA-CPT',
+    title: 'Business cycles',
+    lessons: [
+      'Phases of a business cycle',
+      'Features of business cycles',
+      'Causes of business cycles',
+      'Indicators of the cycle',
+    ],
+    featuredRank: 1,
+  },
+  {
+    id: 'topic_accountancy_admission_of_a_partner_class_12',
+    subject: 'accountancy',
+    level: 'Class 12',
+    title: 'Admission of a partner',
+    lessons: [
+      'New profit-sharing ratio',
+      'Sacrificing ratio',
+      'Goodwill on admission',
+      'Revaluation and capital adjustment',
     ],
   },
 ];

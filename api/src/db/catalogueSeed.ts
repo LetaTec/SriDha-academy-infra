@@ -1,5 +1,6 @@
 import { transaction, type Database } from './client.js';
 import { TOPIC_LIBRARY, type LibrarySubject } from './topicLibrary.js';
+import { sessionOneBatchesByTopic } from './sessionOneRoster.js';
 
 const LIBRARY_BY_ID = new Map(TOPIC_LIBRARY.map(topic => [topic.id, topic]));
 
@@ -55,21 +56,9 @@ type SeedSubject = {
   chapters: SeedChapter[];
 };
 
-// The source plan assumes up to 100 students per batch.
-const BATCH_CAPACITY = 100;
-
 // The standard topic fee, the same as GST, until the team sets one per
-// topic. The launch topics open with one batch on 1 and 2 December 2026.
+// topic
 const LAUNCH_TOPIC_PRICE_PAISE = 12900;
-
-// A batch after December, on the same 10:00 two-session pattern
-type LaterBatch = {
-  // The batch id's ending, e.g. "january" for batch_<topic>_january
-  key: string;
-  name: string;
-  scheduleLabel: string;
-  startDate: string;
-};
 
 type LaunchTopic = {
   key: string;
@@ -77,16 +66,16 @@ type LaunchTopic = {
   level: string;
   summary: string;
   lessons: readonly string[];
-  laterBatches?: readonly LaterBatch[];
 };
 
+// A featured topic written out here. Its batches come only from the team's
+// roster (sessionOneRoster.ts); none are invented.
 const launchTopic = ({
   key,
   title,
   level,
   summary,
   lessons,
-  laterBatches = [],
 }: LaunchTopic): SeedTopic => ({
   id: `topic_${key}`,
   title,
@@ -99,32 +88,7 @@ const launchTopic = ({
     title: lessonTitle,
     durationMinutes: null,
   })),
-  batches: [
-    {
-      id: `batch_${key}_december`,
-      name: 'December batch',
-      scheduleLabel: '1st & 2nd December',
-      startDate: '2026-12-01',
-      startTime: '10:00',
-      sessionCount: 2,
-      sessionDurationMinutes: null,
-      instructorName: null,
-      capacity: BATCH_CAPACITY,
-      status: 'OPEN',
-    },
-    ...laterBatches.map(batch => ({
-      id: `batch_${key}_${batch.key}`,
-      name: batch.name,
-      scheduleLabel: batch.scheduleLabel,
-      startDate: batch.startDate,
-      startTime: '10:00',
-      sessionCount: 2,
-      sessionDurationMinutes: null,
-      instructorName: null,
-      capacity: BATCH_CAPACITY,
-      status: 'OPEN' as const,
-    })),
-  ],
+  batches: [],
 });
 
 const HANDWRITTEN_CATALOGUE: readonly SeedSubject[] = [
@@ -172,32 +136,7 @@ const HANDWRITTEN_CATALOGUE: readonly SeedSubject[] = [
                 durationMinutes: null,
               },
             ],
-            batches: [
-              {
-                id: 'batch_gst_class_11_november',
-                name: 'November batch',
-                scheduleLabel: '1st & 2nd November',
-                startDate: '2026-11-01',
-                startTime: '10:00',
-                sessionCount: 2,
-                sessionDurationMinutes: null,
-                instructorName: null,
-                capacity: BATCH_CAPACITY,
-                status: 'OPEN',
-              },
-              {
-                id: 'batch_gst_class_11_december',
-                name: 'December batch',
-                scheduleLabel: '8th & 9th December',
-                startDate: '2026-12-08',
-                startTime: '10:00',
-                sessionCount: 2,
-                sessionDurationMinutes: null,
-                instructorName: null,
-                capacity: BATCH_CAPACITY,
-                status: 'OPEN',
-              },
-            ],
+            batches: [],
           },
         ],
       },
@@ -398,21 +337,6 @@ const HANDWRITTEN_CATALOGUE: readonly SeedSubject[] = [
               'Total internal reflection',
               'Microscopes and telescopes',
             ],
-            // Migration 008 adds these to databases seeded before them
-            laterBatches: [
-              {
-                key: 'january',
-                name: 'January batch',
-                scheduleLabel: '5th & 6th January',
-                startDate: '2027-01-05',
-              },
-              {
-                key: 'february',
-                name: 'February batch',
-                scheduleLabel: '2nd & 3rd February',
-                startDate: '2027-02-02',
-              },
-            ],
           }),
         ],
       },
@@ -609,8 +533,23 @@ const withLibraryTopics = (subjects: readonly SeedSubject[]): SeedSubject[] => {
   }));
 };
 
-export const CATALOGUE_SEED: readonly SeedSubject[] = withLibraryTopics(
-  HANDWRITTEN_CATALOGUE,
+// Each topic's batches from the team's December–January roster, after its own
+const withSessionOne = (subjects: readonly SeedSubject[]): SeedSubject[] => {
+  const roster = sessionOneBatchesByTopic();
+  return subjects.map(subject => ({
+    ...subject,
+    chapters: subject.chapters.map(chapter => ({
+      ...chapter,
+      topics: chapter.topics.map(topic => ({
+        ...topic,
+        batches: [...topic.batches, ...(roster.get(topic.id) ?? [])],
+      })),
+    })),
+  }));
+};
+
+export const CATALOGUE_SEED: readonly SeedSubject[] = withSessionOne(
+  withLibraryTopics(HANDWRITTEN_CATALOGUE),
 );
 
 // Idempotent: re-running updates catalogue rows in place and never touches
@@ -755,15 +694,5 @@ export const seedCatalogue = async (db: Database): Promise<void> => {
         }
       }
     }
-
-    // Topics without a tutor take their subject's, as migration 010 does.
-    // The tutors themselves come from the migrations.
-    await tx.query(`
-      UPDATE topics SET tutor_id = tutors.id
-      FROM chapters, tutors
-      WHERE chapters.id = topics.chapter_id
-        AND tutors.id = 'tutor_' || substring(chapters.subject_id FROM 9)
-        AND topics.tutor_id IS NULL;
-    `);
   });
 };

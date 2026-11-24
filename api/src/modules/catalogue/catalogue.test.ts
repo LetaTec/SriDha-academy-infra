@@ -27,16 +27,24 @@ describe('catalogue', () => {
     await server.close();
   });
 
-  it('names who teaches each topic, with their credentials', () => {
-    const gst = topics.find(
-      topic => topic.id === 'topic_accounts_gst_class_11',
+  it('invents no tutors: each roster batch names its real teacher', () => {
+    // The placeholder subject tutors are gone (migration 026)
+    assert.ok(topics.every(topic => topic.tutor === null));
+    const sets = topics.find(
+      topic => topic.id === 'topic_mathematics_sets_class_11',
     );
-    assert.equal(gst?.tutor?.id, 'tutor_accounts');
-    assert.equal(gst?.tutor?.headline, 'Accounts tutor');
-    assert.ok((gst?.tutor?.credentials.length ?? 0) > 0);
-    // No photographs yet; the website shows initials
-    assert.equal(gst?.tutor?.photoUrl, null);
-    assert.ok(topics.every(topic => topic.tutor !== null));
+    assert.ok(
+      sets?.batches.length &&
+        sets.batches.every(batch => batch.instructorName === 'Utkarsh Verma'),
+    );
+  });
+
+  it("has only the roster's batches, none invented", () => {
+    const batchIds = topics.flatMap(topic =>
+      topic.batches.map(batch => batch.id),
+    );
+    assert.equal(batchIds.length, 43);
+    assert.ok(batchIds.every(id => /_b\d+$/.test(id)));
   });
 
   it('serves every topic in the topic library, which the website reads', () => {
@@ -56,7 +64,12 @@ describe('catalogue', () => {
     assert.equal(gst?.title, 'Learn GST for Class 11');
     assert.equal(gst?.shortTitle, 'GST');
     assert.equal(gst?.icon, 'topicGst');
-    assert.equal(gst?.featuredRank, 1);
+    // GST has no roster batches, so it is not featured
+    assert.equal(gst?.featuredRank, null);
+    const businessCycles = topics.find(
+      topic => topic.id === 'topic_economics_business_cycles_ca_cpt',
+    );
+    assert.equal(businessCycles?.featuredRank, 1);
 
     const library = new Map(TOPIC_LIBRARY.map(topic => [topic.id, topic]));
     for (const topic of topics) {
@@ -79,5 +92,11 @@ describe('catalogue', () => {
       ranks.map((_, index) => index + 1),
     );
     assert.equal(ranks.length, 8);
+    // Only topics students can book now are featured
+    assert.ok(
+      topics
+        .filter(topic => topic.featuredRank !== null)
+        .every(topic => topic.batches.length > 0),
+    );
   });
 });

@@ -8,6 +8,8 @@ export {
 } from './mappers';
 export {
   hasBatches,
+  findTeacher,
+  listTeachers,
   toTopicPreviews,
   type TopicPreview,
 } from './topicPreviews';

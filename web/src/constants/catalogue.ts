@@ -92,6 +92,8 @@ export const CATALOGUE_TEXT = {
   priceLabel: 'Price',
   toBeAnnounced: 'To be announced',
   tutorEyebrow: 'Your tutor',
+  // Under a roster teacher's name, e.g. "Teaches Alphabet test"
+  teachesTopic: (topic: string) => `Teaches ${topic}`,
   tutorLabel: (name: string) => `Your tutor, ${name}`,
   tutorPhotoAlt: (name: string) => `${name}, SriDha Academy tutor`,
   priceOnRequest: 'Price to be announced',

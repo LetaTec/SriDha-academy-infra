@@ -1426,4 +1426,75 @@ export const MIGRATIONS: readonly Migration[] = [
         ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    // Removes placeholder content now that the team's real roster is in
+    // (sessionOneRoster.ts):
+    // - the ten subject tutors added by 010 were invented people, so topics
+    //   lose them (the website shows each batch's real teacher instead);
+    // - batches that were never on the roster (GST in November and
+    //   December, the launch topics' 1–2 December batches, Ray optics in
+    //   January and February) are deleted. A batch someone has enrolled in
+    //   or paid for is kept, marked INACTIVE, so no record is lost.
+    // Reverse (if ever needed): re-run 008 and 010's inserts, and set the
+    // INACTIVE batches back to OPEN.
+    id: '026_remove_placeholder_tutors_and_batches',
+    sql: `
+      UPDATE topics SET tutor_id = NULL
+      WHERE tutor_id IN (
+          'tutor_accounts',
+          'tutor_chemistry',
+          'tutor_physics',
+          'tutor_economics',
+          'tutor_mathematics',
+          'tutor_neet',
+          'tutor_jee',
+          'tutor_business_studies',
+          'tutor_biology',
+          'tutor_ca_cs'
+      );
+      DELETE FROM tutors WHERE id IN (
+          'tutor_accounts',
+          'tutor_chemistry',
+          'tutor_physics',
+          'tutor_economics',
+          'tutor_mathematics',
+          'tutor_neet',
+          'tutor_jee',
+          'tutor_business_studies',
+          'tutor_biology',
+          'tutor_ca_cs'
+      );
+
+      DELETE FROM batches
+      WHERE id IN (
+          'batch_gst_class_11_november',
+          'batch_gst_class_11_december',
+          'batch_accounts_partnership_class_12_december',
+          'batch_chemistry_bonding_class_11_december',
+          'batch_chemistry_mole_concept_class_11_december',
+          'batch_physics_ray_optics_class_12_december',
+          'batch_physics_ray_optics_class_12_january',
+          'batch_physics_ray_optics_class_12_february',
+          'batch_physics_current_electricity_class_12_december',
+          'batch_physics_laws_of_motion_class_11_december',
+          'batch_maths_integrals_class_12_december'
+        )
+        AND NOT EXISTS (SELECT 1 FROM enrolments WHERE enrolments.batch_id = batches.id)
+        AND NOT EXISTS (SELECT 1 FROM payments WHERE payments.item_batch_id = batches.id);
+      UPDATE batches SET status = 'INACTIVE'
+      WHERE id IN (
+          'batch_gst_class_11_november',
+          'batch_gst_class_11_december',
+          'batch_accounts_partnership_class_12_december',
+          'batch_chemistry_bonding_class_11_december',
+          'batch_chemistry_mole_concept_class_11_december',
+          'batch_physics_ray_optics_class_12_december',
+          'batch_physics_ray_optics_class_12_january',
+          'batch_physics_ray_optics_class_12_february',
+          'batch_physics_current_electricity_class_12_december',
+          'batch_physics_laws_of_motion_class_11_december',
+          'batch_maths_integrals_class_12_december'
+      );
+    `,
+  },
 ];

@@ -1,5 +1,10 @@
 import { formatPrice } from './currency';
-import { formatCountdown, formatDateOnly, formatWallClockTime } from './date';
+import {
+  formatCountdown,
+  formatDateOnly,
+  formatWallClockRange,
+  formatWallClockTime,
+} from './date';
 import { resolveInternalPath } from './url';
 
 describe('formatters', () => {
@@ -25,6 +30,15 @@ describe('formatters', () => {
     expect(formatCountdown(272)).toBe('04:32');
     expect(formatCountdown(0.4)).toBe('00:01');
     expect(formatCountdown(-3)).toBe('00:00');
+  });
+
+  it('formats a class time as its start and end', () => {
+    expect(formatWallClockRange('20:30', 90)).toMatch(
+      /^8:30\s?pm – 10:00\s?pm IST$/i,
+    );
+    expect(formatWallClockRange('11:00', 120)).toMatch(
+      /^11:00\s?am – 1:00\s?pm IST$/i,
+    );
   });
 
   it('puts hours in front of countdowns of an hour or more', () => {
