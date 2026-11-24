@@ -8,6 +8,7 @@ import {
   type SampleTestQuestion,
 } from '@constants/assessment';
 import { findSamplePaper } from '@constants/sampleTestPapers';
+import { FEATURES } from '@constants/features';
 import { AuthProvider } from '@context/AuthContext';
 import { ToastProvider } from '@context/ToastContext';
 import { loadSamplePapers } from '@hooks/useQuestionBanks';
@@ -304,5 +305,20 @@ describe('SampleTestPaper', () => {
     expect(
       screen.queryByRole('region', { name: 'Sign in to start this paper' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('opens the paper to visitors while student accounts are off', async () => {
+    FEATURES.studentAccounts = false;
+    try {
+      await renderPaper({ signedIn: false });
+      expect(
+        screen.queryByRole('region', { name: 'Sign in to start this paper' }),
+      ).not.toBeInTheDocument();
+      answerQuestion(CLASS_11_ACCOUNTANCY, 0, CLASS_11_ACCOUNTANCY[0].answer);
+      expect(screen.getByText('Answered 1 of 20')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      FEATURES.studentAccounts = true;
+    }
   });
 });

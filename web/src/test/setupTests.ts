@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 
+import { FEATURES } from '@constants/features';
+
+// Tests cover the site with student accounts on; tests of the "off"
+// state switch it themselves and switch it back
+FEATURES.studentAccounts = true;
+
 // jsdom does not implement the modal dialog API.
 if (!HTMLDialogElement.prototype.showModal) {
   HTMLDialogElement.prototype.showModal = function showModal() {

@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import cx from 'classnames/bind';
 
+import { canSeeProfileMenu } from '@/access/account';
 import { canViewRefunds, canViewTeamOrders } from '@/access/team';
 import { ProfileMenu } from '@components/auth/ProfileMenu/ProfileMenu';
 import { BrandLogo } from '@components/brand/BrandLogo/BrandLogo';
@@ -138,7 +139,9 @@ export const SiteHeader = () => {
           {teamLinks ? (
             <div className={cn('teamLinks')}>{teamLinks}</div>
           ) : null}
-          <ProfileMenu onSignOut={handleLogout} isSigningOut={isLoggingOut} />
+          {canSeeProfileMenu(auth) ? (
+            <ProfileMenu onSignOut={handleLogout} isSigningOut={isLoggingOut} />
+          ) : null}
           <IconButton
             icon={isMenuOpen ? 'close' : 'menu'}
             size="lg"

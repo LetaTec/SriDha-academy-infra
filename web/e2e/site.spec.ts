@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { FEATURES } from '../src/constants/features';
+
 const SCREENSHOT_DIR = 'test-results/screenshots';
 // The next GST batch still open; the November one started on 1 November
 const OPEN_BATCH = 'batch_gst_class_11_december';
@@ -283,7 +285,31 @@ test.describe('student journey', () => {
   });
 });
 
+test.describe('papers while student accounts are off', () => {
+  test.skip(FEATURES.studentAccounts, 'student accounts are on');
+
+  test('a visitor answers a paper without signing in', async ({ page }) => {
+    await page.goto('/ai-test');
+    const paper = page.getByRole('region', { name: 'Sample test paper' });
+    await expect(
+      paper.getByRole('region', { name: 'Sign in to start this paper' }),
+    ).toHaveCount(0);
+    await expect(
+      page
+        .getByRole('banner')
+        .getByRole('button', { name: 'Sign in or create an account' }),
+    ).toHaveCount(0);
+
+    const firstQuestion = paper.getByRole('radiogroup').first();
+    await firstQuestion.locator('label').first().click();
+    await expect(paper.getByText('Answered 1 of 20')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+});
+
 test.describe('student account', () => {
+  test.skip(!FEATURES.studentAccounts, 'student accounts are off');
+
   test('a visitor signs up on their first answer, then signs out and back in', async ({
     page,
   }, testInfo) => {

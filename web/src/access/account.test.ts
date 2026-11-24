@@ -1,7 +1,9 @@
 import type { AuthContextValue } from '@context/AuthContext';
 import type { AuthUser } from '@services/auth';
 
-import { canChangePassword } from './account';
+import { FEATURES } from '@constants/features';
+
+import { canChangePassword, canSeeProfileMenu } from './account';
 
 const auth = (role: AuthUser['role'] | null): AuthContextValue => ({
   status: role ? 'authenticated' : 'anonymous',
@@ -19,5 +21,16 @@ describe('account access', () => {
     expect(canChangePassword(auth('SUPER_ADMIN'))).toBe(false);
     expect(canChangePassword(auth('FINANCE_ADMIN'))).toBe(false);
     expect(canChangePassword(auth(null))).toBe(false);
+  });
+
+  it('hides the profile button from visitors while student accounts are off', () => {
+    expect(canSeeProfileMenu(auth(null))).toBe(true);
+    FEATURES.studentAccounts = false;
+    try {
+      expect(canSeeProfileMenu(auth(null))).toBe(false);
+      expect(canSeeProfileMenu(auth('SUPER_ADMIN'))).toBe(true);
+    } finally {
+      FEATURES.studentAccounts = true;
+    }
   });
 });

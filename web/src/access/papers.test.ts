@@ -1,3 +1,4 @@
+import { FEATURES } from '@constants/features';
 import type { AuthContextValue } from '@context/AuthContext';
 
 import { canAnswerPapers, mustSignInToAnswer } from './papers';
@@ -21,5 +22,15 @@ describe('paper access', () => {
     expect(mustSignInToAnswer(auth('anonymous'))).toBe(true);
     expect(mustSignInToAnswer(auth('loading'))).toBe(false);
     expect(mustSignInToAnswer(auth('authenticated'))).toBe(false);
+  });
+
+  it('lets everyone answer while student accounts are off', () => {
+    FEATURES.studentAccounts = false;
+    try {
+      expect(canAnswerPapers(auth('anonymous'))).toBe(true);
+      expect(mustSignInToAnswer(auth('anonymous'))).toBe(false);
+    } finally {
+      FEATURES.studentAccounts = true;
+    }
   });
 });
