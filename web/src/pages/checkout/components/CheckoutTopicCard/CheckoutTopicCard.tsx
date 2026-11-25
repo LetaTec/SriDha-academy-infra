@@ -7,8 +7,16 @@ import { KeyValueList } from '@components/ui/KeyValueList/KeyValueList';
 import { Text } from '@components/ui/Text/Text';
 import { CATALOGUE_TEXT } from '@constants/catalogue';
 import { CHECKOUT_TEXT } from '@constants/payments';
-import type { Batch, TopicPreview } from '@services/catalogue';
-import { formatDateOnly, formatWallClockTime } from '@utils/date';
+import {
+  findTeacher,
+  type Batch,
+  type TopicPreview,
+} from '@services/catalogue';
+import {
+  formatDateOnly,
+  formatWallClockRange,
+  formatWallClockTime,
+} from '@utils/date';
 
 import styles from './CheckoutTopicCard.module.css';
 
@@ -39,7 +47,11 @@ export const CheckoutTopicCard = ({
         },
         {
           label: CHECKOUT_TEXT.timeLabel,
-          value: orToBeAnnounced(batch.startTime, formatWallClockTime),
+          value: orToBeAnnounced(batch.startTime, start =>
+            batch.sessionDurationMinutes
+              ? formatWallClockRange(start, batch.sessionDurationMinutes)
+              : formatWallClockTime(start),
+          ),
         },
         {
           label: CHECKOUT_TEXT.sessionsLabel,
@@ -59,6 +71,8 @@ export const CheckoutTopicCard = ({
           value: CHECKOUT_TEXT.firstBatchValue,
         },
       ];
+
+  const teacher = findTeacher(preview, batch);
 
   return (
     <article className={cn('card')}>
@@ -92,8 +106,8 @@ export const CheckoutTopicCard = ({
         </span>
       </div>
 
-      {preview.topic.tutor ? (
-        <TutorProfile tutor={preview.topic.tutor} className={cn('tutor')} />
+      {teacher ? (
+        <TutorProfile tutor={teacher} className={cn('tutor')} />
       ) : null}
 
       <div className={cn('strip')}>

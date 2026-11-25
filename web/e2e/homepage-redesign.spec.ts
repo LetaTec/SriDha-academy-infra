@@ -27,7 +27,9 @@ test.describe('Homepage Redesign Responsiveness and Quality', () => {
       });
       await expect(search).toBeVisible();
       // Popular topics come from the catalogue
-      await expect(hero.getByRole('button', { name: 'GST' })).toBeVisible();
+      await expect(
+        hero.getByRole('button', { name: 'Business cycles' }),
+      ).toBeVisible();
 
       // The search box is a comfortable touch target at every size
       const searchBox = await search.boundingBox();

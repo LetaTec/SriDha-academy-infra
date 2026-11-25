@@ -37,7 +37,7 @@ describe('historical payments report for CA review', () => {
 
     // Seed historical payments across different dates and providers
     const topic = (await server.db.get<{ id: string }>(
-      `SELECT id FROM topics LIMIT 1`,
+      `SELECT topic_id AS id FROM batches LIMIT 1`,
     ))!;
     const batch = (await server.db.get<{ id: string }>(
       `SELECT id FROM batches WHERE topic_id = $1 LIMIT 1`,

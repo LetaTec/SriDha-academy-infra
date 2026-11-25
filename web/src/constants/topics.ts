@@ -83,7 +83,7 @@ export const SUBJECT_SLUG: Record<SubjectKey, string> = {
 // The classes SriDha Academy teaches, for the class filter and the
 // header search's "we teach" note. The topics themselves come from the
 // catalogue (GET /api/catalogue).
-export const TAUGHT_CLASS_NUMBERS = [11, 12] as const;
+export const TAUGHT_CLASS_NUMBERS = [8, 9, 10, 11, 12] as const;
 
 // In a stat list, stands for the live number of topics (see
 // useStatsWithTopicCount)

@@ -13,6 +13,12 @@ const BATCH_PAGE_COUNT = 2;
 // The book opens one topic, then its batches on the next turn; every topic
 // is listed in the topics section and on the Topics page.
 const TOPIC_PAGE_COUNT = 1;
+
+// Soonest first; a batch without a date goes last
+const byStart = (
+  a: { startDate: string | null },
+  b: { startDate: string | null },
+) => (a.startDate ?? '9999').localeCompare(b.startDate ?? '9999');
 // The first featured topic already leads the hero and the topic cards, so
 // the book opens the next one
 const BOOK_FEATURED_POSITION = 1;
@@ -86,9 +92,16 @@ const getCataloguePages = ({
       key: `topic-${context.topic.id}`,
       context,
     }));
-  const batches = topics.flatMap(context =>
-    context.topic.batches.map(batch => ({ ...context, batch })),
-  );
+  // The book's topic's batches first, then everyone else's, soonest first
+  const [lead, ...rest] = topics;
+  const batchesOf = (contexts: TopicContext[]) =>
+    contexts.flatMap(context =>
+      context.topic.batches.map(batch => ({ ...context, batch })),
+    );
+  const batches = [
+    ...batchesOf(lead ? [lead] : []).sort((a, b) => byStart(a.batch, b.batch)),
+    ...batchesOf(rest).sort((a, b) => byStart(a.batch, b.batch)),
+  ];
 
   // The intro is page 0; pad so the batch spread starts on a left page and
   // both of its pages are seen together.

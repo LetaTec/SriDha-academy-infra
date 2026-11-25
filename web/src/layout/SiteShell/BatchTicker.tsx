@@ -42,18 +42,27 @@ const describeBatch = (batch: Batch) =>
 // "Now enrolling": every open batch, running slowly along the top of the
 // page. It pauses under the pointer or keyboard focus, and stands still for
 // people who prefer reduced motion. Choosing a batch opens its payment.
+// Soonest first; a batch without a date goes last
+const byStart = (
+  a: { startDate: string | null },
+  b: { startDate: string | null },
+) => (a.startDate ?? '9999').localeCompare(b.startDate ?? '9999');
+
 export const BatchTicker = () => {
   const { subjects } = useCatalogue();
   const { openCheckout } = useCheckout();
 
-  const items: TickerItem[] = listTopics(subjects).flatMap(({ topic }) =>
-    topic.batches.filter(isBatchOpen).map(batch => ({
-      topicId: topic.id,
-      topic: topic.shortTitle,
-      level: topic.level ?? '',
-      batch,
-    })),
-  );
+  // The batches starting soonest lead
+  const items: TickerItem[] = listTopics(subjects)
+    .flatMap(({ topic }) =>
+      topic.batches.filter(isBatchOpen).map(batch => ({
+        topicId: topic.id,
+        topic: topic.shortTitle,
+        level: topic.level ?? '',
+        batch,
+      })),
+    )
+    .sort((a, b) => byStart(a.batch, b.batch));
 
   // The list is shown twice so the loop has no seam; only the first copy
   // is read out or reachable by keyboard

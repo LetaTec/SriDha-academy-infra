@@ -1,7 +1,12 @@
 import { SUBJECT, SUBJECT_ICON } from '@constants/topics';
 import { topicCatalogueFixture } from '@/test/topicCatalogueFixture';
 
-import { hasBatches, toTopicPreviews } from './topicPreviews';
+import {
+  findTeacher,
+  hasBatches,
+  listTeachers,
+  toTopicPreviews,
+} from './topicPreviews';
 
 const previews = toTopicPreviews(topicCatalogueFixture);
 const byTitle = (title: string) =>
@@ -48,5 +53,72 @@ describe('topic cards from the catalogue', () => {
 
   it('returns nothing until the catalogue arrives', () => {
     expect(toTopicPreviews([])).toEqual([]);
+  });
+});
+
+describe('who teaches a batch', () => {
+  const demand = byTitle('Demand')!;
+  const tutor = {
+    id: 'tutor_economics',
+    name: 'Default Tutor',
+    headline: 'Economics tutor',
+    credentials: ['M.A. Economics'],
+    photoUrl: null,
+  };
+  const batch = (instructorName: string | null) => ({
+    ...demand.topic.batches[0],
+    id: `batch-${instructorName}`,
+    instructorName,
+  });
+  const withBatches = (
+    batches: ReturnType<typeof batch>[],
+    topicTutor = tutor,
+  ) => ({
+    ...demand,
+    topic: { ...demand.topic, tutor: topicTutor, batches },
+  });
+
+  it("names the roster teacher of the chosen batch, not the subject's tutor", () => {
+    const preview = withBatches([batch('Anshu Malpani')]);
+    expect(findTeacher(preview, batch('Anshu Malpani'))).toEqual({
+      id: 'teacher-Anshu Malpani',
+      name: 'Anshu Malpani',
+      headline: 'Teaches Demand',
+      credentials: [],
+      photoUrl: null,
+    });
+  });
+
+  it("uses the batches' one teacher before a batch is chosen", () => {
+    const preview = withBatches([batch('Purva'), batch('Purva')]);
+    expect(findTeacher(preview, null)?.name).toBe('Purva');
+  });
+
+  it("keeps the topic's tutor when batches name no teacher, or several", () => {
+    expect(findTeacher(withBatches([batch(null)]), null)).toBe(tutor);
+    expect(
+      findTeacher(withBatches([batch('Purva'), batch('Sakshi')]), null),
+    ).toBe(tutor);
+  });
+
+  it('lists each teacher once, with every topic they teach', () => {
+    const sets = withBatches([batch('Utkarsh Verma'), batch('Utkarsh Verma')]);
+    const polynomials = {
+      ...withBatches([batch('Utkarsh Verma')]),
+      title: 'Polynomials',
+    };
+    const market = {
+      ...withBatches([batch('Anshu Malpani')]),
+      title: 'Market',
+    };
+    expect(
+      listTeachers([sets, polynomials, market]).map(({ tutor, topics }) => [
+        tutor.name,
+        topics,
+      ]),
+    ).toEqual([
+      ['Utkarsh Verma', ['Demand', 'Polynomials']],
+      ['Anshu Malpani', ['Market']],
+    ]);
   });
 });

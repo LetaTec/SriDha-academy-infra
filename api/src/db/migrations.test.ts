@@ -143,17 +143,51 @@ const migrateBefore = async (
   }
 };
 
-// A seeded database on which a data migration has not run yet: it runs
+// A seeded database on which data migrations have not run yet: they run
 // again on the next start. Today's seed needs today's schema, so the
-// database is migrated in full and the migration is marked as not applied.
+// database is migrated in full and the migrations are marked as not applied.
 const seededWithout = async (
   db: Awaited<ReturnType<typeof openDatabase>>,
-  migrationId: string,
+  ...migrationIds: string[]
 ) => {
   await runMigrations(db);
   await seedCatalogue(db);
-  await db.query('DELETE FROM schema_migrations WHERE id = $1', [migrationId]);
+  for (const migrationId of migrationIds) {
+    await db.query('DELETE FROM schema_migrations WHERE id = $1', [
+      migrationId,
+    ]);
+  }
 };
+
+// Runs one migration on its own, to check what it does by itself (later
+// migrations may have changed the same rows since)
+const runOnly = async (
+  db: Awaited<ReturnType<typeof openDatabase>>,
+  migrationId: string,
+) => {
+  const migration = MIGRATIONS.find(item => item.id === migrationId);
+  assert.ok(migration, `${migrationId} is a listed migration`);
+  await db.exec(migration.sql);
+  await db.query(
+    'INSERT INTO schema_migrations (id, applied_at) VALUES ($1, $2)',
+    [migration.id, new Date().toISOString()],
+  );
+};
+
+// Removes the placeholder tutors and batches (see migrations.ts)
+const PLACEHOLDER_CLEAN_UP = '026_remove_placeholder_tutors_and_batches';
+
+// The Ray optics December batch as the seed wrote it before 026
+const insertRayOpticsDecember = (
+  db: Awaited<ReturnType<typeof openDatabase>>,
+) =>
+  db.query(
+    `INSERT INTO batches (id, topic_id, name, schedule_label, start_date, start_time,
+       session_count, session_duration_minutes, instructor_name, capacity, status, position)
+     VALUES ('batch_physics_ray_optics_class_12_december', $1, 'December batch',
+       '1st & 2nd December', '2026-12-01', '10:00', 2, NULL, NULL, 100, 'OPEN', 0)`,
+    [RAY_OPTICS_TOPIC_ID],
+  );
 
 describe('migration 008: more Ray optics batches', () => {
   it('adds the January and February batches beside December on a seeded database', async () => {
@@ -161,12 +195,12 @@ describe('migration 008: more Ray optics batches', () => {
     try {
       // Production before 008: seeded with December only
       await seededWithout(db, MORE_BATCHES_MIGRATION);
-      await db.query(
-        "DELETE FROM batches WHERE topic_id = $1 AND id <> 'batch_physics_ray_optics_class_12_december'",
-        [RAY_OPTICS_TOPIC_ID],
-      );
+      await db.query('DELETE FROM batches WHERE topic_id = $1', [
+        RAY_OPTICS_TOPIC_ID,
+      ]);
+      await insertRayOpticsDecember(db);
 
-      await runMigrations(db);
+      await runOnly(db, MORE_BATCHES_MIGRATION);
 
       const rows = await db.all<BatchRow>(RAY_OPTICS_BATCHES_SQL, [
         RAY_OPTICS_TOPIC_ID,
@@ -184,15 +218,19 @@ describe('migration 008: more Ray optics batches', () => {
     }
   });
 
-  it('writes the same batches as the seed', async () => {
+  it("ends with the seed's batches once 026 removes the placeholders", async () => {
     const migrated = await openDatabase(':memory:');
     const seeded = await openDatabase(':memory:');
     try {
-      await seededWithout(migrated, MORE_BATCHES_MIGRATION);
-      await migrated.query(
-        "DELETE FROM batches WHERE topic_id = $1 AND id <> 'batch_physics_ray_optics_class_12_december'",
-        [RAY_OPTICS_TOPIC_ID],
+      await seededWithout(
+        migrated,
+        MORE_BATCHES_MIGRATION,
+        PLACEHOLDER_CLEAN_UP,
       );
+      await migrated.query('DELETE FROM batches WHERE topic_id = $1', [
+        RAY_OPTICS_TOPIC_ID,
+      ]);
+      await insertRayOpticsDecember(migrated);
       await runMigrations(migrated);
 
       await runMigrations(seeded);
@@ -246,7 +284,7 @@ describe('migration 010: tutors', () => {
           ('topic_new', 'chapter_n', 'Learn New for Class 11', '', 'Class 11', 0);
       `);
 
-      await runMigrations(db);
+      await runOnly(db, TUTORS_MIGRATION);
 
       assert.deepEqual(
         await db.all('SELECT id, tutor_id FROM topics ORDER BY id'),
@@ -266,15 +304,91 @@ describe('migration 010: tutors', () => {
     }
   });
 
-  it('leaves no seeded topic without a tutor', async () => {
+  it('leaves no invented tutor once 026 has run', async () => {
     const db = await openDatabase(':memory:');
     try {
       await runMigrations(db);
       await seedCatalogue(db);
-      const { count } = (await db.get<{ count: number }>(
-        'SELECT COUNT(*)::int AS count FROM topics WHERE tutor_id IS NULL',
-      )) ?? { count: -1 };
-      assert.equal(count, 0);
+      const { tutors } = (await db.get<{ tutors: number }>(
+        'SELECT COUNT(*)::int AS tutors FROM tutors',
+      )) ?? { tutors: -1 };
+      assert.equal(tutors, 0);
+      const { assigned } = (await db.get<{ assigned: number }>(
+        'SELECT COUNT(*)::int AS assigned FROM topics WHERE tutor_id IS NOT NULL',
+      )) ?? { assigned: -1 };
+      assert.equal(assigned, 0);
+    } finally {
+      await db.close();
+    }
+  });
+});
+
+describe('migration 026: placeholder tutors and batches', () => {
+  it('removes them, but keeps a booked batch as inactive and leaves the roster alone', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      // Production before 026: the placeholder tutors and batches, one of
+      // them booked by a student
+      await seededWithout(db, PLACEHOLDER_CLEAN_UP);
+      await db.exec(`
+        INSERT INTO tutors (id, name, headline, credentials, position)
+          VALUES ('tutor_physics', 'Ananya Iyer', 'Physics tutor',
+            ARRAY['M.Sc. Physics'], 0);
+        UPDATE topics SET tutor_id = 'tutor_physics'
+        WHERE id = '${RAY_OPTICS_TOPIC_ID}';
+      `);
+      await insertRayOpticsDecember(db);
+      await db.query(
+        `INSERT INTO batches (id, topic_id, name, schedule_label, start_date, start_time,
+           session_count, session_duration_minutes, instructor_name, capacity, status, position)
+         VALUES ('batch_gst_class_11_december', 'topic_accounts_gst_class_11', 'December batch',
+           '8th & 9th December', '2026-12-08', '10:00', 2, NULL, NULL, 100, 'OPEN', 1)`,
+      );
+      await db.query(
+        `INSERT INTO users (id, email, password_hash, created_at, updated_at)
+         VALUES ('booked-buyer', 'booked@example.com', NULL, NOW(), NOW())`,
+      );
+      await db.query(
+        `INSERT INTO enrolments (id, user_id, batch_id, status, created_at, updated_at)
+         VALUES ('booked', 'booked-buyer', 'batch_gst_class_11_december', 'CONFIRMED', NOW(), NOW())`,
+      );
+
+      await runMigrations(db);
+
+      assert.equal(
+        (await db.get<{ n: number }>('SELECT COUNT(*)::int AS n FROM tutors'))
+          ?.n,
+        0,
+      );
+      assert.equal(
+        (
+          await db.get<{ n: number }>(
+            'SELECT COUNT(*)::int AS n FROM topics WHERE tutor_id IS NOT NULL',
+          )
+        )?.n,
+        0,
+      );
+      assert.equal(
+        await db.get(
+          "SELECT id FROM batches WHERE id = 'batch_physics_ray_optics_class_12_december'",
+        ),
+        null,
+      );
+      // The booked one stays, closed, with its enrolment
+      assert.deepEqual(
+        await db.get(
+          "SELECT status FROM batches WHERE id = 'batch_gst_class_11_december'",
+        ),
+        { status: 'INACTIVE' },
+      );
+      assert.equal(
+        (
+          await db.get<{ n: number }>(
+            "SELECT COUNT(*)::int AS n FROM batches WHERE id ~ '_b[0-9]+$'",
+          )
+        )?.n,
+        43,
+      );
     } finally {
       await db.close();
     }
@@ -298,7 +412,7 @@ const insertLegacyPayments = async (db: Db) => {
   );
   await db.query(
     `INSERT INTO enrolments (id, user_id, batch_id, status, created_at, updated_at)
-     VALUES ('legacy-enrolment', 'legacy-buyer', 'batch_gst_class_11_december',
+     VALUES ('legacy-enrolment', 'legacy-buyer', 'batch_accountancy_rectification_of_errors_class_11_b2',
        'CONFIRMED', $1, $1)`,
     ['2026-07-02T05:00:00Z'],
   );

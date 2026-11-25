@@ -332,7 +332,7 @@ describe('Audit reproduction: checkout without GST never gets a tax invoice (C1,
       .createClient()
       .request('POST', '/api/payments/checkout', {
         kind: 'ENROLMENT',
-        batchId: 'batch_gst_class_11_december',
+        batchId: 'batch_accountancy_rectification_of_errors_class_11_b2',
         customerType: 'INDIVIDUAL',
         fullName: 'Regression Buyer',
         email: 'regression.buyer@example.com',

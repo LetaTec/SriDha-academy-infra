@@ -23,6 +23,18 @@ export const formatWallClockTime = (value: string): string => {
   }).format(date)} IST`;
 };
 
+// A class's start and end, e.g. "20:30" for 90 minutes ->
+// "8:30 pm – 10:00 pm IST"
+export const formatWallClockRange = (
+  start: string,
+  durationMinutes: number,
+): string => {
+  const [hours, minutes] = start.split(':').map(Number);
+  const endTotal = (hours * 60 + minutes + durationMinutes) % (24 * 60);
+  const end = `${String(Math.floor(endTotal / 60)).padStart(2, '0')}:${String(endTotal % 60).padStart(2, '0')}`;
+  return `${formatWallClockTime(start).replace(/ IST$/, '')} – ${formatWallClockTime(end)}`;
+};
+
 const pad = (value: number) => String(value).padStart(2, '0');
 
 // A countdown as minutes and seconds, e.g. 272 -> "04:32", with hours in

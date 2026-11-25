@@ -90,7 +90,7 @@ describe('transactional email outbox', () => {
       .createClient()
       .request('POST', '/api/payments/checkout', {
         kind: 'ENROLMENT',
-        batchId: 'batch_gst_class_11_november',
+        batchId: 'batch_accountancy_rectification_of_errors_class_11_b1',
         fullName: `Outbox Buyer ${buyerIndex}`,
         email,
         mobile: '+91 98765 11111',

@@ -13,7 +13,7 @@ import {
 } from '../../test/testServer.js';
 import { SEAT_HOLD_MINUTES } from '../catalogue/catalogue.repository.js';
 
-const BATCH = 'batch_gst_class_11_december';
+const BATCH = 'batch_accountancy_rectification_of_errors_class_11_b2';
 const START = new Date('2026-10-10T09:00:00Z');
 const BILLING = {
   fullName: 'Asha Verma',

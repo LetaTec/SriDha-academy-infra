@@ -7,8 +7,8 @@ import {
   type TestClient,
 } from '../../test/testServer.js';
 
-const NOVEMBER_BATCH = 'batch_gst_class_11_november';
-const DECEMBER_BATCH = 'batch_gst_class_11_december';
+const NOVEMBER_BATCH = 'batch_accountancy_rectification_of_errors_class_11_b1';
+const DECEMBER_BATCH = 'batch_accountancy_rectification_of_errors_class_11_b2';
 
 describe('catalogue and enrolments', () => {
   let server: Awaited<ReturnType<typeof startTestServer>>;
@@ -47,8 +47,13 @@ describe('catalogue and enrolments', () => {
     const accounts = response.body.subjects.find(
       (subject: { slug: string }) => subject.slug === 'accounts',
     );
-    const topic = accounts.chapters[0].topics[0];
-    assert.equal(topic.title, 'Learn GST for Class 11');
+    const topic = accounts.chapters
+      .flatMap((chapter: { topics: { id: string }[] }) => chapter.topics)
+      .find(
+        (item: { id: string }) =>
+          item.id === 'topic_accountancy_rectification_of_errors_class_11',
+      );
+    assert.equal(topic.title, 'Learn Rectification of errors for Class 11');
     assert.equal(topic.lessons.length, 4);
     assert.deepEqual(topic.price, {
       amountPaise: 12900,
@@ -56,8 +61,9 @@ describe('catalogue and enrolments', () => {
       taxLabel: null,
     });
     assert.equal(topic.batches[0].availability, 'OPEN');
-    assert.equal(topic.batches[0].seatsRemaining, 100);
-    assert.equal(topic.batches[0].instructorName, null);
+    assert.equal(topic.batches[0].seatsRemaining, 300);
+    // The roster's teacher
+    assert.equal(topic.batches[0].instructorName, 'Richa Varyani');
   });
 
   // Seats are only taken through checkout; the amount comes from the
@@ -97,7 +103,7 @@ describe('catalogue and enrolments', () => {
     const [enrolment] = mine.body.enrolments;
     assert.equal(enrolment.status, 'PENDING_PAYMENT');
     assert.equal(enrolment.batch.id, NOVEMBER_BATCH);
-    assert.equal(enrolment.batch.seatsRemaining, 99);
+    assert.equal(enrolment.batch.seatsRemaining, 299);
     assert.equal(enrolment.topic.lessons.length, 4);
 
     const row = await server.db.get<{ user_id: string }>(
@@ -178,11 +184,22 @@ describe('catalogue and enrolments', () => {
       assert.equal(response.body.code, 'BATCH_FULL');
 
       const catalogue = await otherStudent.request('GET', '/api/catalogue');
-      const batch = catalogue.body.subjects[0].chapters[0].topics[0].batches[0];
+      const batch = catalogue.body.subjects
+        .flatMap(
+          (subject: {
+            chapters: { topics: { batches: { id: string }[] }[] }[];
+          }) => subject.chapters,
+        )
+        .flatMap(
+          (chapter: { topics: { batches: { id: string }[] }[] }) =>
+            chapter.topics,
+        )
+        .flatMap((topic: { batches: { id: string }[] }) => topic.batches)
+        .find((item: { id: string }) => item.id === NOVEMBER_BATCH);
       assert.equal(batch.availability, 'FULL');
       assert.equal(batch.seatsRemaining, 0);
     } finally {
-      await server.db.query('UPDATE batches SET capacity = 100 WHERE id = $1', [
+      await server.db.query('UPDATE batches SET capacity = 300 WHERE id = $1', [
         NOVEMBER_BATCH,
       ]);
     }
