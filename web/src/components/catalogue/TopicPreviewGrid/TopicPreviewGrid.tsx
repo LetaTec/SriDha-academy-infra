@@ -54,18 +54,19 @@ const TopicOffer = ({ topic }: { topic: Topic }) => {
   );
 };
 
-// The seats left in each of the topic's batches, soonest first
+// The seats left in each of the topic's batches, soonest first: the
+// batch on the left, its seats on the right, one ruled row each
 const BatchSeats = ({ topic }: { topic: Topic }) =>
   topic.batches.length > 0 ? (
     <ul className={cn('seats')} aria-label={CATALOGUE_TEXT.batchSeatsLabel}>
       {sortBatchesByStart(topic.batches).map(batch => (
-        <li key={batch.id}>
+        <li key={batch.id} className={cn('seat')}>
+          <Text as="span" variant="small">
+            {batch.name}
+          </Text>
           <Text as="span" variant="small" tone="muted">
-            {CATALOGUE_TEXT.batchSeats(
-              batch.name,
-              (isBatchOpen(batch) ? formatBatchSeats(batch) : null) ??
-                BATCH_AVAILABILITY_LABEL[batch.availability],
-            )}
+            {(isBatchOpen(batch) ? formatBatchSeats(batch) : null) ??
+              BATCH_AVAILABILITY_LABEL[batch.availability]}
           </Text>
         </li>
       ))}

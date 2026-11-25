@@ -3,15 +3,30 @@
   gap: var(--space-4);
 }
 
-/* The whole box is one button: card on top, offer and action below */
+/* The whole box is one button: card on top, offer and action below. The
+   card keeps a fixed height and the action sits at the foot, so icons,
+   names and fees line up across a row */
 .topic {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   width: 100%;
   height: 100%;
   color: inherit;
   text-align: inherit;
   cursor: pointer;
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+/* Lifts onto the brand's flat offset block */
+.topic:hover,
+.topic:focus-visible {
+  transform: translate(
+    calc(var(--space-0-5) * -1),
+    calc(var(--space-0-5) * -1)
+  );
+  box-shadow: var(--shadow-offset-accent-sm);
 }
 
 .topic:focus-visible {
@@ -24,8 +39,10 @@
   overflow: hidden;
 }
 
-/* The card keeps just enough height for the subtopics overlay */
+/* The card keeps just enough height for the subtopics overlay, with its
+   content from the top so every card's icon sits at the same height */
 .preview .card {
+  justify-content: flex-start;
   min-height: var(--height-topic-preview);
   padding-bottom: var(--space-2);
 }
@@ -49,29 +66,40 @@
 }
 
 .offer {
-  display: grid;
-  justify-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--space-1);
   padding: 0 var(--space-3) var(--space-3);
 }
 
-/* One line per batch: how many seats it has left */
+/* One ruled row per batch: the batch, then how many seats it has left */
 .seats {
   display: grid;
-  justify-items: center;
-  gap: var(--space-0-5);
-  margin: 0;
+  width: 100%;
+  margin: var(--space-1) 0 0;
   padding: 0;
   list-style: none;
-  text-align: center;
+  border-top: var(--border-width-base) solid var(--color-border-base);
 }
 
-/* Reads as a link: accent text with an arrow that moves on hover */
+.seat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: var(--space-0-5) 0;
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
+  text-align: left;
+}
+
+/* Reads as a link: accent text with an arrow that moves on hover. It sits
+   at the foot of the card, level with its neighbours */
 .action {
   display: inline-flex;
+  margin-top: auto;
   align-items: center;
   gap: var(--space-1);
-  margin-top: var(--space-0-5);
   padding-bottom: var(--space-0-5);
   border-bottom: var(--border-width-base) solid currentcolor;
   color: var(--color-text-accent);
@@ -87,8 +115,22 @@
 }
 
 @media (--reduced-motion) {
+  .topic,
   .overlay,
   .action {
     transition: none;
+  }
+
+  .topic:hover,
+  .topic:focus-visible {
+    transform: none;
+  }
+}
+
+/* Touch screens: a tap would leave the card lifted, so it stays flat */
+@media (--no-hover) {
+  .topic:hover {
+    transform: none;
+    box-shadow: none;
   }
 }
