@@ -15,7 +15,7 @@ import {
 
 const DECEMBER_BATCH = 'batch_accountancy_rectification_of_errors_class_11_b2';
 const OPEN_TOPIC = 'topic_accountancy_rectification_of_errors_class_11';
-const PRE_REGISTER_TOPIC = 'topic_physics_wave_optics_class_12';
+const PRE_REGISTER_TOPIC = 'topic_physics_ray_optics_class_12';
 
 const BILLING = {
   fullName: 'Asha Verma',
@@ -54,7 +54,8 @@ describe('payments', () => {
         subject.chapters.flatMap(chapter => chapter.topics),
     );
 
-    assert.ok(topics.length >= 100);
+    // The roster topics and the topics with a topic test
+    assert.equal(topics.length, 24);
     assert.ok(
       topics.every((topic: { price: unknown }) => topic.price !== null),
     );

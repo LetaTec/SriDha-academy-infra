@@ -1,5 +1,5 @@
 import { LIVE_TOPIC_COUNT } from './topics';
-import type { StudentPhotoKey } from './photos';
+import type { HeroSceneName } from '@components/brand/HeroScene/HeroScene';
 
 // Copy for the About page. Tutor names and photographs are published here
 // once each topic team is confirmed.
@@ -9,7 +9,8 @@ export const ABOUT_PAGE_TEXT = {
     title: 'Big subjects,',
     titleEmphasis: 'one page at a time.',
     lead: 'SriDha Academy teaches the way students actually get stuck: one topic at a time. We break each subject into chapters and topics, teach them live in focused batches and help every student see their progress',
-    photo: 'classroom' satisfies StudentPhotoKey,
+    // The homepage's illustration style, not photographs
+    illustration: 'atTheBoard' satisfies HeroSceneName,
   },
   motive: {
     title: 'Our',
@@ -46,7 +47,7 @@ export const ABOUT_PAGE_TEXT = {
       'Ask a student what is difficult about Accounts and the answer is almost never “Accounts”. It is GST, or the trial balance, or one chapter that never quite clicked.',
       'So we built the opposite of a full-syllabus course: one topic, one focused batch, a clear list of lessons and a way to check the result. Big subjects become a series of small victories.',
     ],
-    photo: 'slate' satisfies StudentPhotoKey,
+    illustration: 'studyGroup' satisfies HeroSceneName,
   },
   approach: {
     title: 'How we',

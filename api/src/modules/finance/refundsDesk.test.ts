@@ -73,7 +73,7 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     await insertPreRegistration(server.db, {
       id: preReg2,
       userId,
-      topicId: 'topic_physics_wave_optics_class_12',
+      topicId: 'topic_physics_ray_optics_class_12',
       status: 'CONFIRMED',
       timestamp: new Date().toISOString(),
     });
@@ -104,7 +104,7 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
       gstinCheck: null,
       purchaseOrderReference: null,
       itemDescription: 'Topic Wave Optics',
-      itemTopicId: 'topic_physics_wave_optics_class_12',
+      itemTopicId: 'topic_physics_ray_optics_class_12',
       itemBatchId: null,
       unitPricePaise: 500000,
       timestamp: new Date(Date.now() - 3600_000).toISOString(),
@@ -137,7 +137,7 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
       gstinCheck: null,
       purchaseOrderReference: null,
       itemDescription: 'Topic Wave Optics',
-      itemTopicId: 'topic_physics_wave_optics_class_12',
+      itemTopicId: 'topic_physics_ray_optics_class_12',
       itemBatchId: null,
       unitPricePaise: 300000,
       timestamp: new Date(Date.now() - 1800_000).toISOString(),
@@ -315,7 +315,7 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
       await insertPreRegistration(server.db, {
         id: preRegId,
         userId: buyerId,
-        topicId: 'topic_physics_wave_optics_class_12',
+        topicId: 'topic_physics_ray_optics_class_12',
         status: 'CONFIRMED',
         timestamp: createdAt,
       });
@@ -344,7 +344,7 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
         gstinCheck: null,
         purchaseOrderReference: null,
         itemDescription: 'Topic Wave Optics',
-        itemTopicId: 'topic_physics_wave_optics_class_12',
+        itemTopicId: 'topic_physics_ray_optics_class_12',
         itemBatchId: null,
         unitPricePaise: options.amountPaise * 2,
         timestamp: createdAt,

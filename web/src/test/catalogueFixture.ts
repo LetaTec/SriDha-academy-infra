@@ -155,7 +155,16 @@ export const catalogueFixture: Subject[] = [
             price: { amountPaise: 12900, currency: 'INR', taxLabel: null },
             tutor: null,
             lessons: [],
-            batches: [],
+            batches: [
+              {
+                ...openBatch,
+                id: 'batch_biology_ecosystem_class_12_b1',
+                name: 'Batch 1',
+                scheduleLabel: '15th December',
+                startDate: '2026-12-15',
+                instructorName: 'Himani Jain',
+              },
+            ],
           },
         ],
       },

@@ -142,7 +142,13 @@ const TopicTest = ({
 // come from the catalogue; its questions from the topic test bank.
 const TopicTestPage = () => {
   const { topicId = '' } = useParams();
-  const { previews, isLoading, hasError, reload } = useTopicPreviews();
+  // Every topic, including those with a topic test but no batches
+  const {
+    allPreviews: previews,
+    isLoading,
+    hasError,
+    reload,
+  } = useTopicPreviews();
   const preview =
     previews.find(item => item.catalogueTopicId === topicId) ?? null;
   const questionCount = findTopicTestSize(topicId);

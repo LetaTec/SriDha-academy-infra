@@ -1497,4 +1497,50 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    // The website lists only the topics on the team's roster and the topics
+    // with a topic test: every other topic (and its lessons, and any chapter
+    // it leaves empty) is removed.
+    // A topic something still points at — a batch (deleting the topic would
+    // take the batch with it) or a pre-registration — is left alone, so no
+    // booking or payment trail is lost; those are cleared by hand first.
+    // Reverse: run the catalogue seed from before this change.
+    id: '027_roster_topics_only',
+    sql: `
+      DELETE FROM topics
+      WHERE id NOT IN (
+          'topic_mathematics_alphabet_test_class_8',
+          'topic_mathematics_coding_and_decoding_class_8',
+          'topic_accountancy_rectification_of_errors_class_11',
+          'topic_accountancy_bank_reconciliation_statement_class_11',
+          'topic_mathematics_time_and_work_ca_cpt',
+          'topic_mathematics_quadratic_equations_class_10',
+          'topic_mathematics_polynomials_class_9',
+          'topic_mathematics_sets_class_11',
+          'topic_economics_demand_class_11',
+          'topic_economics_production_class_11',
+          'topic_economics_market_class_11',
+          'topic_mathematics_logarithms_ca_cpt',
+          'topic_mathematics_trigonometry_class_10',
+          'topic_economics_business_cycles_ca_cpt',
+          'topic_economics_balance_of_payments_class_12',
+          'topic_accountancy_admission_of_a_partner_class_12',
+          -- The topics that have a topic test (no batches)
+          'topic_accounts_gst_class_11',
+          'topic_chemistry_bonding_class_11',
+          'topic_physics_ray_optics_class_12',
+          'topic_maths_integrals_class_12',
+          'topic_chemistry_mole_concept_class_11',
+          'topic_physics_current_electricity_class_12',
+          'topic_physics_laws_of_motion_class_11',
+          'topic_accounts_partnership_class_12'
+        )
+        AND NOT EXISTS (SELECT 1 FROM batches WHERE batches.topic_id = topics.id)
+        AND NOT EXISTS (
+          SELECT 1 FROM pre_registrations WHERE pre_registrations.topic_id = topics.id
+        );
+      DELETE FROM chapters
+      WHERE NOT EXISTS (SELECT 1 FROM topics WHERE topics.chapter_id = chapters.id);
+    `,
+  },
 ];

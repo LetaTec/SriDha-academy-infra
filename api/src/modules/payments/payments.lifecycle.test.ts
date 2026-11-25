@@ -9,7 +9,7 @@ import {
 import { startTestServer, type TestClient } from '../../test/testServer.js';
 
 const WEBHOOK_SECRET = 'whsec_test';
-const PRE_REGISTER_TOPIC = 'topic_physics_wave_optics_class_12';
+const PRE_REGISTER_TOPIC = 'topic_physics_ray_optics_class_12';
 
 const sign = (orderId: string, paymentId: string) =>
   createHmac('sha256', KEY_SECRET)
