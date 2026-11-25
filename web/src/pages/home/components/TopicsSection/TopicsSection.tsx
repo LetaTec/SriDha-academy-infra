@@ -61,7 +61,11 @@ export const TopicsSection = ({
 
       {/* Topic Batch Previews */}
       {isLoading || hasError ? (
-        <TopicsStatus hasError={hasError} onRetry={reload} />
+        <TopicsStatus
+          hasError={hasError}
+          onRetry={reload}
+          count={HOME_TOPIC_COUNT}
+        />
       ) : (
         <>
           <TopicPreviewGrid

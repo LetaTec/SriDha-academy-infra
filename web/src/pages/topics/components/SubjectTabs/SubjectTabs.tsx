@@ -20,6 +20,8 @@ export type SubjectTabsProps = {
   // Topics per subject under the other filters, shown on each tab
   counts: Record<SubjectKey, number>;
   total: number;
+  // While the topics load, the tabs show no counts and stay enabled
+  isLoading?: boolean;
   // null shows every subject, each in its own section
   onSelect: (subject: SubjectKey | null) => void;
 };
@@ -29,6 +31,7 @@ export const SubjectTabs = ({
   selected,
   counts,
   total,
+  isLoading = false,
   onSelect,
 }: SubjectTabsProps) => (
   <div
@@ -44,25 +47,29 @@ export const SubjectTabs = ({
       <Text as="span" variant="small">
         {PAGE_TEXT.topicsAllSubjects}
       </Text>
-      <Text as="span" variant="caption" className={cn('count')}>
-        {total}
-      </Text>
+      {isLoading ? null : (
+        <Text as="span" variant="caption" className={cn('count')}>
+          {total}
+        </Text>
+      )}
     </ButtonBase>
     {Object.values(SUBJECT).map(subject => (
       <ButtonBase
         key={subject}
         className={cn('tab', { tabSelected: selected === subject })}
         aria-pressed={selected === subject}
-        disabled={counts[subject] === 0 && selected !== subject}
+        disabled={!isLoading && counts[subject] === 0 && selected !== subject}
         onClick={() => onSelect(subject)}
       >
         <Icon name={SUBJECT_ICON[subject]} size="sm" />
         <Text as="span" variant="small">
           {SUBJECT_LABEL[subject]}
         </Text>
-        <Text as="span" variant="caption" className={cn('count')}>
-          {counts[subject]}
-        </Text>
+        {isLoading ? null : (
+          <Text as="span" variant="caption" className={cn('count')}>
+            {counts[subject]}
+          </Text>
+        )}
       </ButtonBase>
     ))}
   </div>

@@ -13,7 +13,7 @@ import { Input } from '@components/ui/Input/Input';
 import { RuledList } from '@components/ui/RuledList/RuledList';
 import { Section } from '@components/ui/Section/Section';
 import { Select } from '@components/ui/Select/Select';
-import { Spinner } from '@components/ui/Spinner/Spinner';
+import { Skeleton } from '@components/ui/Skeleton/Skeleton';
 import { StatusDot } from '@components/ui/StatusDot/StatusDot';
 import { Text } from '@components/ui/Text/Text';
 import type { BillingDetails, IndianState } from '@contracts/payments';
@@ -145,6 +145,40 @@ const batchLabel = (batch: Batch) =>
 // their details, and the total with the Pay button. No account is needed:
 // the seat belongs to the email they pay with. Razorpay's own window takes
 // the card or UPI details.
+// The topic, batch and price panels in outline while the topic loads, so
+// the page keeps its shape instead of showing a spinner
+const CheckoutSkeleton = () => (
+  <div className={cn('layout')} role="status">
+    <span className={cn('visuallyHidden')}>{CHECKOUT_TEXT.loadingTopic}</span>
+    <div className={cn('main')} aria-hidden="true">
+      <div className={cn('card')}>
+        <Skeleton shape="title" width="md" />
+        <Skeleton width="sm" />
+        <Skeleton width="lg" />
+      </div>
+      <div className={cn('card')}>
+        <Skeleton shape="icon" />
+        <Skeleton shape="price" width="sm" />
+        <Skeleton width="md" />
+      </div>
+      <div className={cn('card')}>
+        <Skeleton width="xs" />
+        <Skeleton width="md" />
+        <Skeleton width="sm" />
+        <Skeleton width="md" />
+      </div>
+    </div>
+    <div className={cn('aside')} aria-hidden="true">
+      <div className={cn('card')}>
+        <Skeleton shape="title" width="md" />
+        <Skeleton width="full" />
+        <Skeleton shape="price" width="full" />
+        <Skeleton shape="title" width="full" />
+      </div>
+    </div>
+  </div>
+);
+
 const CheckoutPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const topicId = searchParams.get(CHECKOUT_QUERY_PARAM.topic);
@@ -190,20 +224,17 @@ const CheckoutPage = () => {
           preferredBatchId={batchParam}
           onChooseBatch={chooseBatch}
         />
-      ) : isLoading || hasError ? (
-        <div className={cn('status')} role={isLoading ? 'status' : undefined}>
-          {isLoading ? <Spinner tone="muted" /> : null}
+      ) : hasError ? (
+        <div className={cn('status')}>
           <Text as="p" variant="small" tone="muted">
-            {isLoading
-              ? CHECKOUT_TEXT.loadingTopic
-              : CHECKOUT_TEXT.loadFailedTopic}
+            {CHECKOUT_TEXT.loadFailedTopic}
           </Text>
-          {isLoading ? null : (
-            <Button variant="secondary" onClick={reload}>
-              {CHECKOUT_TEXT.retry}
-            </Button>
-          )}
+          <Button variant="secondary" onClick={reload}>
+            {CHECKOUT_TEXT.retry}
+          </Button>
         </div>
+      ) : isLoading ? (
+        <CheckoutSkeleton />
       ) : (
         <EmptyState
           title={CHECKOUT_TEXT.notFoundTitle}
