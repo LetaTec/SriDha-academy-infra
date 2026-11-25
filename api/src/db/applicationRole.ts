@@ -47,10 +47,27 @@ export class DatabaseRoleError extends Error {
 // role, or can act as it through role membership. Granting would then
 // revoke the owner's own privileges (and the next migration would fail),
 // and the application would hold the owner's powers.
+//
+// The migration role must not be able to use or become the application
+// role either. On PostgreSQL 16 and later, a role that creates another
+// is automatically given an ADMIN-only membership of it (no INHERIT, no
+// SET), which managed hosts such as Render cannot remove. That membership
+// grants no privileges of the application role and cannot SET ROLE to it,
+// so it is allowed; any membership that can use or become the role is not.
 export const assertDistinctRoles = async (
   migrator: DatabaseClient,
   applicationRole: string,
 ) => {
+  const version = await migrator.get<{ server_version_num: string }>(
+    `SELECT current_setting('server_version_num') AS server_version_num`,
+  );
+  // pg_has_role(..., 'SET') exists from PostgreSQL 16; before that, any
+  // membership could SET ROLE, so MEMBER is the right test
+  const ownerActsAsApp =
+    Number(version?.server_version_num ?? 0) >= 160000
+      ? `pg_has_role(current_user, $1, 'USAGE')
+           OR pg_has_role(current_user, $1, 'SET')`
+      : `pg_has_role(current_user, $1, 'MEMBER')`;
   const row = await migrator.get<{
     owner: string;
     app_exists: boolean;
@@ -62,7 +79,7 @@ export const assertDistinctRoles = async (
        COALESCE((SELECT pg_has_role($1, current_user, 'MEMBER')
          WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1)), false)
          AS app_is_owner_member,
-       COALESCE((SELECT pg_has_role(current_user, $1, 'MEMBER')
+       COALESCE((SELECT ${ownerActsAsApp}
          WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1)), false)
          AS owner_is_app_member`,
     [applicationRole],
@@ -84,7 +101,7 @@ export const assertDistinctRoles = async (
   }
   if (row.owner_is_app_member) {
     throw new DatabaseRoleError(
-      `The migration role "${row.owner}" is a member of the application role "${applicationRole}"; keep the two roles unrelated`,
+      `The migration role "${row.owner}" can use or become the application role "${applicationRole}"; keep the two roles unrelated`,
     );
   }
 };
