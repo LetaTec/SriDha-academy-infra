@@ -55,6 +55,17 @@
   padding: 0 var(--space-3) var(--space-3);
 }
 
+/* One line per batch: how many seats it has left */
+.seats {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-0-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+}
+
 /* Reads as a link: accent text with an arrow that moves on hover */
 .action {
   display: inline-flex;

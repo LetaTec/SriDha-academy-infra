@@ -23,6 +23,10 @@ export const createQueryClient = () =>
     },
   });
 
+// How often an open page refreshes the catalogue, so seat counts stay
+// current. Background tabs do not refresh.
+export const CATALOGUE_REFRESH_MS = MINUTE_MS;
+
 // The catalogue is kept in this browser for a day, so a returning visitor
 // sees every topic at once, even while the API wakes up; it is refreshed
 // as soon as the API answers. Seats and payments are never kept.

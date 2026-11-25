@@ -1,5 +1,5 @@
 import type { KeyValueItem } from '@components/ui/KeyValueList/KeyValueList';
-import { CATALOGUE_TEXT } from '@constants/catalogue';
+import { BATCH_AVAILABILITY_LABEL, CATALOGUE_TEXT } from '@constants/catalogue';
 import type { Batch, Price } from '@services/catalogue';
 import { formatPrice } from '@utils/currency';
 import { formatDateOnly, formatWallClockTime } from '@utils/date';
@@ -9,6 +9,16 @@ const orToBeAnnounced = <T>(value: T | null, format: (value: T) => string) =>
 
 export const formatTopicPrice = (price: Price | null) =>
   price ? formatPrice(price) : CATALOGUE_TEXT.priceOnRequest;
+
+// How many seats a batch has left, out of how many: "286 of 300 seats
+// left", or "Batch full". Null when the batch has no seat limit.
+export const formatBatchSeats = (batch: Batch): string | null => {
+  if (batch.seatsRemaining === null) return null;
+  if (batch.seatsRemaining === 0) return BATCH_AVAILABILITY_LABEL.FULL;
+  return batch.capacity === null
+    ? CATALOGUE_TEXT.seatsRemaining(batch.seatsRemaining)
+    : CATALOGUE_TEXT.seatsOfCapacity(batch.seatsRemaining, batch.capacity);
+};
 
 // Every batch field the data model supports. Missing values are shown as
 // "To be announced" rather than invented.
@@ -38,6 +48,6 @@ export const getBatchDetailItems = (batch: Batch): KeyValueItem[] => [
   },
   {
     label: CATALOGUE_TEXT.seatsLabel,
-    value: orToBeAnnounced(batch.seatsRemaining, CATALOGUE_TEXT.seatsRemaining),
+    value: orToBeAnnounced(formatBatchSeats(batch), seats => seats),
   },
 ];

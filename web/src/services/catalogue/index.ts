@@ -5,6 +5,7 @@ export {
   findTopicContext,
   isBatchOpen,
   listTopics,
+  sortBatchesByStart,
 } from './mappers';
 export {
   hasBatches,
