@@ -16,6 +16,7 @@ import { useToast } from '@context/ToastContext';
 import { logoutStudent } from '@services/auth';
 
 import { BatchTicker } from './BatchTicker';
+import { ContinuePaper } from './ContinuePaper';
 import styles from './SiteHeader.module.css';
 
 const cn = cx.bind(styles);
@@ -150,6 +151,7 @@ export const SiteHeader = () => {
           />
         </div>
       </Container>
+      <ContinuePaper />
     </header>
   );
 };

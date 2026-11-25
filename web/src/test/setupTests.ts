@@ -1,4 +1,12 @@
 import '@testing-library/jest-dom/vitest';
+import { afterEach } from 'vitest';
+
+import { clearActivePaper } from '@hooks/useActivePaper';
+
+// A paper left in progress by one test must not carry into the next
+afterEach(() => {
+  clearActivePaper();
+});
 
 // jsdom does not implement the modal dialog API.
 if (!HTMLDialogElement.prototype.showModal) {

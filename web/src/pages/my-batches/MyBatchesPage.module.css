@@ -1,0 +1,55 @@
+.page {
+  padding-top: calc(var(--height-header) + var(--space-10));
+}
+
+.intro {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2-5);
+  text-align: center;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+}
+
+.group {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.details {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.card {
+  height: 100%;
+  padding: var(--space-3);
+}
+
+.placeholder {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1-5);
+  padding: var(--space-3-5);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: var(--size-visually-hidden);
+  height: var(--size-visually-hidden);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

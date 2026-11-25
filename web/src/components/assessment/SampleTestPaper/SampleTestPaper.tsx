@@ -10,6 +10,7 @@ import {
   SAMPLE_TEST_TRACKS,
   SAMPLE_TEST_TEXT as TEXT,
 } from '@constants/assessment';
+import { toTestPaper } from '@constants/routes';
 import { useSamplePaper } from '@hooks/useQuestionBanks';
 
 import styles from './SampleTestPaper.module.css';
@@ -20,10 +21,13 @@ const cn = cx.bind(styles);
 const SamplePaperQuestions = ({
   trackKey,
   subjectKey,
+  title,
   scrollsInside,
 }: {
   trackKey: string;
   subjectKey: string;
+  // e.g. "Class 12 · Physics", shown on the header's continue card
+  title: string;
   scrollsInside: boolean;
 }) => (
   <PaperAnswers
@@ -32,12 +36,21 @@ const SamplePaperQuestions = ({
     durationSeconds={SAMPLE_TEST_DURATION_SECONDS}
     instruction={TEXT.instruction}
     scrollsInside={scrollsInside}
+    session={{
+      key: `sample:${trackKey}:${subjectKey}`,
+      title,
+      href: toTestPaper(trackKey, subjectKey),
+    }}
   />
 );
 
 export type SampleTestPaperProps = {
   // The class or exam the paper opens on; the first one by default.
   initialTrack?: string;
+  // The subject it opens on; the class's first subject by default
+  initialSubject?: string;
+  // Told of every new class or subject, e.g. to keep it in the address
+  onChange?: (track: string, subject: string) => void;
   // Wide papers fill a page and let it scroll; compact ones scroll inside.
   layout?: 'compact' | 'wide';
 };
@@ -47,13 +60,17 @@ export type SampleTestPaperProps = {
 // opens a fresh paper. The clock starts with the first answer.
 export const SampleTestPaper = ({
   initialTrack = SAMPLE_TEST_TRACKS[0].key,
+  initialSubject,
+  onChange,
   layout = 'compact',
 }: SampleTestPaperProps) => {
   const [trackKey, setTrackKey] = useState(initialTrack);
   const track =
     SAMPLE_TEST_TRACKS.find(item => item.key === trackKey) ??
     SAMPLE_TEST_TRACKS[0];
-  const [subjectKey, setSubjectKey] = useState(track.subjects[0].key);
+  const [subjectKey, setSubjectKey] = useState(
+    initialSubject ?? track.subjects[0].key,
+  );
   const subject =
     track.subjects.find(item => item.key === subjectKey) ?? track.subjects[0];
 
@@ -62,12 +79,19 @@ export const SampleTestPaper = ({
     if (!next || next.key === track.key) return;
     setTrackKey(next.key);
     setSubjectKey(next.subjects[0].key);
+    onChange?.(next.key, next.subjects[0].key);
+  };
+
+  const handleSubject = (nextSubject: string) => {
+    setSubjectKey(nextSubject);
+    onChange?.(track.key, nextSubject);
   };
 
   return (
     <PaperSheet
       label={TEXT.paperLabel}
       questionCount={TOTAL}
+      durationSeconds={SAMPLE_TEST_DURATION_SECONDS}
       meta={TEXT.meta(track.label, subject.label, TOTAL)}
       layout={layout}
     >
@@ -99,7 +123,7 @@ export const SampleTestPaper = ({
               subjectActive: item.key === subject.key,
             })}
             aria-pressed={item.key === subject.key}
-            onClick={() => setSubjectKey(item.key)}
+            onClick={() => handleSubject(item.key)}
           >
             {item.label}
           </ButtonBase>
@@ -111,6 +135,7 @@ export const SampleTestPaper = ({
         key={`${track.key}-${subject.key}`}
         trackKey={track.key}
         subjectKey={subject.key}
+        title={TEXT.sessionTitle(track.label, subject.label)}
         scrollsInside={layout === 'compact'}
       />
     </PaperSheet>

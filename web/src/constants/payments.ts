@@ -12,6 +12,7 @@ import { SUPPORT_EMAIL } from './policies';
 export const CHECKOUT_KIND = {
   enrolment: 'ENROLMENT',
   preRegistration: 'PRE_REGISTRATION',
+  testAttempt: 'TEST_ATTEMPT',
 } as const satisfies Record<string, CheckoutKind>;
 
 export type { CheckoutKind };
@@ -165,6 +166,30 @@ export const PRE_REGISTRATION_STATUS_LABEL: Record<EnrolmentStatus, string> = {
 export const CHECKOUT_QUERY_PARAM = {
   topic: 'topic',
   batch: 'batch',
+  // A topic's test: one attempt to buy
+  test: 'test',
+} as const;
+
+// Checkout for one attempt at a topic's test
+export const TEST_CHECKOUT_TEXT = {
+  chip: 'Topic test',
+  summary: (count: number, minutes: number) =>
+    `${count} questions on this one topic, ${minutes} minutes on the clock and every answer explained once it is marked`,
+  questionsLabel: 'Questions',
+  timeLabel: 'Time',
+  attemptsLabel: 'Attempts',
+  minutes: (minutes: number) => `${minutes} minutes`,
+  oneAttempt: '1 attempt',
+  coversTitle: 'What the test covers',
+  fee: 'Test fee',
+  signInTitle: 'Sign in to buy the test',
+  signInMessage:
+    'The test is taken signed in, so your attempt is kept on your account',
+  signIn: 'Sign up or log in',
+  paid: 'Your attempt is paid. Start the test when you are ready',
+  startTest: 'Start the test',
+  pageTitleEmphasis: 'test.',
+  paymentNote: `Please check the topic before you pay. For any question about a payment, write to ${SUPPORT_EMAIL}`,
 } as const;
 
 // The action on each topic card and the checkout page it opens
@@ -206,6 +231,9 @@ export const CHECKOUT_TEXT = {
     'Batches for this topic open soon. Pre-register now to keep a seat in the first batch',
   teachTitle: 'What we will teach',
   // Shown under what the topic teaches; there is no refund policy yet
+  seeMyBatches: 'See it in My batches',
+  signUpForMyBatches: (email: string) =>
+    `Sign up with ${email} to see this batch, with a countdown to your class, under My batches`,
   paymentNote: `Please check the topic and batch before you pay. For any question about a payment, write to ${SUPPORT_EMAIL}`,
   // Student details
   detailsTitle: 'Billing details',

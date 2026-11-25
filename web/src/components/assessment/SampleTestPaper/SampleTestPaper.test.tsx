@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { AxiosError } from 'axios';
 
 import {
@@ -10,6 +17,7 @@ import {
 import { findSamplePaper } from '@constants/sampleTestPapers';
 import { AuthProvider } from '@context/AuthContext';
 import { ToastProvider } from '@context/ToastContext';
+import { readActivePaper, saveActivePaper } from '@hooks/useActivePaper';
 import { loadSamplePapers } from '@hooks/useQuestionBanks';
 import { getCurrentSession, signUpStudent } from '@services/auth/api';
 
@@ -218,7 +226,7 @@ describe('SampleTestPaper', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(screen.getByText('Answered 0 of 20')).toBeInTheDocument();
-    expect(screen.getByText('Time left 20:00')).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveTextContent(/Time left\s*20:00/);
     screen
       .getAllByRole('radio')
       .forEach(radio => expect(radio).not.toBeChecked());
@@ -227,22 +235,57 @@ describe('SampleTestPaper', () => {
   it('starts the 20-minute clock on the first answer and marks the paper when time runs out', async () => {
     await renderPaper();
     vi.useFakeTimers();
-    expect(screen.getByText('Time left 20:00')).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveTextContent(/Time left\s*20:00/);
 
     answerQuestion(CLASS_11_ACCOUNTANCY, 0, CLASS_11_ACCOUNTANCY[0].answer);
     act(() => {
       vi.advanceTimersByTime(60_000);
     });
-    expect(screen.getByText('Time left 19:00')).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveTextContent(/Time left\s*19:00/);
 
     act(() => {
       vi.advanceTimersByTime(SAMPLE_TEST_DURATION_SECONDS * 1000);
     });
-    expect(screen.getByText("Time's up")).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveTextContent("Time's up");
     expect(within(paperResult()).getByText('Score 1 / 20')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Try again' }),
     ).toBeInTheDocument();
+  });
+
+  it('keeps a paper in progress when the student leaves, and restores it on return', async () => {
+    const [first] = CLASS_11_ACCOUNTANCY;
+    await renderPaper();
+    answerQuestion(CLASS_11_ACCOUNTANCY, 0, first.answer);
+    expect(readActivePaper()).toMatchObject({
+      key: 'sample:class11:accountancy',
+      href: '/ai-test?track=class11&subject=accountancy',
+      answers: { [first.id]: first.answer },
+    });
+
+    // Another page, then back: the answer and the running clock return
+    cleanup();
+    await renderPaper();
+    expect(screen.getByText('Answered 1 of 20')).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveTextContent(
+      /Time left\s*(20:00|19:5\d)/,
+    );
+  });
+
+  it('marks a paper whose time ran out while the student was away', async () => {
+    const [first] = CLASS_11_ACCOUNTANCY;
+    saveActivePaper({
+      key: 'sample:class11:accountancy',
+      title: 'Class 11 · Accountancy',
+      href: '/ai-test?track=class11&subject=accountancy',
+      endsAt: Date.now() - 1000,
+      answers: { [first.id]: first.answer },
+    });
+
+    await renderPaper();
+    expect(screen.getByRole('timer')).toHaveTextContent("Time's up");
+    expect(within(paperResult()).getByText('Score 1 / 20')).toBeInTheDocument();
+    expect(readActivePaper()).toBeNull();
   });
 
   it('locks the paper for a visitor until they sign up', async () => {

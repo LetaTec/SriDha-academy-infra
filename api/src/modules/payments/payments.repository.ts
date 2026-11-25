@@ -92,6 +92,7 @@ export type NewPayment = {
   userId: string;
   enrolmentId: string | null;
   preRegistrationId: string | null;
+  testAttemptId: string | null;
   amountPaise: number;
   currency: string;
   provider: string;
@@ -123,19 +124,20 @@ export type NewPayment = {
 // default) until an approved tax rule exists
 export const insertPayment = (db: DatabaseClient, payment: NewPayment) =>
   db.query(
-    `INSERT INTO payments (id, user_id, enrolment_id, pre_registration_id, amount_paise, currency,
+    `INSERT INTO payments (id, user_id, enrolment_id, pre_registration_id, test_attempt_id, amount_paise, currency,
        provider, provider_order_id, status, billing_name, billing_email, billing_mobile,
        billing_state, billing_city, customer_type, address_line1, address_line2,
        pin_code, billing_state_code, business_legal_name, gstin, gstin_state_code,
        gstin_check, purchase_order_reference, item_description, item_topic_id,
        item_batch_id, unit_price_paise, created_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-       $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $29)`,
+       $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $30)`,
     [
       payment.id,
       payment.userId,
       payment.enrolmentId,
       payment.preRegistrationId,
+      payment.testAttemptId,
       payment.amountPaise,
       payment.currency,
       payment.provider,
@@ -255,17 +257,21 @@ export const setPaymentFailed = (
 // The seat a payment is for (an enrolment or a pre-registration)
 export const findSeatStatus = async (
   db: DatabaseClient,
-  payment: { enrolmentId: string | null; preRegistrationId: string | null },
+  payment: {
+    enrolmentId: string | null;
+    preRegistrationId: string | null;
+    testAttemptId: string | null;
+  },
 ) => {
-  const row = payment.enrolmentId
-    ? await db.get<{ status: string }>(
-        'SELECT status FROM enrolments WHERE id = $1',
-        [payment.enrolmentId],
-      )
-    : await db.get<{ status: string }>(
-        'SELECT status FROM pre_registrations WHERE id = $1',
-        [payment.preRegistrationId],
-      );
+  const [table, id] = payment.enrolmentId
+    ? (['enrolments', payment.enrolmentId] as const)
+    : payment.preRegistrationId
+      ? (['pre_registrations', payment.preRegistrationId] as const)
+      : (['test_attempts', payment.testAttemptId] as const);
+  const row = await db.get<{ status: string }>(
+    `SELECT status FROM ${table} WHERE id = $1`,
+    [id],
+  );
   return row ? String(row.status) : null;
 };
 
@@ -606,13 +612,24 @@ export const findPaymentConfirmationRow = (
   db.get<Row>(
     `SELECT p.id, p.billing_name, p.billing_email, p.amount_paise,
             p.provider_payment_id, b.name AS batch_name,
-            COALESCE(enrolled.title, registered.title) AS topic_title
+            COALESCE(enrolled.title, registered.title, tested.title) AS topic_title
      FROM payments p
      LEFT JOIN enrolments e ON e.id = p.enrolment_id
      LEFT JOIN batches b ON b.id = e.batch_id
      LEFT JOIN topics enrolled ON enrolled.id = b.topic_id
      LEFT JOIN pre_registrations r ON r.id = p.pre_registration_id
      LEFT JOIN topics registered ON registered.id = r.topic_id
+     LEFT JOIN test_attempts a ON a.id = p.test_attempt_id
+     LEFT JOIN topics tested ON tested.id = a.topic_id
      WHERE p.id = $1`,
     [paymentId],
+  );
+
+// A topic, for buying an attempt at its test
+export const findTopicForTest = (db: DatabaseClient, topicId: string) =>
+  db.get<Row>(
+    `SELECT t.id AS t_id, t.title AS t_title, t.level AS t_level
+     FROM topics t
+     WHERE t.id = $1`,
+    [topicId],
   );

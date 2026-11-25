@@ -10,6 +10,7 @@ import type {
   Tutor,
 } from '../../contracts/catalogue.js';
 import type { DatabaseClient, Row } from '../../db/client.js';
+import { TOPIC_TEST_IDS, TOPIC_TEST_PRICE_PAISE } from '../../db/topicTests.js';
 
 export type {
   Batch,
@@ -182,6 +183,9 @@ export const getCatalogue = async ({
   );
   const topicsByChapter = groupBy(topicsRows, 'chapter_id', (row): Topic => ({
     ...toTopicSummary(row),
+    testPrice: TOPIC_TEST_IDS.has(String(row.id))
+      ? toPrice(TOPIC_TEST_PRICE_PAISE, null)
+      : null,
     tutor:
       row.tutor_id === null
         ? null

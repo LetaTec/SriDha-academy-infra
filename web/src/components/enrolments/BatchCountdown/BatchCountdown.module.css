@@ -1,0 +1,37 @@
+/* A dark band with the time left in four boxes */
+.countdown {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+}
+
+.label {
+  color: var(--color-text-accent-inverse);
+}
+
+.units {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.unit {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-0-25);
+  padding: var(--space-1) var(--space-0-5);
+  border: var(--border-width-base) solid var(--color-border-inverse);
+}
+
+.value {
+  font-family: var(--font-serif);
+  font-size: var(--text-numeral);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+}
+
+.unitName {
+  color: var(--color-text-inverse-muted);
+}

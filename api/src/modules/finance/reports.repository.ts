@@ -65,8 +65,8 @@ export const listHistoricalPaymentRows = (
        p.billing_city,
        p.tax_status,
        b.name AS batch_name,
-       COALESCE(enrolled.title, registered.title) AS topic_title,
-       COALESCE(e.status, r.status) AS seat_status,
+       COALESCE(enrolled.title, registered.title, tested.title) AS topic_title,
+       COALESCE(e.status, r.status, ta.status) AS seat_status,
        COALESCE(ref.refund_count, 0) AS refund_count,
        COALESCE(ref.refunded_amount_paise, 0) AS refunded_amount_paise,
        COALESCE(ref.refund_pending_paise, 0) AS refund_pending_paise,
@@ -78,6 +78,8 @@ export const listHistoricalPaymentRows = (
      LEFT JOIN topics enrolled ON enrolled.id = b.topic_id
      LEFT JOIN pre_registrations r ON r.id = p.pre_registration_id
      LEFT JOIN topics registered ON registered.id = r.topic_id
+     LEFT JOIN test_attempts ta ON ta.id = p.test_attempt_id
+     LEFT JOIN topics tested ON tested.id = ta.topic_id
      LEFT JOIN (
        SELECT payment_id,
               COUNT(*) AS refund_count,

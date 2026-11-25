@@ -181,10 +181,6 @@
   background: var(--color-bg-page);
 }
 
-.clock {
-  font-variant-numeric: tabular-nums;
-}
-
 @keyframes pop {
   0% {
     opacity: 0;

@@ -1543,4 +1543,50 @@ export const MIGRATIONS: readonly Migration[] = [
       WHERE NOT EXISTS (SELECT 1 FROM topics WHERE topics.chapter_id = chapters.id);
     `,
   },
+  {
+    // Paid topic tests. A student buys one attempt at a topic's test like a
+    // seat: the payment is for exactly one of a batch seat, a
+    // pre-registration or a test attempt. Starting an attempt fixes when it
+    // ends. Which topics have a test, and its price, live in
+    // db/topicTests.ts. To reverse (no attempt may have been sold):
+    //   ALTER TABLE payments DROP CONSTRAINT payments_one_purchase,
+    //     DROP COLUMN test_attempt_id,
+    //     ADD CHECK ((enrolment_id IS NULL) <> (pre_registration_id IS NULL));
+    //   DROP TABLE test_attempts;
+    id: '028_topic_test_attempts',
+    sql: `
+      CREATE TABLE test_attempts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        topic_id TEXT NOT NULL REFERENCES topics (id) ON DELETE RESTRICT,
+        status TEXT NOT NULL
+          CHECK (status IN ('PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED')),
+        started_at TIMESTAMPTZ,
+        ends_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL,
+        CHECK ((started_at IS NULL) = (ends_at IS NULL))
+      );
+      CREATE INDEX test_attempts_user_topic_idx
+        ON test_attempts (user_id, topic_id);
+
+      ALTER TABLE payments
+        ADD COLUMN test_attempt_id TEXT
+          REFERENCES test_attempts (id) ON DELETE RESTRICT;
+      CREATE INDEX payments_test_attempt_id_idx ON payments (test_attempt_id);
+
+      DO $$
+      DECLARE purchase_check TEXT;
+      BEGIN
+        SELECT conname INTO purchase_check FROM pg_constraint
+        WHERE conrelid = 'payments'::regclass AND contype = 'c'
+          AND pg_get_constraintdef(oid) LIKE '%enrolment_id IS NULL%pre_registration_id IS NULL%';
+        IF purchase_check IS NOT NULL THEN
+          EXECUTE format('ALTER TABLE payments DROP CONSTRAINT %I', purchase_check);
+        END IF;
+      END $$;
+      ALTER TABLE payments ADD CONSTRAINT payments_one_purchase
+        CHECK (num_nonnulls(enrolment_id, pre_registration_id, test_attempt_id) = 1);
+    `,
+  },
 ];

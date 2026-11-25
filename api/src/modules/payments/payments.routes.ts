@@ -43,12 +43,19 @@ export const createPaymentsRouter = (context: AppContext) => {
   // activated; until then a public quote would show GST that is never
   // collected. See DECISION.md (finance audit remediation).
 
-  // Paying needs no account: the order is filed under the billing email,
-  // and the provider's signature is what proves a payment
+  // Paying for a seat needs no account: the order is filed under the
+  // billing email, and the provider's signature is what proves a payment.
+  // A topic test attempt is the exception: it belongs to the signed-in
+  // account, which the session (never the request body) identifies.
   router.post('/checkout', async (req, res) => {
     const input = validate(createCheckoutSchema, req.body);
     res.status(201).json({
-      checkout: await createCheckout(context, gateway, input),
+      checkout: await createCheckout(
+        context,
+        gateway,
+        input,
+        req.auth?.userId ?? null,
+      ),
     } satisfies CheckoutResponse);
   });
 

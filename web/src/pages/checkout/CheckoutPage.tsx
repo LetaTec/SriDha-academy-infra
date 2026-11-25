@@ -1,9 +1,12 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import cx from 'classnames/bind';
 import { z } from 'zod';
 
+import { canViewMyBatches } from '@/access/account';
+import { canAnswerPapers } from '@/access/papers';
+import { AccountDialog } from '@components/auth/AccountDialog/AccountDialog';
 import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Checkbox } from '@components/ui/Checkbox/Checkbox';
 import { EmptyState } from '@components/ui/EmptyState/EmptyState';
@@ -26,8 +29,14 @@ import {
   INDIAN_STATES,
   PAYMENT_PROVIDER,
   PAYMENT_STATUS,
+  TEST_CHECKOUT_TEXT,
 } from '@constants/payments';
-import { APP_ROUTES } from '@constants/routes';
+import {
+  findTopicTestSize,
+  TOPIC_TEST_DURATION_SECONDS,
+} from '@constants/assessment';
+import { APP_ROUTES, toTopicTest } from '@constants/routes';
+import { useAuth } from '@context/AuthContext';
 import { useApiForm } from '@hooks/useApiForm';
 import { useRefreshAfterPayment } from '@hooks/useRefreshAfterPayment';
 import { useTopicPreviews } from '@hooks/useTopicPreviews';
@@ -183,11 +192,21 @@ const CheckoutPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const topicId = searchParams.get(CHECKOUT_QUERY_PARAM.topic);
   const batchParam = searchParams.get(CHECKOUT_QUERY_PARAM.batch);
-  const { previews, isLoading, hasError, reload } = useTopicPreviews();
+  // An attempt at a topic's test, instead of a seat
+  const testTopicId = searchParams.get(CHECKOUT_QUERY_PARAM.test);
+  const isTest = testTopicId !== null;
+  const { previews, allPreviews, isLoading, hasError, reload } =
+    useTopicPreviews();
   const navigate = useNavigate();
 
-  const preview =
-    previews.find(item => item.catalogueTopicId === topicId) ?? null;
+  // Test topics have no batches, so they come from every topic
+  const preview = isTest
+    ? (allPreviews.find(
+        item =>
+          item.catalogueTopicId === testTopicId &&
+          item.topic.testPrice !== null,
+      ) ?? null)
+    : (previews.find(item => item.catalogueTopicId === topicId) ?? null);
 
   // Back to where the topic was chosen, or to the Topics page when the
   // checkout link was opened directly
@@ -213,14 +232,20 @@ const CheckoutPage = () => {
           {CHECKOUT_TEXT.pageEyebrow}
         </Text>
         <Heading level={1} variant="display" id={TITLE_ID}>
-          {CHECKOUT_TEXT.pageTitle} <em>{CHECKOUT_TEXT.pageTitleEmphasis}</em>
+          {CHECKOUT_TEXT.pageTitle}{' '}
+          <em>
+            {isTest
+              ? TEST_CHECKOUT_TEXT.pageTitleEmphasis
+              : CHECKOUT_TEXT.pageTitleEmphasis}
+          </em>
         </Heading>
       </div>
 
       {preview ? (
         <CheckoutDetails
-          key={preview.catalogueTopicId}
+          key={`${preview.catalogueTopicId}-${isTest}`}
           preview={preview}
+          isTest={isTest}
           preferredBatchId={batchParam}
           onChooseBatch={chooseBatch}
         />
@@ -252,6 +277,8 @@ const CheckoutPage = () => {
 
 type CheckoutDetailsProps = {
   preview: TopicPreview;
+  // Buying one attempt at the topic's test, which needs a signed-in student
+  isTest: boolean;
   // A batch chosen before checkout, from the URL
   preferredBatchId: string | null;
   onChooseBatch: (batchId: string) => void;
@@ -259,10 +286,16 @@ type CheckoutDetailsProps = {
 
 const CheckoutDetails = ({
   preview,
+  isTest,
   preferredBatchId,
   onChooseBatch,
 }: CheckoutDetailsProps) => {
   const batchFieldName = useId();
+  const auth = useAuth();
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const needsAccount = isTest && !canAnswerPapers(auth);
+  const testQuestionCount = findTopicTestSize(preview.catalogueTopicId) ?? 0;
+  const testMinutes = TOPIC_TEST_DURATION_SECONDS / 60;
   const refreshAfterPayment = useRefreshAfterPayment();
   const [stage, setStage] = useState<Stage>({ name: 'details' });
   // Problems with Razorpay's window, which are not API errors
@@ -270,15 +303,17 @@ const CheckoutDetails = ({
 
   const { topic } = preview;
   const batches = topic.batches;
-  const isEnrolment = batches.length > 0;
+  const isEnrolment = !isTest && batches.length > 0;
   const openBatches = batches.filter(isBatchOpen);
   // The batch in the URL while it is open, else the next open one
   const batch =
     openBatches.find(item => item.id === preferredBatchId) ??
     openBatches[0] ??
     null;
-  const amount = topic.price ? formatPrice(topic.price) : null;
-  const canPay = Boolean(amount) && (!isEnrolment || batch !== null);
+  const price = isTest ? topic.testPrice : topic.price;
+  const amount = price ? formatPrice(price) : null;
+  const canPay =
+    Boolean(amount) && (!isEnrolment || batch !== null) && !needsAccount;
 
   const {
     register,
@@ -288,6 +323,8 @@ const CheckoutDetails = ({
     formError,
     clearFormError,
     handleApiError,
+    getValues,
+    setValue,
   } = useApiForm<BillingFormInput, BillingFormValues>({
     resolver: zodResolver(billingSchema),
     defaultValues: {
@@ -306,6 +343,18 @@ const CheckoutDetails = ({
       agreed: false,
     },
   });
+
+  // A signed-in student starts from their account's name and email, so the
+  // seat or test lands on their account (and in My batches)
+  const accountName = auth.user?.name ?? '';
+  const accountEmail = auth.user?.email ?? '';
+  useEffect(() => {
+    if (!canViewMyBatches(auth)) return;
+    if (accountName && !getValues('fullName')) {
+      setValue('fullName', accountName);
+    }
+    if (accountEmail && !getValues('email')) setValue('email', accountEmail);
+  }, [auth, accountName, accountEmail, getValues, setValue]);
 
   const customerType = watch('customerType');
   const isBusiness = customerType === CUSTOMER_TYPE.business;
@@ -341,17 +390,23 @@ const CheckoutDetails = ({
 
     try {
       const checkout = await createCheckout(
-        isEnrolment && batch
+        isTest
           ? {
-              kind: CHECKOUT_KIND.enrolment,
-              batchId: batch.id,
-              ...billingPayload,
-            }
-          : {
-              kind: CHECKOUT_KIND.preRegistration,
+              kind: CHECKOUT_KIND.testAttempt,
               topicId: topic.id,
               ...billingPayload,
-            },
+            }
+          : isEnrolment && batch
+            ? {
+                kind: CHECKOUT_KIND.enrolment,
+                batchId: batch.id,
+                ...billingPayload,
+              }
+            : {
+                kind: CHECKOUT_KIND.preRegistration,
+                topicId: topic.id,
+                ...billingPayload,
+              },
       );
 
       if (checkout.provider.name !== PAYMENT_PROVIDER.razorpay) {
@@ -410,9 +465,11 @@ const CheckoutDetails = ({
         ? CHECKOUT_TEXT.confirmingMessage(stage.email)
         : !isPaid
           ? CHECKOUT_TEXT.pendingMessage
-          : stage.checkout.batch
-            ? CHECKOUT_TEXT.paidEnrolment(stage.checkout.batch.name)
-            : CHECKOUT_TEXT.paidPreRegistration;
+          : isTest
+            ? TEST_CHECKOUT_TEXT.paid
+            : stage.checkout.batch
+              ? CHECKOUT_TEXT.paidEnrolment(stage.checkout.batch.name)
+              : CHECKOUT_TEXT.paidPreRegistration;
     return (
       <div className={cn('result')}>
         <StatusDot color={isPaid ? 'positive' : 'warning'} label={title} />
@@ -423,15 +480,64 @@ const CheckoutDetails = ({
           </Text>
         ) : null}
         <div className={cn('resultActions')}>
-          <ButtonRouteLink to={APP_ROUTES.TOPICS} endIcon="arrowRight">
-            {CHECKOUT_TEXT.browseTopics}
-          </ButtonRouteLink>
+          {isTest ? (
+            <ButtonRouteLink to={toTopicTest(topic.id)} endIcon="arrowRight">
+              {TEST_CHECKOUT_TEXT.startTest}
+            </ButtonRouteLink>
+          ) : isPaid && stage.checkout.batch && canViewMyBatches(auth) ? (
+            <ButtonRouteLink to={APP_ROUTES.MY_BATCHES} endIcon="arrowRight">
+              {CHECKOUT_TEXT.seeMyBatches}
+            </ButtonRouteLink>
+          ) : (
+            <ButtonRouteLink to={APP_ROUTES.TOPICS} endIcon="arrowRight">
+              {CHECKOUT_TEXT.browseTopics}
+            </ButtonRouteLink>
+          )}
         </div>
+        {/* A visitor who paid can follow the batch by signing up with the
+            same email */}
+        {isPaid &&
+        stage.checkout.batch &&
+        !isTest &&
+        !canViewMyBatches(auth) ? (
+          <div className={cn('resultActions')}>
+            <Text as="p" variant="small" tone="muted">
+              {CHECKOUT_TEXT.signUpForMyBatches(stage.email)}
+            </Text>
+            <Button variant="secondary" onClick={() => setIsAccountOpen(true)}>
+              {TEST_CHECKOUT_TEXT.signIn}
+            </Button>
+            <AccountDialog
+              open={isAccountOpen}
+              onClose={() => setIsAccountOpen(false)}
+            />
+          </div>
+        ) : null}
       </div>
     );
   }
 
-  const payAction = (
+  const payAction = needsAccount ? (
+    <>
+      <Text as="p" variant="strong">
+        {TEST_CHECKOUT_TEXT.signInTitle}
+      </Text>
+      <Text as="p" variant="small" tone="muted">
+        {TEST_CHECKOUT_TEXT.signInMessage}
+      </Text>
+      <Button
+        fullWidth
+        endIcon="arrowRight"
+        onClick={() => setIsAccountOpen(true)}
+      >
+        {TEST_CHECKOUT_TEXT.signIn}
+      </Button>
+      <AccountDialog
+        open={isAccountOpen}
+        onClose={() => setIsAccountOpen(false)}
+      />
+    </>
+  ) : (
     <>
       {formError || paymentError ? (
         <FieldStatus tone="error">{formError ?? paymentError}</FieldStatus>
@@ -477,9 +583,14 @@ const CheckoutDetails = ({
           preview={preview}
           batch={batch}
           isEnrolment={isEnrolment}
+          test={
+            isTest
+              ? { questionCount: testQuestionCount, minutes: testMinutes }
+              : undefined
+          }
         />
 
-        {isEnrolment ? (
+        {isTest ? null : isEnrolment ? (
           <section className={cn('card')}>
             <fieldset className={cn('batches')}>
               <legend className={cn('legend')}>
@@ -531,11 +642,13 @@ const CheckoutDetails = ({
 
         <section className={cn('card')}>
           <Heading level={2} variant="item">
-            {CHECKOUT_TEXT.teachTitle}
+            {isTest ? TEST_CHECKOUT_TEXT.coversTitle : CHECKOUT_TEXT.teachTitle}
           </Heading>
           <RuledList items={preview.subtopics} ordered />
           <Text as="p" variant="small" tone="muted">
-            {CHECKOUT_TEXT.paymentNote}
+            {isTest
+              ? TEST_CHECKOUT_TEXT.paymentNote
+              : CHECKOUT_TEXT.paymentNote}
           </Text>
         </section>
 
@@ -706,8 +819,9 @@ const CheckoutDetails = ({
       <aside className={cn('aside')}>
         <PriceSummary
           amount={amount}
-          taxLabel={topic.price?.taxLabel ?? null}
+          taxLabel={price?.taxLabel ?? null}
           action={payAction}
+          feeLabel={isTest ? TEST_CHECKOUT_TEXT.fee : undefined}
         />
       </aside>
     </div>

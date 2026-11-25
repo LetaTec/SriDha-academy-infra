@@ -22,6 +22,7 @@ export const PAYMENT_STATUS_COLOR: Record<PaymentStatus, StatusColor> = {
 export const CHECKOUT_KIND_LABEL: Record<CheckoutKind, string> = {
   ENROLMENT: 'Batch',
   PRE_REGISTRATION: 'Pre-registration',
+  TEST_ATTEMPT: 'Topic test',
 };
 
 // Filter values for the status dropdown; empty shows every order

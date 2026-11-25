@@ -30,6 +30,7 @@ const NotFoundPage = lazy(() => import('@pages/not-found/NotFoundPage'));
 const PolicyPage = lazy(() => import('@pages/policy/PolicyPage'));
 const TeamOrdersPage = lazy(() => import('@pages/team-orders/TeamOrdersPage'));
 const RefundsPage = lazy(() => import('@pages/refunds/RefundsPage'));
+const MyBatchesPage = lazy(() => import('@pages/my-batches/MyBatchesPage'));
 const CheckoutPage = lazy(() => import('@pages/checkout/CheckoutPage'));
 
 const SuspendedOutlet = () => (
@@ -96,6 +97,7 @@ export const routes: RouteObject[] = [
           { path: APP_ROUTES.AI_TEST, element: <AiTestPage /> },
           { path: APP_ROUTES.TOPIC_TESTS, element: <TopicTestsPage /> },
           { path: APP_ROUTES.TOPIC_TEST, element: <TopicTestPage /> },
+          { path: APP_ROUTES.MY_BATCHES, element: <MyBatchesPage /> },
           // Open to everyone; paying needs no account
           { path: APP_ROUTES.CHECKOUT, element: <CheckoutPage /> },
           {

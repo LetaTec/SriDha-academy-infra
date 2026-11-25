@@ -7,6 +7,7 @@ import { StatusDot } from '@components/ui/StatusDot/StatusDot';
 import { Text } from '@components/ui/Text/Text';
 import { TOPIC_TESTS_PAGE_TEXT as TEXT } from '@constants/assessment';
 import { toTopicTest } from '@constants/routes';
+import { formatPrice } from '@utils/currency';
 import type { TopicPreview } from '@services/catalogue';
 
 import styles from './TopicTestCard.module.css';
@@ -54,7 +55,15 @@ export const TopicTestCard = ({
     >
       {card}
       <span className={cn('offer')}>
-        <StatusDot color="positive" label={TEXT.readyStatus(questionCount)} />
+        <StatusDot
+          color="positive"
+          label={TEXT.readyStatus(
+            questionCount,
+            preview.topic.testPrice
+              ? formatPrice(preview.topic.testPrice)
+              : null,
+          )}
+        />
         <span className={cn('action')}>
           <Text as="span" variant="strong">
             {TEXT.takeAction}

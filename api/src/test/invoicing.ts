@@ -130,6 +130,7 @@ export const createQuotedPayment = async (
     userId,
     enrolmentId: null,
     preRegistrationId,
+    testAttemptId: null,
     amountPaise,
     currency: 'INR',
     provider: 'RAZORPAY',

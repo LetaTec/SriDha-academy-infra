@@ -32,11 +32,18 @@ export const useCountdown = (durationSeconds: number, onExpire: () => void) => {
     return () => window.clearInterval(interval);
   }, [isRunning]);
 
-  const start = useCallback(() => {
-    endsAt.current = Date.now() + durationSeconds * 1000;
-    setSecondsLeft(durationSeconds);
-    setIsRunning(true);
-  }, [durationSeconds]);
+  // Starts a full clock, or carries on one that ends at the given moment
+  // (milliseconds since the epoch), e.g. a paper resumed on return.
+  // Returns when the clock runs out.
+  const start = useCallback(
+    (resumeEndsAt?: number) => {
+      endsAt.current = resumeEndsAt ?? Date.now() + durationSeconds * 1000;
+      setSecondsLeft(Math.max(0, (endsAt.current - Date.now()) / 1000));
+      setIsRunning(true);
+      return endsAt.current;
+    },
+    [durationSeconds],
+  );
 
   const stop = useCallback(() => setIsRunning(false), []);
 

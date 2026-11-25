@@ -2,13 +2,14 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import cx from 'classnames/bind';
 
-import { canChangePassword } from '@/access/account';
+import { canChangePassword, canViewMyBatches } from '@/access/account';
 import { AccountDialog } from '@components/auth/AccountDialog/AccountDialog';
 import { ChangePasswordDialog } from '@components/auth/ChangePasswordDialog/ChangePasswordDialog';
-import { Button } from '@components/ui/Button/Button';
+import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { IconButton } from '@components/ui/IconButton/IconButton';
 import { Text } from '@components/ui/Text/Text';
 import { ACCOUNT_TEXT as TEXT } from '@constants/auth';
+import { APP_ROUTES } from '@constants/routes';
 import { useAuth } from '@context/AuthContext';
 
 import styles from './ProfileMenu.module.css';
@@ -21,7 +22,8 @@ export type ProfileMenuProps = {
 };
 
 // The profile button in the header. Signed out, it opens sign-up; signed
-// in, it shows who is signed in, Change password (students) and Sign out.
+// in, it shows who is signed in, My batches and Change password
+// (students) and Sign out.
 export const ProfileMenu = ({ onSignOut, isSigningOut }: ProfileMenuProps) => {
   const auth = useAuth();
   const { status, user } = auth;
@@ -95,6 +97,15 @@ export const ProfileMenu = ({ onSignOut, isSigningOut }: ProfileMenuProps) => {
             </Text>
           </div>
           <div className={cn('actions')}>
+            {canViewMyBatches(auth) ? (
+              <ButtonRouteLink
+                to={APP_ROUTES.MY_BATCHES}
+                variant="plain"
+                endIcon="arrowRight"
+              >
+                {TEXT.myBatches}
+              </ButtonRouteLink>
+            ) : null}
             {canChangePassword(auth) ? (
               <Button
                 variant="plain"

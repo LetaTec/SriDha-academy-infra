@@ -9,10 +9,6 @@
   text-align: center;
 }
 
-.lead {
-  max-width: var(--width-copy-wide);
-}
-
 .paper {
   margin-top: var(--space-8);
 }

@@ -64,6 +64,49 @@ export const ENROLMENT_STATUS_COLOR: Record<EnrolmentStatus, StatusColor> = {
   CANCELLED: 'neutral',
 };
 
+// The signed-in student's batches (from the profile menu)
+export const MY_BATCHES_TEXT = {
+  eyebrow: 'Your account',
+  title: 'My',
+  titleEmphasis: 'batches.',
+  loading: 'Loading your batches',
+  signInTitle: 'Sign in to see your batches',
+  signInMessage:
+    'Use the email you paid with, and every batch you booked shows here',
+  signIn: 'Sign up or log in',
+  loadError: 'Your batches are unavailable right now',
+  emptyTitle: 'No batches yet',
+  emptyMessage:
+    'Batches you book with this email show here, with their dates and teacher',
+  browseTopics: 'Browse topics',
+  // Under the topic's name, e.g. "Class 11 · Batch 2"
+  batchLine: (level: string | null, batch: string) =>
+    level ? `${level} · ${batch}` : batch,
+  upcomingTitle: 'Upcoming batches',
+  previousTitle: 'Previous batches',
+  startsIn: 'Class starts in',
+  nextDayIn: (day: number) => `Day ${day} starts in`,
+  liveNow: 'Your class is on now',
+  liveUntil: (time: string) => `Until ${time}`,
+  completedOn: (date: string) => `Completed on ${date}`,
+  dateToBeAnnounced: 'The class date will be announced soon',
+  datesLabel: 'Dates',
+  timeLabel: 'Time',
+  sessionsLabel: 'Sessions',
+  teacherLabel: 'Teacher',
+  units: { days: 'Days', hours: 'Hours', minutes: 'Min', seconds: 'Sec' },
+  // Read out for the countdown, e.g. "3 days 4 hours 12 minutes"
+  countdownLabel: ({
+    days,
+    hours,
+    minutes,
+  }: {
+    days: number;
+    hours: number;
+    minutes: number;
+  }) => `${days} days ${hours} hours ${minutes} minutes`,
+} as const;
+
 export const CATALOGUE_ERROR_CODE = {
   alreadyEnrolled: 'ALREADY_ENROLLED',
   batchFull: 'BATCH_FULL',

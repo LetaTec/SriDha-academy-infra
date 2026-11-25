@@ -11,6 +11,12 @@ export const toCheckoutPath = (topicId: string, batchId: string | null) => {
   return `${APP_ROUTES.CHECKOUT}?${params}`;
 };
 
+// The checkout page for one attempt at a topic's test
+export const toTestCheckoutPath = (topicId: string) =>
+  `${APP_ROUTES.CHECKOUT}?${new URLSearchParams({
+    [CHECKOUT_QUERY_PARAM.test]: topicId,
+  })}`;
+
 // Opens the checkout page. Its topic and batch live in the URL, so the page
 // survives signing in and reloading, and Back returns to where the student
 // chose the topic.

@@ -8,8 +8,9 @@ export const listOrderRows = (db: DatabaseClient, limit: number) =>
             p.billing_email, p.billing_mobile, p.billing_state, p.billing_city,
             u.email AS account_email,
             p.enrolment_id, b.name AS batch_name,
-            COALESCE(enrolled.title, registered.title) AS topic_title,
-            COALESCE(e.status, r.status) AS seat_status
+            p.pre_registration_id,
+            COALESCE(enrolled.title, registered.title, tested.title) AS topic_title,
+            COALESCE(e.status, r.status, a.status) AS seat_status
      FROM payments p
      JOIN users u ON u.id = p.user_id
      LEFT JOIN enrolments e ON e.id = p.enrolment_id
@@ -17,6 +18,8 @@ export const listOrderRows = (db: DatabaseClient, limit: number) =>
      LEFT JOIN topics enrolled ON enrolled.id = b.topic_id
      LEFT JOIN pre_registrations r ON r.id = p.pre_registration_id
      LEFT JOIN topics registered ON registered.id = r.topic_id
+     LEFT JOIN test_attempts a ON a.id = p.test_attempt_id
+     LEFT JOIN topics tested ON tested.id = a.topic_id
      ORDER BY p.created_at DESC
      LIMIT $1`,
     [limit],

@@ -11,7 +11,7 @@ import { POLICY_LINKS, POLICY_LINKS_TITLE } from './policies';
 export const BRAND = {
   name: 'SriDha Academy',
   footerLead:
-    'A focused education platform for topic-wise live classes, PYQ test papers and topic test papers',
+    'A focused education platform for topic-wise live classes, test papers and topic test papers',
   copyright: '© 2026 SriDha Academy',
   footerNote: 'Designed as an editorial learning experience',
 } as const;
@@ -19,7 +19,7 @@ export const BRAND = {
 // isSection: a jump to a section of a page, never shown as the current page.
 export const NAV_LINKS = [
   { label: 'Topics', to: APP_ROUTES.TOPICS, isSection: false },
-  { label: 'PYQ Test Paper', to: APP_ROUTES.AI_TEST, isSection: false },
+  { label: 'Test Paper (Free)', to: APP_ROUTES.AI_TEST, isSection: false },
   { label: 'Topic Test Paper', to: APP_ROUTES.TOPIC_TESTS, isSection: false },
   { label: 'About', to: APP_ROUTES.ABOUT, isSection: false },
 ] as const;
@@ -68,7 +68,7 @@ export const HERO_TEXT = {
   lead: 'Type a topic or your class to see its fee, lessons and next batches. No account needed to look around',
   popularLabel: 'Popular',
   searchLabel: 'Search your topic',
-  highlights: ['Live topic batches', 'PYQ test papers', 'Topic test papers'],
+  highlights: ['Live topic batches', 'Test papers', 'Topic test papers'],
 } as const;
 
 // Scenes either side of the search (the first of each side on phones)
@@ -115,10 +115,10 @@ export const LEARNING_JOURNEY_TEXT = {
       to: toPageSection(APP_ROUTES.HOME, HOME_SECTION_ID.topics),
     },
     {
-      title: 'Practise past papers',
+      title: 'Practise test papers',
       description:
         'Twenty questions from real Class 12 board, JEE Advanced and NEET papers, marked straight away',
-      action: 'PYQ Test Paper',
+      action: 'Test Paper',
       to: APP_ROUTES.AI_TEST,
     },
     {
@@ -172,11 +172,11 @@ export const PROGRAMS_TEXT = {
     },
     {
       tag: '02 / Practice',
-      title: 'PYQ Test',
+      title: 'Test',
       titleEnd: 'Paper',
       description:
         'Twenty questions from real Class 12 board, JEE Advanced and NEET papers, with a twenty-minute clock and instant marking.',
-      action: 'Practise past papers',
+      action: 'Practise test papers',
       to: APP_ROUTES.AI_TEST,
     },
     {
@@ -215,7 +215,7 @@ export const FOOTER_COLUMNS = [
     title: 'Explore',
     links: [
       { label: 'Topics', to: APP_ROUTES.TOPICS },
-      { label: 'PYQ Test Paper', to: APP_ROUTES.AI_TEST },
+      { label: 'Test Paper', to: APP_ROUTES.AI_TEST },
       { label: 'Topic Test Paper', to: APP_ROUTES.TOPIC_TESTS },
     ],
   },
@@ -249,7 +249,7 @@ export const BOOK_TEXT = {
       'Every subject is broken into topics. Turn the page to see the topics, lessons and batches open right now.',
     items: [
       '01 — Topic-wise classes',
-      '02 — PYQ test papers',
+      '02 — Test papers',
       '03 — Topic test papers',
     ],
   },
@@ -295,7 +295,7 @@ export const BOOK_TEXT = {
       titleEmphasis: 'chapter.',
       description:
         'Choose your first topic and start building a stronger study routine',
-      items: ['Topic-wise classes', 'PYQ test papers', 'Topic test papers'],
+      items: ['Topic-wise classes', 'Test papers', 'Topic test papers'],
     },
   ],
 } as const;

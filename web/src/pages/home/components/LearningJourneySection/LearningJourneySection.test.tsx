@@ -21,7 +21,7 @@ describe('LearningJourneySection', () => {
     ).toEqual([
       'Pick a topic',
       'Join the live classes',
-      'Practise past papers',
+      'Practise test papers',
       'Take the topic test',
     ]);
     expect(
@@ -31,7 +31,7 @@ describe('LearningJourneySection', () => {
     ).toEqual([
       ['Browse topics', '/topics'],
       ['See open batches', '/#topics'],
-      ['PYQ Test Paper', '/ai-test'],
+      ['Test Paper', '/ai-test'],
       ['Topic Test Paper', '/topic-tests'],
     ]);
     // Only what students can use today
