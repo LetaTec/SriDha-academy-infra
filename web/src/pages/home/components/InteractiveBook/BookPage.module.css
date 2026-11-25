@@ -86,3 +86,10 @@
     white-space: nowrap;
   }
 }
+
+/* The loading page's placeholder lines */
+.skeletonLines {
+  display: grid;
+  gap: var(--space-1-5);
+  margin-top: var(--space-3);
+}

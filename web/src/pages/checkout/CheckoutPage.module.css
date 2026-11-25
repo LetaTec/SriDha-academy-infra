@@ -212,3 +212,12 @@
     transition: none;
   }
 }
+
+.visuallyHidden {
+  position: absolute;
+  width: var(--size-visually-hidden);
+  height: var(--size-visually-hidden);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

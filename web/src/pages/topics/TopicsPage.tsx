@@ -126,12 +126,15 @@ const TopicsPage = () => {
           selected={filters.subject}
           counts={countTopicsBySubject(resultsInAnySubject)}
           total={resultsInAnySubject.length}
+          isLoading={isLoading}
           onSelect={subject =>
             setParam(TOPIC_FILTER_PARAM.subject, subject ?? '')
           }
         />
         <Text as="p" variant="small" tone="muted" aria-live="polite">
-          {PAGE_TEXT.topicsCount(results.length, previews.length)}
+          {isLoading
+            ? null
+            : PAGE_TEXT.topicsCount(results.length, previews.length)}
         </Text>
       </div>
 

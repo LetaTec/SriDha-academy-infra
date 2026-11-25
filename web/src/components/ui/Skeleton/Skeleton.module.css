@@ -1,0 +1,55 @@
+/* A soft placeholder that gently fades while content loads */
+.skeleton {
+  display: block;
+  background: var(--color-bg-placeholder);
+  animation: pulse var(--duration-pulse) ease-in-out infinite;
+}
+
+.line {
+  height: var(--space-1-5);
+}
+
+.title {
+  height: var(--space-3);
+}
+
+.price {
+  height: var(--space-2-5);
+}
+
+.icon {
+  width: var(--space-6);
+  height: var(--space-6);
+}
+
+.width-full {
+  width: 100%;
+}
+
+.width-lg {
+  width: 80%;
+}
+
+.width-md {
+  width: 60%;
+}
+
+.width-sm {
+  width: 40%;
+}
+
+.width-xs {
+  width: 25%;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: var(--opacity-pulse-min);
+  }
+}
+
+@media (--reduced-motion) {
+  .skeleton {
+    animation: none;
+  }
+}

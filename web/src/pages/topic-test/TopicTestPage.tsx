@@ -156,7 +156,7 @@ const TopicTestPage = () => {
   return (
     <Section labelledBy={TITLE_ID} className={cn('page')}>
       {isLoading || hasError ? (
-        <TopicsStatus hasError={hasError} onRetry={reload} />
+        <TopicsStatus hasError={hasError} onRetry={reload} skeleton="spinner" />
       ) : preview && questionCount ? (
         // A different topic is a fresh start
         <TopicTest

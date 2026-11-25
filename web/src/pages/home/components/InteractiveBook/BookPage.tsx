@@ -5,6 +5,7 @@ import { formatTopicPrice } from '@components/catalogue/batchDetails';
 import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Heading } from '@components/ui/Heading/Heading';
 import { RuledList } from '@components/ui/RuledList/RuledList';
+import { Skeleton } from '@components/ui/Skeleton/Skeleton';
 import { StatusDot } from '@components/ui/StatusDot/StatusDot';
 import { Text } from '@components/ui/Text/Text';
 import {
@@ -209,7 +210,15 @@ export const BookPage = ({
                 </Button>
               </div>
             </>
-          ) : null}
+          ) : (
+            // Placeholder lines where the topics will be listed
+            <div className={cn('copy', 'skeletonLines')} aria-hidden="true">
+              <Skeleton width="lg" />
+              <Skeleton width="md" />
+              <Skeleton width="lg" />
+              <Skeleton width="sm" />
+            </div>
+          )}
         </div>
       );
 

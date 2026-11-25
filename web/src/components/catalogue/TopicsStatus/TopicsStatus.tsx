@@ -2,6 +2,7 @@ import cx from 'classnames/bind';
 
 import { Button } from '@components/ui/Button/Button';
 import { EmptyState } from '@components/ui/EmptyState/EmptyState';
+import { TopicCardSkeletons } from '@components/catalogue/TopicCardSkeletons/TopicCardSkeletons';
 import { Spinner } from '@components/ui/Spinner/Spinner';
 import { Text } from '@components/ui/Text/Text';
 import { CATALOGUE_TEXT } from '@constants/catalogue';
@@ -13,11 +14,21 @@ const cn = cx.bind(styles);
 export type TopicsStatusProps = {
   hasError: boolean;
   onRetry: () => void;
+  // While loading, show placeholder topic cards (a list of topics), or
+  // just a spinner (a page about one topic)
+  skeleton?: 'cards' | 'spinner';
+  // How many placeholder cards, e.g. as many as the list will show
+  count?: number;
 };
 
 // Stands in for a list of topics while the catalogue loads, or when it
 // could not be loaded
-export const TopicsStatus = ({ hasError, onRetry }: TopicsStatusProps) =>
+export const TopicsStatus = ({
+  hasError,
+  onRetry,
+  skeleton = 'cards',
+  count,
+}: TopicsStatusProps) =>
   hasError ? (
     <EmptyState
       title={CATALOGUE_TEXT.loadError}
@@ -27,6 +38,8 @@ export const TopicsStatus = ({ hasError, onRetry }: TopicsStatusProps) =>
         </Button>
       }
     />
+  ) : skeleton === 'cards' ? (
+    <TopicCardSkeletons count={count} />
   ) : (
     <div className={cn('loading')} role="status">
       <Spinner tone="muted" />
