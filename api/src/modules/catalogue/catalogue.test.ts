@@ -47,6 +47,14 @@ describe('catalogue', () => {
     assert.ok(batchIds.every(id => /_b\d+$/.test(id)));
   });
 
+  it('lists each topic once: no two share a name and class', () => {
+    const keys = topics.map(topic => `${topic.shortTitle} / ${topic.level}`);
+    assert.deepEqual(
+      keys.filter((key, index) => keys.indexOf(key) !== index),
+      [],
+    );
+  });
+
   it('serves every topic in the topic library, which the website reads', () => {
     const served = new Set(topics.map(topic => topic.id));
 
