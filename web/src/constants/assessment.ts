@@ -146,10 +146,8 @@ const TOPIC_TEST_TIME = `${TOPIC_TEST_DURATION_SECONDS / 60} minutes`;
 // The Topic Test Paper page (from the header): every topic, with a test to
 // take on the topics that have one
 export const TOPIC_TESTS_PAGE_TEXT = {
-  eyebrow: 'Topic Test Paper / One topic at a time',
   title: 'Test yourself,',
   titleEmphasis: 'one topic at a time.',
-  lead: `Twenty hard questions on a single topic, with ${TOPIC_TEST_TIME} on the clock. Pick a topic, pay for an attempt, start when you are ready and see every answer once the paper is marked`,
   readyTitle: 'Tests ready to take',
   soonTitle: 'Tests coming soon',
   takeAction: 'Take the test',

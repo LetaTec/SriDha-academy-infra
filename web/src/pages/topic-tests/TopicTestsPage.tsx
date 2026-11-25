@@ -91,17 +91,11 @@ const TopicTestsPage = () => {
   return (
     <Section labelledBy={TITLE_ID} className={cn('page')}>
       <div className={cn('intro')}>
-        <Text as="div" variant="eyebrow">
-          {TEXT.eyebrow}
-        </Text>
         <Heading level={1} variant="hero" id={TITLE_ID}>
           {TEXT.title}
           <br />
           <em>{TEXT.titleEmphasis}</em>
         </Heading>
-        <Text as="p" variant="lead" tone="muted" className={cn('lead')}>
-          {TEXT.lead}
-        </Text>
       </div>
 
       <div className={cn('controls')}>

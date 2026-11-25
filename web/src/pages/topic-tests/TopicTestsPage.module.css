@@ -1,5 +1,5 @@
 .page {
-  padding-top: calc(var(--height-header) + var(--space-10));
+  padding-top: calc(var(--height-header) + var(--space-8));
 }
 
 .intro {
@@ -9,21 +9,17 @@
   text-align: center;
 }
 
-.lead {
-  max-width: var(--width-copy-wide);
-}
-
 .controls {
   display: grid;
   gap: var(--space-1-5);
   max-width: var(--width-copy-wide);
-  margin: var(--space-8) auto 0;
+  margin: var(--space-4) auto 0;
 }
 
 .groups {
   display: grid;
-  gap: var(--space-10);
-  margin-top: var(--space-6);
+  gap: var(--space-8);
+  margin-top: var(--space-4);
 }
 
 .group {
