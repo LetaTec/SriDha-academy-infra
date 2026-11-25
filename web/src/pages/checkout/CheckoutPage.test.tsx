@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { QUERY_KEY } from '@/app/queryClient';
+import { AuthProvider } from '@context/AuthContext';
+import { ToastProvider } from '@context/ToastContext';
+import { getCurrentSession } from '@services/auth/api';
 import { getCatalogue } from '@services/catalogue/api';
 import { createCheckout } from '@services/payments/api';
 import { catalogueFixture, openBatch } from '@/test/catalogueFixture';
@@ -17,6 +20,29 @@ vi.mock('@services/payments/api', () => ({
   verifyPayment: vi.fn(),
 }));
 vi.mock('@services/payments/razorpay', () => ({ payWithRazorpay: vi.fn() }));
+vi.mock('@services/auth/api', () => ({
+  getCurrentSession: vi.fn(),
+  logoutStudent: vi.fn(),
+  signInStudent: vi.fn(),
+  signUpStudent: vi.fn(),
+}));
+
+const signedInStudent = {
+  id: 'user_1',
+  email: 'meera@example.com',
+  role: 'STUDENT' as const,
+  name: 'Meera Iyer',
+  student: null,
+};
+
+const signedOut = () =>
+  Object.assign(new Error('Unauthorized'), {
+    isAxiosError: true,
+    response: {
+      status: 401,
+      data: { message: 'Sign in', code: 'UNAUTHENTICATED', details: null },
+    },
+  });
 
 const GST_TOPIC_ID = 'topic_accounts_gst_class_11';
 const RAJASTHAN_GSTIN = '08AAGCL9166P1ZL';
@@ -39,13 +65,18 @@ const renderCheckout = (path = `/checkout?topic=${GST_TOPIC_ID}`) => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ToastProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 };
 
 describe('CheckoutPage — B2C & B2B Billing', () => {
   beforeEach(() => {
+    vi.mocked(getCurrentSession).mockRejectedValue(signedOut());
     vi.mocked(getCatalogue).mockResolvedValue(catalogueFixture);
     vi.mocked(createCheckout).mockResolvedValue({
       paymentId: 'pay_test_123',
@@ -136,6 +167,78 @@ describe('CheckoutPage — B2C & B2B Billing', () => {
         pinCode: '302006',
       });
     });
+  });
+
+  it('sells a signed-in student one ₹5 attempt at a topic test, with no teacher or batch', async () => {
+    vi.mocked(getCurrentSession).mockResolvedValue(signedInStudent);
+    const user = userEvent.setup();
+    renderCheckout(`/checkout?test=${GST_TOPIC_ID}`);
+
+    await screen.findByRole('heading', { name: /Review your/ });
+    expect(await screen.findByText('Topic test')).toBeInTheDocument();
+    expect(screen.getByText('Test fee')).toBeInTheDocument();
+    expect(screen.getByText('45 minutes')).toBeInTheDocument();
+    expect(screen.queryByText(/Your tutor/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Choose your batch/i)).not.toBeInTheDocument();
+
+    // The account's name and email are filled in
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: /Full name/i })).toHaveValue(
+        'Meera Iyer',
+      ),
+    );
+    expect(screen.getByRole('textbox', { name: /Email ID/i })).toHaveValue(
+      'meera@example.com',
+    );
+
+    await user.type(
+      screen.getByRole('textbox', { name: /Mobile number/i }),
+      '+91 98765 43210',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /Billing address/i }),
+      '4 MG Road',
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /State/i }),
+      'Karnataka',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /City/i }),
+      'Bengaluru',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /PIN code/i }),
+      '560001',
+    );
+    await user.click(screen.getByRole('checkbox', { name: /I agree to the/i }));
+    await user.click(screen.getByRole('button', { name: /Pay ₹5/i }));
+
+    await waitFor(() => {
+      expect(createCheckout).toHaveBeenCalledWith({
+        kind: 'TEST_ATTEMPT',
+        topicId: GST_TOPIC_ID,
+        customerType: 'INDIVIDUAL',
+        fullName: 'Meera Iyer',
+        email: 'meera@example.com',
+        mobile: '+91 98765 43210',
+        addressLine1: '4 MG Road',
+        state: 'Karnataka',
+        city: 'Bengaluru',
+        pinCode: '560001',
+      });
+    });
+  });
+
+  it('asks a visitor to sign in before buying a topic test', async () => {
+    renderCheckout(`/checkout?test=${GST_TOPIC_ID}`);
+
+    expect(
+      await screen.findByText('Sign in to buy the test'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Pay ₹5/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('submits B2B Business checkout with legal name, GSTIN and PO reference', async () => {

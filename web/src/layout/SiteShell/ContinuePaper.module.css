@@ -1,0 +1,47 @@
+/* Floats just under the fixed header, on the right, without moving the page */
+.card {
+  position: fixed;
+  top: calc(var(--height-header) + var(--space-1-5));
+  right: var(--space-3);
+  /* Under the profile menu, which opens over it */
+  z-index: var(--z-content);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100% - var(--space-3) * 2);
+  padding: var(--space-1-5) var(--space-2);
+  border: var(--border-width-base) solid var(--color-border-strong);
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-offset-accent-sm);
+}
+
+.text {
+  display: grid;
+  gap: var(--space-0-25);
+  min-width: 0;
+}
+
+.eyebrow {
+  color: var(--color-text-brand);
+}
+
+.paper {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Phones: across the top, the link under the paper and clock */
+@media (--viewport-sm) {
+  .card {
+    right: var(--space-2);
+    left: var(--space-2);
+    flex-wrap: wrap;
+    max-width: none;
+    gap: var(--space-1) var(--space-1-5);
+  }
+
+  .text {
+    flex: 1 1 auto;
+  }
+}

@@ -19,6 +19,7 @@ import { createSessionMiddleware } from '../modules/auth/session.js';
 import { createCatalogueRouter } from '../modules/catalogue/catalogue.routes.js';
 import { createEnquiriesRouter } from '../modules/enquiries/enquiries.routes.js';
 import { createEnrolmentsRouter } from '../modules/enrolments/enrolments.routes.js';
+import { createTestAttemptsRouter } from '../modules/test-attempts/testAttempts.routes.js';
 import {
   createPaymentsRouter,
   createPreRegistrationsRouter,
@@ -249,6 +250,7 @@ export const createApp = (context: AppContext) => {
   api.use('/enrolments', createEnrolmentsRouter(context));
   api.use('/payments', createPaymentsRouter(context));
   api.use('/pre-registrations', createPreRegistrationsRouter(context));
+  api.use('/test-attempts', createTestAttemptsRouter(context));
   api.use('/admin', createAdminRouter(context));
   api.use('/finance', createFinanceRouter(context));
   api.use('/enquiries', createEnquiriesRouter(context));

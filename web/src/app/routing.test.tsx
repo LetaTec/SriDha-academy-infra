@@ -16,7 +16,13 @@ import { ToastProvider } from '@context/ToastContext';
 import { confirmAdminSignIn, getCurrentSession } from '@services/auth/api';
 import { getCatalogue } from '@services/catalogue/api';
 import { listTeamOrders } from '@services/admin/api';
-import { createCheckout, verifyPayment } from '@services/payments/api';
+import {
+  createCheckout,
+  finishTestAttempt,
+  listTestAttempts,
+  startTestAttempt,
+  verifyPayment,
+} from '@services/payments/api';
 import { payWithRazorpay } from '@services/payments/razorpay';
 import { catalogueFixture, openBatch } from '@/test/catalogueFixture';
 
@@ -32,6 +38,10 @@ vi.mock('@services/auth/api', () => ({
 vi.mock('@services/payments/api', () => ({
   createCheckout: vi.fn(),
   verifyPayment: vi.fn(),
+  listMyBatches: vi.fn().mockResolvedValue([]),
+  listTestAttempts: vi.fn().mockResolvedValue([]),
+  startTestAttempt: vi.fn(),
+  finishTestAttempt: vi.fn(),
 }));
 // Razorpay's own checkout window (an external script) is never loaded
 vi.mock('@services/payments/razorpay', () => ({ payWithRazorpay: vi.fn() }));
@@ -772,7 +782,7 @@ describe('app routing', () => {
       expect(
         await screen.findByRole(
           'heading',
-          { level: 1, name: /real past papers/ },
+          { level: 1, name: /test papers/ },
           { timeout: LAZY_PAGE_TIMEOUT_MS },
         ),
       ).toBeInTheDocument();
@@ -791,7 +801,7 @@ describe('app routing', () => {
       // The header names the page after what is on it
       expect(
         within(screen.getByRole('banner')).getAllByRole('link', {
-          name: 'PYQ Test Paper',
+          name: 'Test Paper (Free)',
         })[0],
       ).toHaveAttribute('href', '/ai-test');
       // Real papers, not a feature in the workshop
@@ -802,9 +812,23 @@ describe('app routing', () => {
   );
 
   it(
-    'lists topic tests, ready ones first, and takes a two-hour topic test',
+    'lists topic tests, ready ones first, and takes a paid 45-minute attempt',
     async () => {
       vi.mocked(getCurrentSession).mockResolvedValue(student);
+      const attempt = {
+        id: 'attempt_1',
+        topicId: 'topic_physics_ray_optics_class_12',
+        status: 'CONFIRMED' as const,
+        startedAt: null,
+        endsAt: null,
+      };
+      vi.mocked(listTestAttempts).mockResolvedValue([attempt]);
+      vi.mocked(startTestAttempt).mockImplementation(async () => ({
+        ...attempt,
+        startedAt: new Date().toISOString(),
+        endsAt: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
+      }));
+      vi.mocked(finishTestAttempt).mockResolvedValue(attempt);
       const user = userEvent.setup();
       // Old model paper links land on the topic tests
       const router = renderApp('/model-paper');
@@ -847,8 +871,11 @@ describe('app routing', () => {
       expect(router.state.location.pathname).toBe(
         '/topic-tests/topic_physics_ray_optics_class_12',
       );
-      // The clock waits for the student
+      // The clock waits for the student, who has a paid attempt
       expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+      expect(
+        await screen.findByText(/Your attempt is paid and ready/),
+      ).toBeInTheDocument();
 
       // Awaited act: the questions are their own download
       await act(async () => {
@@ -856,6 +883,7 @@ describe('app routing', () => {
           screen.getByRole('button', { name: 'Start the test' }),
         );
       });
+      expect(startTestAttempt).toHaveBeenCalledWith('attempt_1');
       const paper = screen.getByRole('region', { name: 'Topic test paper' });
       // Questions download separately from the page
       expect(
@@ -865,7 +893,9 @@ describe('app routing', () => {
           { timeout: LAZY_PAGE_TIMEOUT_MS },
         ),
       ).toHaveLength(20);
-      expect(within(paper).getByText(/^Time left (2:00:00|1:59:5\d)$/));
+      expect(within(paper).getByRole('timer')).toHaveTextContent(
+        /Time left\s*(45:00|44:5\d)/,
+      );
 
       // Once marked, every question says why its answer is right
       await user.click(within(paper).getAllByRole('radio')[0]);
@@ -873,9 +903,35 @@ describe('app routing', () => {
         within(paper).getByRole('button', { name: 'Submit answers' }),
       );
       expect(within(paper).getAllByText(/^Why: /)).toHaveLength(20);
+      // The attempt is used up; another one is bought
+      expect(finishTestAttempt).toHaveBeenCalledWith('attempt_1');
+      expect(
+        within(paper).getByRole('link', { name: /Take it again for ₹5/ }),
+      ).toHaveAttribute(
+        'href',
+        '/checkout?test=topic_physics_ray_optics_class_12',
+      );
     },
     JOURNEY_TEST_TIMEOUT_MS,
   );
+
+  it('sends a student without a paid attempt to pay ₹5 for one', async () => {
+    vi.mocked(getCurrentSession).mockResolvedValue(student);
+    vi.mocked(listTestAttempts).mockResolvedValue([]);
+    renderApp('/topic-tests/topic_physics_ray_optics_class_12');
+
+    expect(
+      await screen.findByRole(
+        'link',
+        { name: /Pay ₹5 to take the test/ },
+        { timeout: LAZY_PAGE_TIMEOUT_MS },
+      ),
+    ).toHaveAttribute(
+      'href',
+      '/checkout?test=topic_physics_ray_optics_class_12',
+    );
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+  });
 
   it('says when a topic’s test is not ready yet', async () => {
     vi.mocked(getCurrentSession).mockResolvedValue(student);

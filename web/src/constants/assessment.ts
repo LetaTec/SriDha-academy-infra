@@ -137,10 +137,11 @@ export const SAMPLE_TEST_QUESTION_COUNT = 20;
 // A minute a question
 export const SAMPLE_TEST_DURATION_SECONDS = 20 * 60;
 
-// Topic tests are harder: two hours for the twenty questions
-export const TOPIC_TEST_DURATION_SECONDS = 2 * 60 * 60;
+// One paid attempt at a topic test lasts 45 minutes. The API sets when an
+// attempt ends; this is the time shown before it starts.
+export const TOPIC_TEST_DURATION_SECONDS = 45 * 60;
 
-const TOPIC_TEST_HOURS = `${TOPIC_TEST_DURATION_SECONDS / 3600} hours`;
+const TOPIC_TEST_TIME = `${TOPIC_TEST_DURATION_SECONDS / 60} minutes`;
 
 // The Topic Test Paper page (from the header): every topic, with a test to
 // take on the topics that have one
@@ -148,11 +149,13 @@ export const TOPIC_TESTS_PAGE_TEXT = {
   eyebrow: 'Topic Test Paper / One topic at a time',
   title: 'Test yourself,',
   titleEmphasis: 'one topic at a time.',
-  lead: `Twenty hard questions on a single topic, with ${TOPIC_TEST_HOURS} on the clock. Pick a topic, start when you are ready and see every answer once the paper is marked`,
+  lead: `Twenty hard questions on a single topic, with ${TOPIC_TEST_TIME} on the clock. Pick a topic, pay for an attempt, start when you are ready and see every answer once the paper is marked`,
   readyTitle: 'Tests ready to take',
   soonTitle: 'Tests coming soon',
   takeAction: 'Take the test',
-  readyStatus: (count: number) => `${count} questions · ${TOPIC_TEST_HOURS}`,
+  // e.g. "₹5 · 20 questions · 45 minutes"
+  readyStatus: (count: number, price: string | null) =>
+    [price, `${count} questions`, TOPIC_TEST_TIME].filter(Boolean).join(' · '),
   soonStatus: 'Test coming soon',
   actionLabel: (title: string, level: string) =>
     `Take the ${title} test, ${level}`,
@@ -169,32 +172,53 @@ export const TOPIC_TEST_TEXT = {
   titleEmphasis: 'Topic test.',
   rules: (count: number) => [
     `${count} questions, 1 mark each`,
-    `${TOPIC_TEST_HOURS} on the clock, starting when you press start`,
+    `${TOPIC_TEST_TIME} on the clock, starting when you press start`,
+    'One payment is one attempt. Leaving the page does not stop the clock',
     'The paper submits itself when the time runs out',
     'The right answers and your score show once it is marked',
   ],
   rulesLabel: 'Before you start',
   start: 'Start the test',
+  // A student with no paid attempt
+  buy: (price: string) => `Pay ${price} to take the test`,
+  buyAgain: (price: string) => `Take it again for ${price}`,
+  // A visitor signs up first
+  signUpToStart: 'Sign up or log in to take the test',
+  attemptReady:
+    'Your attempt is paid and ready. The clock starts when you press start',
+  attemptsError: 'We could not check your attempts. Please try again',
+  startError: 'The test could not start. Please try again',
+  retry: 'Try again',
   instruction:
     'Choose the correct option. Each question carries 1 mark. The paper submits itself when the clock runs out',
   meta: (level: string, topic: string, total: number) => [
     level,
     topic,
     `Max. marks ${total}`,
-    TOPIC_TEST_HOURS,
+    TOPIC_TEST_TIME,
   ],
   paperLabel: 'Topic test paper',
+  // On the header's continue card, e.g. "GST · Class 11"
+  sessionTitle: (topic: string, level: string | null) =>
+    level ? `${topic} · ${level}` : topic,
   back: 'All topic tests',
   notReadyTitle: 'This test is not ready yet',
   notReadyMessage: 'Pick a topic whose test is ready to take',
 } as const;
 
+// The card under the header while a test paper is in progress elsewhere
+export const CONTINUE_PAPER_TEXT = {
+  label: 'Test paper in progress',
+  title: 'Continue your paper',
+  action: 'Continue',
+  seeScore: 'See your score',
+} as const;
+
 // The AI Test page (from the header): the paper leads the page
 export const AI_TEST_PAGE_TEXT = {
-  eyebrow: 'PYQ Test Paper / Previous year questions',
+  eyebrow: 'Test Paper',
   title: 'Practise with',
-  titleEmphasis: 'real past papers.',
-  lead: 'Twenty questions from real Class 12 board, JEE Advanced and NEET papers. Pick a class or exam, beat the 20-minute clock and see your score straight away',
+  titleEmphasis: 'test papers.',
   note: 'AI papers made for each student are on the way',
   // The paper opens on the board and entrance exam questions
   initialTrack: 'class12',
@@ -202,7 +226,6 @@ export const AI_TEST_PAGE_TEXT = {
 } as const;
 
 export const SAMPLE_TEST_TEXT = {
-  brand: 'SriDha Academy / AI Assessment',
   count: (total: number) => `Q 01–${String(total).padStart(2, '0')}`,
   title: 'Test',
   titleEnd: 'Paper',
@@ -217,6 +240,9 @@ export const SAMPLE_TEST_TEXT = {
   answered: (count: number, total: number) => `Answered ${count} of ${total}`,
   timeLeft: (time: string) => `Time left ${time}`,
   timeUp: "Time's up",
+  timeLeftLabel: 'Time left',
+  // The paper on the header's "Continue your paper" card
+  sessionTitle: (track: string, subject: string) => `${track} · ${subject}`,
   submit: 'Submit answers',
   tryAgain: 'Try again',
   score: (score: number, total: number) => `Score ${score} / ${total}`,

@@ -7,6 +7,9 @@ export const QUERY_KEY = {
   catalogue: ['catalogue'],
   teamOrders: ['team-orders'],
   refunds: ['refunds'],
+  myBatches: ['my-batches'],
+  // One topic's attempts are ['test-attempts', topicId]
+  testAttempts: ['test-attempts'],
 } as const;
 
 const MINUTE_MS = 60 * 1000;

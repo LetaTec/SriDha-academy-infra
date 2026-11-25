@@ -6,6 +6,7 @@ import { transaction, type DatabaseClient, type Row } from '../../db/client.js';
 import { logger } from '../../logging/logger.js';
 import { setEnrolmentStatus } from '../enrolments/enrolments.repository.js';
 import { ENROLMENT_STATUS } from '../enrolments/enrolments.service.js';
+import { setTestAttemptStatus } from '../test-attempts/testAttempts.repository.js';
 import { AUDIT_ACTION, recordAudit } from '../finance/audit.service.js';
 import { enqueuePaymentConfirmationEmails } from '../outbox/outbox.service.js';
 import {
@@ -498,10 +499,17 @@ export const markPaymentPaid = async (
       ENROLMENT_STATUS.confirmed,
       timestamp,
     );
-  } else {
+  } else if (payment.pre_registration_id !== null) {
     await setPreRegistrationStatus(
       tx,
       String(payment.pre_registration_id),
+      ENROLMENT_STATUS.confirmed,
+      timestamp,
+    );
+  } else {
+    await setTestAttemptStatus(
+      tx,
+      String(payment.test_attempt_id),
       ENROLMENT_STATUS.confirmed,
       timestamp,
     );
@@ -570,6 +578,10 @@ const applyTransition = async (
       payment.pre_registration_id === null
         ? null
         : String(payment.pre_registration_id),
+    testAttemptId:
+      payment.test_attempt_id === null || payment.test_attempt_id === undefined
+        ? null
+        : String(payment.test_attempt_id),
   });
   const seatAlreadyConfirmed = seatStatus === ENROLMENT_STATUS.confirmed;
 

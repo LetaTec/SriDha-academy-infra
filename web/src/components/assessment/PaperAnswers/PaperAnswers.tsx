@@ -1,7 +1,16 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import cx from 'classnames/bind';
 
 import { canAnswerPapers, mustSignInToAnswer } from '@/access/papers';
+import { PaperClockContext } from '@components/assessment/PaperClock/PaperClock';
 import { PaperLoading } from '@components/assessment/PaperLoading/PaperLoading';
 import { PaperLock } from '@components/assessment/PaperLock/PaperLock';
 import { QuestionFigure } from '@components/assessment/QuestionFigure/QuestionFigure';
@@ -14,15 +23,17 @@ import {
   type SampleTestQuestion,
 } from '@constants/assessment';
 import { useAuth } from '@context/AuthContext';
+import {
+  clearActivePaper,
+  readActivePaper,
+  saveActivePaper,
+  showPaperOnScreen,
+} from '@hooks/useActivePaper';
 import { useCountdown } from '@hooks/useCountdown';
-import { formatCountdown } from '@utils/date';
 
 import styles from './PaperAnswers.module.css';
 
 const cn = cx.bind(styles);
-
-// The clock turns red for the last minute
-const WARNING_SECONDS = 60;
 
 const resultMessage = (score: number, total: number) => {
   if (score === total) return TEXT.resultFull;
@@ -44,13 +55,26 @@ export type PaperAnswersProps = {
   // Compact papers scroll their questions inside the sheet; otherwise the
   // page scrolls and the clock and submit button stay on screen
   scrollsInside?: boolean;
+  // Which paper this is and where it lives, so a paper in progress keeps
+  // its clock and answers when the student leaves and comes back
+  session: { key: string; title: string; href: string };
+  // When the clock runs out, set by the server for a paid attempt;
+  // otherwise the clock runs the full duration from its start
+  endsAt?: number;
+  // Told once the paper is submitted or its time runs out
+  onFinish?: () => void;
+  // Shown instead of "Try again" once marked, e.g. buying another attempt
+  retryAction?: ReactNode;
 };
 
 // The answering part of a paper: questions with OMR-style bubbles, a
 // clock, and marking. Submitting (or running out of time) marks the paper,
 // shows the right answers and the score, with confetti for full marks.
 // Answering needs an account: a visitor's first click opens sign-up, and
-// the answer they picked is recorded once they are in.
+// the answer they picked is recorded once they are in. Once the clock
+// starts, the paper is kept as the student's paper in progress: leaving the
+// page does not stop the clock, and coming back restores the answers (or
+// marks the paper if its time ran out meanwhile).
 // Give it a new key to start a fresh paper.
 export const PaperAnswers = ({
   questions,
@@ -59,7 +83,13 @@ export const PaperAnswers = ({
   instruction,
   startsOnOpen = false,
   scrollsInside = false,
+  session,
+  endsAt: fixedEndsAt,
+  onFinish,
+  retryAction,
 }: PaperAnswersProps) => {
+  const { key: sessionKey, title: sessionTitle, href: sessionHref } = session;
+  const publishClock = useContext(PaperClockContext);
   const paperId = useId();
   const auth = useAuth();
   // An answer clicked before signing up, or while the saved session is
@@ -78,17 +108,70 @@ export const PaperAnswers = ({
   // Increases with every attempt, so each full-marks result fires once.
   const [attempt, setAttempt] = useState(1);
 
+  const onFinishRef = useRef(onFinish);
+  useEffect(() => {
+    onFinishRef.current = onFinish;
+  }, [onFinish]);
+
   const handleExpire = useCallback(() => {
     setHasTimedOut(true);
     setIsMarked(true);
-  }, []);
+    clearActivePaper(sessionKey);
+    onFinishRef.current?.();
+  }, [sessionKey]);
   const countdown = useCountdown(durationSeconds, handleExpire);
-  const { start } = countdown;
+  const { start, isRunning } = countdown;
+  // When this attempt's clock runs out; set once it starts
+  const endsAt = useRef(0);
+  const hasStarted = useRef(false);
+
+  const beginPaper = useCallback(() => {
+    hasStarted.current = true;
+    endsAt.current = start(fixedEndsAt);
+  }, [start, fixedEndsAt]);
+
+  // Coming back to a paper in progress: its answers and running clock, or
+  // its marks if the time ran out while the student was away
+  useEffect(() => {
+    const saved = readActivePaper();
+    if (!saved || saved.key !== sessionKey) return;
+    hasStarted.current = true;
+    setAnswers(saved.answers);
+    if (saved.endsAt > Date.now()) {
+      endsAt.current = start(saved.endsAt);
+    } else {
+      setHasTimedOut(true);
+      setIsMarked(true);
+      clearActivePaper(sessionKey);
+      onFinishRef.current?.();
+    }
+  }, [sessionKey, start]);
+
+  // While this paper is open, the header does not offer to continue it
+  useEffect(() => showPaperOnScreen(sessionKey), [sessionKey]);
 
   // A timed paper's clock starts once its questions are on screen
   useEffect(() => {
-    if (startsOnOpen && !isLoading) start();
-  }, [startsOnOpen, isLoading, start]);
+    if (startsOnOpen && !isLoading && !hasStarted.current) beginPaper();
+  }, [startsOnOpen, isLoading, beginPaper]);
+
+  // While the clock runs, the paper and its answers are kept
+  useEffect(() => {
+    if (!isRunning || isMarked) return;
+    saveActivePaper({
+      key: sessionKey,
+      title: sessionTitle,
+      href: sessionHref,
+      endsAt: endsAt.current,
+      answers,
+    });
+  }, [answers, isRunning, isMarked, sessionKey, sessionTitle, sessionHref]);
+
+  // The sheet's header shows the clock
+  const secondsShown = Math.ceil(countdown.secondsLeft);
+  useEffect(() => {
+    publishClock({ secondsLeft: secondsShown, hasTimedOut });
+  }, [publishClock, secondsShown, hasTimedOut]);
 
   const answeredCount = Object.keys(answers).length;
   const score = (questions ?? []).filter(
@@ -97,7 +180,7 @@ export const PaperAnswers = ({
   const isFullMarks = isMarked && score === total;
 
   const recordAnswer = (questionId: string, key: string) => {
-    if (!countdown.isRunning) countdown.start();
+    if (!countdown.isRunning) beginPaper();
     setAnswers(current => ({ ...current, [questionId]: key }));
   };
 
@@ -110,24 +193,27 @@ export const PaperAnswers = ({
   // A click made while the session was loading counts once it turns out
   // the student is signed in
   const canAnswer = canAnswerPapers(auth);
-  const { isRunning } = countdown;
   useEffect(() => {
     if (!canAnswer || !waitingAnswer) return;
-    if (!isRunning) start();
+    if (!isRunning) beginPaper();
     setAnswers(current => ({
       ...current,
       [waitingAnswer.questionId]: waitingAnswer.key,
     }));
     setWaitingAnswer(null);
-  }, [canAnswer, waitingAnswer, isRunning, start]);
+  }, [canAnswer, waitingAnswer, isRunning, beginPaper]);
 
   const handleSubmit = () => {
     countdown.stop();
     setIsMarked(true);
+    clearActivePaper(sessionKey);
+    onFinish?.();
   };
 
   const handleTryAgain = () => {
-    if (startsOnOpen) countdown.start();
+    clearActivePaper(sessionKey);
+    hasStarted.current = false;
+    if (startsOnOpen) beginPaper();
     else countdown.reset();
     setAnswers({});
     setIsMarked(false);
@@ -273,21 +359,10 @@ export const PaperAnswers = ({
               ? TEXT.marked(score, total)
               : TEXT.answered(answeredCount, total)}
           </Text>
-          <Text
-            variant="label"
-            tone={
-              countdown.isRunning && countdown.secondsLeft <= WARNING_SECONDS
-                ? 'danger'
-                : 'muted'
-            }
-            className={cn('clock')}
-          >
-            {hasTimedOut
-              ? TEXT.timeUp
-              : TEXT.timeLeft(formatCountdown(countdown.secondsLeft))}
-          </Text>
         </div>
-        {isMarked ? (
+        {isMarked && retryAction ? (
+          retryAction
+        ) : isMarked ? (
           <Button
             variant="secondary"
             endIcon="arrowRight"

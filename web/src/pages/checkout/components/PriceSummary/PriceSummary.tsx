@@ -17,6 +17,8 @@ export type PriceSummaryProps = {
   taxLabel: string | null;
   // The agreement and pay button, or a prompt to sign in
   action: React.ReactNode;
+  // What the fee is for, e.g. "Test fee"; "Topic fee" by default
+  feeLabel?: string;
 };
 
 // The order total, beside the details on wide screens and after them on
@@ -25,6 +27,7 @@ export const PriceSummary = ({
   amount,
   taxLabel,
   action,
+  feeLabel = CHECKOUT_TEXT.summaryFee,
 }: PriceSummaryProps) => (
   <div className={cn('summary')}>
     <section className={cn('card')} aria-labelledby="price-summary-title">
@@ -34,7 +37,7 @@ export const PriceSummary = ({
       <dl className={cn('rows')}>
         <div className={cn('row')}>
           <dt>
-            <Text variant="small">{CHECKOUT_TEXT.summaryFee}</Text>
+            <Text variant="small">{feeLabel}</Text>
             {taxLabel ? (
               <Text as="span" variant="caption" tone="muted">
                 {taxLabel}

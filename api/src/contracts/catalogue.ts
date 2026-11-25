@@ -60,6 +60,8 @@ export type Topic = {
   // Featured topics lead the short lists, 1 first; null when not featured
   featuredRank: number | null;
   price: Price | null;
+  // What one attempt at the topic's test costs; null when it has no test
+  testPrice: Price | null;
   // Null while no tutor is assigned
   tutor: Tutor | null;
   lessons: Lesson[];

@@ -24,12 +24,24 @@
 
 .sheetTop {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: var(--space-2);
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) 0 var(--space-1-5);
+  background: var(--color-bg-page);
+}
+
+/* A wide paper's title and clock stay under the site header while its
+   questions scroll */
+.wide .sheetTop {
+  position: sticky;
+  top: var(--height-header);
+  z-index: var(--z-content);
+  border-bottom: var(--border-width-base) solid var(--color-border-base);
 }
 
 .sheetTitle {
-  margin: var(--space-2) 0 var(--space-2);
   font-family: var(--font-serif);
   font-size: var(--text-display-xs);
   line-height: var(--leading-display);

@@ -78,9 +78,7 @@ export const createFakeRazorpay = (): PaymentGateway => {
     },
     fetchRefund: async refundId => refunds.get(refundId) ?? null,
     fetchPaymentRefunds: async paymentId =>
-      [...refunds.values()].filter(
-        r => r.paymentId === paymentId,
-      ),
+      [...refunds.values()].filter(r => r.paymentId === paymentId),
   };
 };
 
@@ -136,10 +134,7 @@ export const createScriptedRazorpay = () => {
       const answer = paymentRefunds.get(paymentId);
       if (answer === 'unreachable') return null;
       return (
-        answer ??
-        [...refunds.values()].filter(
-          r => r.paymentId === paymentId,
-        )
+        answer ?? [...refunds.values()].filter(r => r.paymentId === paymentId)
       );
     },
   };

@@ -22,6 +22,8 @@
   --color-text-accent-inverse: #cbb59d;
   --color-text-accent-inverse-strong: #d8c28c;
   --color-text-danger: #9b3b2f;
+  /* The brand's deep green, for text such as the header links */
+  --color-text-brand: #20392f;
   --color-text-success: #285e43;
 
   --color-accent: #b69a5a;
@@ -196,6 +198,7 @@
   --border-width-base: 1px;
   --border-width-accent: 3px;
   --border-width-matrix: 1.5px;
+  --border-width-strong: 2px;
   --radius-none: 0;
   --radius-full: 9999px;
   --size-dot: 6px;

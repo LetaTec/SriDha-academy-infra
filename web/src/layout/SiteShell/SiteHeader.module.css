@@ -33,7 +33,9 @@
 
 .link {
   position: relative;
+  color: var(--color-text-brand);
   font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-nav);
   text-transform: uppercase;
   transition: color var(--transition-fast);

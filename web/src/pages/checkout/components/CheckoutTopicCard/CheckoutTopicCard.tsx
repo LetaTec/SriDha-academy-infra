@@ -7,7 +7,7 @@ import { Icon } from '@components/ui/Icon/Icon';
 import { KeyValueList } from '@components/ui/KeyValueList/KeyValueList';
 import { Text } from '@components/ui/Text/Text';
 import { CATALOGUE_TEXT } from '@constants/catalogue';
-import { CHECKOUT_TEXT } from '@constants/payments';
+import { CHECKOUT_TEXT, TEST_CHECKOUT_TEXT } from '@constants/payments';
 import {
   findTeacher,
   type Batch,
@@ -24,6 +24,9 @@ import styles from './CheckoutTopicCard.module.css';
 const cn = cx.bind(styles);
 
 export type CheckoutTopicCardProps = {
+  // Buying an attempt at the topic's test: its questions and time, no
+  // teacher or batch
+  test?: { questionCount: number; minutes: number };
   preview: TopicPreview;
   // The chosen batch; null for a pre-registration or before one is chosen
   batch: Batch | null;
@@ -39,41 +42,57 @@ export const CheckoutTopicCard = ({
   preview,
   batch,
   isEnrolment,
+  test,
 }: CheckoutTopicCardProps) => {
-  const items = batch
+  const items = test
     ? [
         {
-          label: CHECKOUT_TEXT.startsLabel,
-          value: orToBeAnnounced(batch.startDate, formatDateOnly),
+          label: TEST_CHECKOUT_TEXT.questionsLabel,
+          value: String(test.questionCount),
         },
         {
-          label: CHECKOUT_TEXT.timeLabel,
-          value: orToBeAnnounced(batch.startTime, start =>
-            batch.sessionDurationMinutes
-              ? formatWallClockRange(start, batch.sessionDurationMinutes)
-              : formatWallClockTime(start),
-          ),
+          label: TEST_CHECKOUT_TEXT.timeLabel,
+          value: TEST_CHECKOUT_TEXT.minutes(test.minutes),
         },
         {
-          label: CHECKOUT_TEXT.sessionsLabel,
-          value: orToBeAnnounced(
-            batch.sessionCount,
-            CATALOGUE_TEXT.sessionCount,
-          ),
-        },
-        {
-          label: CHECKOUT_TEXT.seatsLabel,
-          value: orToBeAnnounced(formatBatchSeats(batch), seats => seats),
+          label: TEST_CHECKOUT_TEXT.attemptsLabel,
+          value: TEST_CHECKOUT_TEXT.oneAttempt,
         },
       ]
-    : [
-        {
-          label: CHECKOUT_TEXT.firstBatchLabel,
-          value: CHECKOUT_TEXT.firstBatchValue,
-        },
-      ];
+    : batch
+      ? [
+          {
+            label: CHECKOUT_TEXT.startsLabel,
+            value: orToBeAnnounced(batch.startDate, formatDateOnly),
+          },
+          {
+            label: CHECKOUT_TEXT.timeLabel,
+            value: orToBeAnnounced(batch.startTime, start =>
+              batch.sessionDurationMinutes
+                ? formatWallClockRange(start, batch.sessionDurationMinutes)
+                : formatWallClockTime(start),
+            ),
+          },
+          {
+            label: CHECKOUT_TEXT.sessionsLabel,
+            value: orToBeAnnounced(
+              batch.sessionCount,
+              CATALOGUE_TEXT.sessionCount,
+            ),
+          },
+          {
+            label: CHECKOUT_TEXT.seatsLabel,
+            value: orToBeAnnounced(formatBatchSeats(batch), seats => seats),
+          },
+        ]
+      : [
+          {
+            label: CHECKOUT_TEXT.firstBatchLabel,
+            value: CHECKOUT_TEXT.firstBatchValue,
+          },
+        ];
 
-  const teacher = findTeacher(preview, batch);
+  const teacher = test ? null : findTeacher(preview, batch);
 
   return (
     <article className={cn('card')}>
@@ -91,12 +110,18 @@ export const CheckoutTopicCard = ({
               variant="caption"
               className={cn('badge', 'badgeAccent')}
             >
-              {isEnrolment
-                ? CHECKOUT_TEXT.liveBatchBadge
-                : CHECKOUT_TEXT.preRegisterBadge}
+              {test
+                ? TEST_CHECKOUT_TEXT.chip
+                : isEnrolment
+                  ? CHECKOUT_TEXT.liveBatchBadge
+                  : CHECKOUT_TEXT.preRegisterBadge}
             </Text>
           </div>
-          {preview.topic.summary ? (
+          {test ? (
+            <Text as="p" variant="small" tone="muted">
+              {TEST_CHECKOUT_TEXT.summary(test.questionCount, test.minutes)}
+            </Text>
+          ) : preview.topic.summary ? (
             <Text as="p" variant="small" tone="muted">
               {preview.topic.summary}
             </Text>

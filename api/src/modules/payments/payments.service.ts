@@ -12,6 +12,7 @@ import type {
   VerifyPaymentRequest,
 } from '../../contracts/payments.js';
 import { transaction } from '../../db/client.js';
+import { TOPIC_TEST_IDS, TOPIC_TEST_PRICE_PAISE } from '../../db/topicTests.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { logger } from '../../logging/logger.js';
 import { findUserIdByEmail } from '../auth/auth.repository.js';
@@ -36,6 +37,14 @@ import {
   createEnrolment,
   ENROLMENT_STATUS,
 } from '../enrolments/enrolments.service.js';
+import {
+  insertTestAttempt,
+  listTestAttemptRows,
+} from '../test-attempts/testAttempts.repository.js';
+import {
+  isAttemptAvailable,
+  TEST_ATTEMPT_STATUS,
+} from '../test-attempts/testAttempts.service.js';
 import type { PaymentGateway } from './gateway.js';
 import {
   applyPaymentEvent,
@@ -47,6 +56,7 @@ import {
   findPaymentById,
   findPreRegistration,
   findTopicForPreRegistration,
+  findTopicForTest,
   insertBuyerIfNew,
   insertPayment,
   insertPreRegistration,
@@ -56,6 +66,7 @@ import {
 export const CHECKOUT_KIND = {
   enrolment: 'ENROLMENT',
   preRegistration: 'PRE_REGISTRATION',
+  testAttempt: 'TEST_ATTEMPT',
 } as const satisfies Record<string, CheckoutKind>;
 
 export { PAYMENT_STATUS };
@@ -85,7 +96,11 @@ const GSTIN_PROBLEM_MESSAGE: Record<string, string> = {
 // entered in the provider's own checkout and never reach this API.
 export const createCheckoutSchema = z
   .strictObject({
-    kind: z.enum([CHECKOUT_KIND.enrolment, CHECKOUT_KIND.preRegistration]),
+    kind: z.enum([
+      CHECKOUT_KIND.enrolment,
+      CHECKOUT_KIND.preRegistration,
+      CHECKOUT_KIND.testAttempt,
+    ]),
     batchId: z.string().trim().max(100).optional(),
     topicId: z.string().trim().max(150).optional(),
     customerType: z.enum(
@@ -119,7 +134,7 @@ export const createCheckoutSchema = z
         message: 'Select a batch',
       });
     }
-    if (input.kind === CHECKOUT_KIND.preRegistration && !input.topicId) {
+    if (input.kind !== CHECKOUT_KIND.enrolment && !input.topicId) {
       ctx.addIssue({
         code: 'custom',
         path: ['topicId'],
@@ -215,6 +230,7 @@ export type { Checkout };
 type Purchase = {
   enrolmentId: string | null;
   preRegistrationId: string | null;
+  testAttemptId: string | null;
   amountPaise: number;
   topic: Checkout['topic'];
   batch: Checkout['batch'];
@@ -222,10 +238,11 @@ type Purchase = {
 
 // What was sold, as recorded on the payment: reports and documents read
 // this snapshot, never the live catalogue, which can be renamed or repriced
-const describeItem = (purchase: Purchase) =>
-  purchase.batch
-    ? `${purchase.topic.title} — ${purchase.batch.name}`
-    : `${purchase.topic.title} — Pre-registration`;
+const describeItem = (purchase: Purchase) => {
+  if (purchase.batch) return `${purchase.topic.title} — ${purchase.batch.name}`;
+  if (purchase.testAttemptId) return `${purchase.topic.title} — Topic test`;
+  return `${purchase.topic.title} — Pre-registration`;
+};
 
 const toPurchaseTopic = (row: Row): Checkout['topic'] => ({
   id: String(row.t_id),
@@ -332,6 +349,7 @@ const prepareEnrolment = async (
   return {
     enrolmentId,
     preRegistrationId: null,
+    testAttemptId: null,
     amountPaise,
     topic: toPurchaseTopic(batch),
     batch: {
@@ -404,7 +422,74 @@ const preparePreRegistration = async (
     return {
       enrolmentId: null,
       preRegistrationId,
+      testAttemptId: null,
       amountPaise,
+      topic: toPurchaseTopic(topic),
+      batch: null,
+    };
+  });
+};
+
+// One attempt at a topic's test. An unpaid attempt is reused for a retried
+// payment; a paid attempt the student has not used up yet must be taken
+// before another is bought.
+const prepareTestAttempt = async (
+  context: AppContext,
+  userId: string,
+  topicId: string,
+): Promise<Purchase> => {
+  const now = context.now();
+  const timestamp = now.toISOString();
+
+  return transaction(context.db, async tx => {
+    const topic = await findTopicForTest(tx, topicId);
+
+    if (!topic) {
+      throw new ApiError(
+        404,
+        ERROR_CODE.topicNotFound,
+        'This topic no longer exists',
+      );
+    }
+
+    if (!TOPIC_TEST_IDS.has(topicId)) {
+      throw new ApiError(
+        409,
+        ERROR_CODE.testNotAvailable,
+        'This topic does not have a test yet',
+      );
+    }
+
+    const attempts = await listTestAttemptRows(tx, userId, topicId);
+    const unused = attempts.find(attempt => isAttemptAvailable(attempt, now));
+    if (unused) {
+      throw new ApiError(
+        409,
+        ERROR_CODE.testAttemptAvailable,
+        'You already have a paid attempt at this test. Take it first',
+        { attemptId: String(unused.id) },
+      );
+    }
+
+    const pending = attempts.find(
+      attempt => attempt.status === TEST_ATTEMPT_STATUS.pendingPayment,
+    );
+    const testAttemptId = pending ? String(pending.id) : randomUUID();
+    if (!pending) {
+      await insertTestAttempt(tx, {
+        id: testAttemptId,
+        userId,
+        topicId,
+        status: TEST_ATTEMPT_STATUS.pendingPayment,
+        timestamp,
+      });
+    }
+
+    return {
+      enrolmentId: null,
+      preRegistrationId: null,
+      testAttemptId,
+      amountPaise: TOPIC_TEST_PRICE_PAISE,
       topic: toPurchaseTopic(topic),
       batch: null,
     };
@@ -426,17 +511,58 @@ const findOrCreateBuyer = async (context: AppContext, email: string) => {
   return userId;
 };
 
+// A topic test is taken signed in, so its attempt belongs to the account
+// that bought it (whatever email is on the receipt)
+const requireSignedIn = (signedInUserId: string | null) => {
+  if (!signedInUserId) {
+    throw new ApiError(
+      401,
+      ERROR_CODE.unauthenticated,
+      'Sign in to buy a topic test',
+    );
+  }
+  return signedInUserId;
+};
+
+const preparePurchase = async (
+  context: AppContext,
+  input: CreateCheckoutInput,
+  signedInUserId: string | null,
+): Promise<{ userId: string; purchase: Purchase }> => {
+  // The schema guarantees the id that matches the kind
+  if (input.kind === CHECKOUT_KIND.testAttempt) {
+    const userId = requireSignedIn(signedInUserId);
+    return {
+      userId,
+      purchase: await prepareTestAttempt(
+        context,
+        userId,
+        String(input.topicId),
+      ),
+    };
+  }
+
+  const userId = await findOrCreateBuyer(context, input.email);
+  return {
+    userId,
+    purchase:
+      input.kind === CHECKOUT_KIND.enrolment
+        ? await prepareEnrolment(context, userId, String(input.batchId))
+        : await preparePreRegistration(context, userId, String(input.topicId)),
+  };
+};
+
 export const createCheckout = async (
   context: AppContext,
   gateway: PaymentGateway,
   input: CreateCheckoutInput,
+  signedInUserId: string | null = null,
 ): Promise<Checkout> => {
-  const userId = await findOrCreateBuyer(context, input.email);
-  // The schema guarantees the id that matches the kind
-  const purchase =
-    input.kind === CHECKOUT_KIND.enrolment
-      ? await prepareEnrolment(context, userId, String(input.batchId))
-      : await preparePreRegistration(context, userId, String(input.topicId));
+  const { userId, purchase } = await preparePurchase(
+    context,
+    input,
+    signedInUserId,
+  );
 
   const paymentId = randomUUID();
   const { orderId } = await gateway.createOrder({
@@ -451,6 +577,7 @@ export const createCheckout = async (
     userId,
     enrolmentId: purchase.enrolmentId,
     preRegistrationId: purchase.preRegistrationId,
+    testAttemptId: purchase.testAttemptId,
     amountPaise: purchase.amountPaise,
     currency: PAYMENT_CURRENCY,
     provider: gateway.provider,

@@ -11,6 +11,7 @@ export const APP_ROUTES = {
   CHECKOUT: '/checkout',
   // Retired student-account pages, kept so old links still land somewhere
   MY_LEARNING: '/my-learning',
+  MY_BATCHES: '/my-batches',
   LOGIN: '/login',
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
@@ -44,6 +45,15 @@ export const ABOUT_SECTION_ID = {
 } as const;
 
 // One topic's test, by its catalogue id
+// The Test Paper page's chosen class or exam and subject
+export const TEST_PAPER_PARAM = { track: 'track', subject: 'subject' } as const;
+
+export const toTestPaper = (track: string, subject: string) =>
+  `${APP_ROUTES.AI_TEST}?${new URLSearchParams({
+    [TEST_PAPER_PARAM.track]: track,
+    [TEST_PAPER_PARAM.subject]: subject,
+  }).toString()}`;
+
 export const toTopicTest = (topicId: string) =>
   APP_ROUTES.TOPIC_TEST.replace(':topicId', encodeURIComponent(topicId));
 

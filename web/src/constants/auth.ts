@@ -86,6 +86,7 @@ export const ACCOUNT_TEXT = {
   lockLogIn: 'Log in',
   lockLabel: 'Sign in to start this paper',
   changePassword: 'Change password',
+  myBatches: 'My batches',
   changeEyebrow: 'SriDha Academy / Your account',
   changeTitle: 'Change your',
   changeTitleEmphasis: 'password.',

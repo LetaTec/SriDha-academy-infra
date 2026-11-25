@@ -110,6 +110,7 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
       timestamp: new Date(Date.now() - 3600_000).toISOString(),
       enrolmentId: null,
       preRegistrationId: preReg1,
+      testAttemptId: null,
     });
 
     paymentId2 = randomUUID();
@@ -143,6 +144,7 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
       timestamp: new Date(Date.now() - 1800_000).toISOString(),
       enrolmentId: null,
       preRegistrationId: preReg2,
+      testAttemptId: null,
     });
 
     await server.db.query(
@@ -295,7 +297,12 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
       amountPaise: number;
       createdAt?: string;
       receipt?: string;
-    }): Promise<{ paymentId: string; refundId: string; providerPaymentId: string; receipt: string }> {
+    }): Promise<{
+      paymentId: string;
+      refundId: string;
+      providerPaymentId: string;
+      receipt: string;
+    }> {
       const buyerId = randomUUID();
       const preRegId = randomUUID();
       const paymentId = randomUUID();
@@ -350,6 +357,7 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
         timestamp: createdAt,
         enrolmentId: null,
         preRegistrationId: preRegId,
+        testAttemptId: null,
       });
 
       await server.db.query(
@@ -656,8 +664,11 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     });
 
     it('enforces database uniqueness: returns HTTP 409 and rolls back when attempting to reuse a provider_refund_id', async () => {
-      const { refundId: secondExceptionId, providerPaymentId, receipt } =
-        await createPaymentWithException({ amountPaise: 50000 });
+      const {
+        refundId: secondExceptionId,
+        providerPaymentId,
+        receipt,
+      } = await createPaymentWithException({ amountPaise: 50000 });
 
       // Configure fake gateway with matching fields for the already used ID
       scripted.refunds.set('rfnd_support_verified_123', {
@@ -685,7 +696,10 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
       assert.equal(response.body.code, 'PAYMENT_VERIFICATION_FAILED');
 
       // Verify second refund was NOT updated in DB (transaction was rolled back)
-      const dbRow = await server.db.get<{ status: string; provider_refund_id: string | null }>(
+      const dbRow = await server.db.get<{
+        status: string;
+        provider_refund_id: string | null;
+      }>(
         'SELECT status, provider_refund_id FROM payment_refunds WHERE id = $1',
         [secondExceptionId],
       );
@@ -694,7 +708,8 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     });
 
     it('refuses MARK_FAILED if provider refund is PROCESSED on Razorpay', async () => {
-      const { refundId, providerPaymentId, receipt } = await createPaymentWithException({ amountPaise: 75000 });
+      const { refundId, providerPaymentId, receipt } =
+        await createPaymentWithException({ amountPaise: 75000 });
 
       const processedOnProviderId = 'rfnd_actually_processed_11';
       scripted.refunds.set(processedOnProviderId, {
@@ -720,7 +735,8 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     });
 
     it('refuses MARK_FAILED if provider refund is still PENDING on Razorpay', async () => {
-      const { refundId, providerPaymentId, receipt } = await createPaymentWithException({ amountPaise: 75000 });
+      const { refundId, providerPaymentId, receipt } =
+        await createPaymentWithException({ amountPaise: 75000 });
 
       const pendingOnProviderId = 'rfnd_actually_pending_22';
       scripted.refunds.set(pendingOnProviderId, {
@@ -746,7 +762,9 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     });
 
     it('refuses MARK_FAILED if provider refund status is FAILED but paymentId mismatches', async () => {
-      const { refundId, receipt } = await createPaymentWithException({ amountPaise: 75000 });
+      const { refundId, receipt } = await createPaymentWithException({
+        amountPaise: 75000,
+      });
 
       const wrongPayFailId = 'rfnd_fail_wrong_pay_1';
       scripted.refunds.set(wrongPayFailId, {
@@ -772,7 +790,9 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     });
 
     it('refuses MARK_FAILED if provider refund status is FAILED but paymentId is omitted/null', async () => {
-      const { refundId, receipt } = await createPaymentWithException({ amountPaise: 75000 });
+      const { refundId, receipt } = await createPaymentWithException({
+        amountPaise: 75000,
+      });
 
       const missingPayFailId = 'rfnd_fail_missing_pay_2';
       scripted.refunds.set(missingPayFailId, {
@@ -798,7 +818,8 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     });
 
     it('refuses MARK_FAILED if provider refund status is FAILED but amount mismatches', async () => {
-      const { refundId, providerPaymentId, receipt } = await createPaymentWithException({ amountPaise: 75000 });
+      const { refundId, providerPaymentId, receipt } =
+        await createPaymentWithException({ amountPaise: 75000 });
 
       const wrongAmtFailId = 'rfnd_fail_wrong_amt_3';
       scripted.refunds.set(wrongAmtFailId, {
@@ -824,7 +845,8 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     });
 
     it('refuses MARK_FAILED if provider refund status is FAILED but currency mismatches or is null', async () => {
-      const { refundId, providerPaymentId, receipt } = await createPaymentWithException({ amountPaise: 75000 });
+      const { refundId, providerPaymentId, receipt } =
+        await createPaymentWithException({ amountPaise: 75000 });
 
       const wrongCurrFailId = 'rfnd_fail_wrong_curr_4';
       scripted.refunds.set(wrongCurrFailId, {
@@ -850,7 +872,8 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     });
 
     it('refuses MARK_FAILED if provider refund ID returned mismatches requested ID', async () => {
-      const { refundId, providerPaymentId, receipt } = await createPaymentWithException({ amountPaise: 75000 });
+      const { refundId, providerPaymentId, receipt } =
+        await createPaymentWithException({ amountPaise: 75000 });
       const requestedFailId = 'rfnd_fail_req_mismatch_5';
       scripted.refunds.set(requestedFailId, {
         id: 'rfnd_fail_returned_different_77',
@@ -875,7 +898,8 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     });
 
     it('resolves MARK_FAILED when provider explicitly reports status = FAILED with all matching invariants', async () => {
-      const { refundId, providerPaymentId, receipt } = await createPaymentWithException({ amountPaise: 75000 });
+      const { refundId, providerPaymentId, receipt } =
+        await createPaymentWithException({ amountPaise: 75000 });
 
       const providerFailedId = 'rfnd_terminal_failed_33';
       scripted.refunds.set(providerFailedId, {
@@ -893,7 +917,8 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
         {
           action: 'MARK_FAILED',
           evidenceReference: 'Gateway error code: BANK_DECLINED',
-          notes: 'Customer card declined refund credit; funds remained in merchant pool',
+          notes:
+            'Customer card declined refund credit; funds remained in merchant pool',
           providerRefundId: providerFailedId,
         },
       );
@@ -918,7 +943,9 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
 
     it('refuses MARK_FAILED when refund is absent from provider records regardless of age (absence never proves failure)', async () => {
       // Created 72 hours ago
-      const threeDaysAgo = new Date(server.clock.now().getTime() - 72 * 3600_000).toISOString();
+      const threeDaysAgo = new Date(
+        server.clock.now().getTime() - 72 * 3600_000,
+      ).toISOString();
       const { refundId } = await createPaymentWithException({
         amountPaise: 75000,
         createdAt: threeDaysAgo,
@@ -1002,7 +1029,8 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
         {
           action: 'MARK_FAILED',
           evidenceReference: 'Confirmed by receipt match',
-          notes: 'Razorpay returned terminal failure for receipt rcpt_strict_matching_99',
+          notes:
+            'Razorpay returned terminal failure for receipt rcpt_strict_matching_99',
         },
       );
 
@@ -1014,10 +1042,11 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
 
     it('refuses MARK_FAILED via payment refund list when matched refund id is empty string ("")', async () => {
       const receiptKey = 'rcpt_malformed_id_empty';
-      const { paymentId, refundId, providerPaymentId } = await createPaymentWithException({
-        amountPaise: 75000,
-        receipt: receiptKey,
-      });
+      const { paymentId, refundId, providerPaymentId } =
+        await createPaymentWithException({
+          amountPaise: 75000,
+          receipt: receiptKey,
+        });
 
       scripted.paymentRefunds.set(providerPaymentId, [
         {
@@ -1042,10 +1071,16 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
 
       assert.equal(response.status, 409);
       assert.equal(response.body.code, 'PAYMENT_VERIFICATION_FAILED');
-      assert.match(response.body.message, /missing an authoritative refund ID/i);
+      assert.match(
+        response.body.message,
+        /missing an authoritative refund ID/i,
+      );
 
       // Verify DB row remains REQUIRES_REVIEW with null provider_refund_id
-      const dbRow = await server.db.get<{ status: string; provider_refund_id: string | null }>(
+      const dbRow = await server.db.get<{
+        status: string;
+        provider_refund_id: string | null;
+      }>(
         'SELECT status, provider_refund_id FROM payment_refunds WHERE id = $1',
         [refundId],
       );
@@ -1069,10 +1104,11 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
 
     it('refuses MARK_FAILED via payment refund list when matched refund id is null', async () => {
       const receiptKey = 'rcpt_malformed_id_null';
-      const { paymentId, refundId, providerPaymentId } = await createPaymentWithException({
-        amountPaise: 75000,
-        receipt: receiptKey,
-      });
+      const { paymentId, refundId, providerPaymentId } =
+        await createPaymentWithException({
+          amountPaise: 75000,
+          receipt: receiptKey,
+        });
 
       scripted.paymentRefunds.set(providerPaymentId, [
         {
@@ -1097,9 +1133,15 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
 
       assert.equal(response.status, 409);
       assert.equal(response.body.code, 'PAYMENT_VERIFICATION_FAILED');
-      assert.match(response.body.message, /missing an authoritative refund ID/i);
+      assert.match(
+        response.body.message,
+        /missing an authoritative refund ID/i,
+      );
 
-      const dbRow = await server.db.get<{ status: string; provider_refund_id: string | null }>(
+      const dbRow = await server.db.get<{
+        status: string;
+        provider_refund_id: string | null;
+      }>(
         'SELECT status, provider_refund_id FROM payment_refunds WHERE id = $1',
         [refundId],
       );
@@ -1121,10 +1163,11 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
 
     it('refuses MARK_FAILED via payment refund list when matched refund id is omitted entirely', async () => {
       const receiptKey = 'rcpt_malformed_id_omitted';
-      const { paymentId, refundId, providerPaymentId } = await createPaymentWithException({
-        amountPaise: 75000,
-        receipt: receiptKey,
-      });
+      const { paymentId, refundId, providerPaymentId } =
+        await createPaymentWithException({
+          amountPaise: 75000,
+          receipt: receiptKey,
+        });
 
       scripted.paymentRefunds.set(providerPaymentId, [
         {
@@ -1148,9 +1191,15 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
 
       assert.equal(response.status, 409);
       assert.equal(response.body.code, 'PAYMENT_VERIFICATION_FAILED');
-      assert.match(response.body.message, /missing an authoritative refund ID/i);
+      assert.match(
+        response.body.message,
+        /missing an authoritative refund ID/i,
+      );
 
-      const dbRow = await server.db.get<{ status: string; provider_refund_id: string | null }>(
+      const dbRow = await server.db.get<{
+        status: string;
+        provider_refund_id: string | null;
+      }>(
         'SELECT status, provider_refund_id FROM payment_refunds WHERE id = $1',
         [refundId],
       );
@@ -1172,10 +1221,11 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
 
     it('refuses MARK_FAILED via payment refund list when matched refund id is whitespace only ("   ")', async () => {
       const receiptKey = 'rcpt_malformed_id_whitespace';
-      const { paymentId, refundId, providerPaymentId } = await createPaymentWithException({
-        amountPaise: 75000,
-        receipt: receiptKey,
-      });
+      const { paymentId, refundId, providerPaymentId } =
+        await createPaymentWithException({
+          amountPaise: 75000,
+          receipt: receiptKey,
+        });
 
       scripted.paymentRefunds.set(providerPaymentId, [
         {
@@ -1200,9 +1250,15 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
 
       assert.equal(response.status, 409);
       assert.equal(response.body.code, 'PAYMENT_VERIFICATION_FAILED');
-      assert.match(response.body.message, /missing an authoritative refund ID/i);
+      assert.match(
+        response.body.message,
+        /missing an authoritative refund ID/i,
+      );
 
-      const dbRow = await server.db.get<{ status: string; provider_refund_id: string | null }>(
+      const dbRow = await server.db.get<{
+        status: string;
+        provider_refund_id: string | null;
+      }>(
         'SELECT status, provider_refund_id FROM payment_refunds WHERE id = $1',
         [refundId],
       );
@@ -1223,7 +1279,8 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
     });
 
     it('concurrency: rejects resolving an exception that was already resolved by another process', async () => {
-      const { refundId, providerPaymentId, receipt } = await createPaymentWithException({ amountPaise: 75000 });
+      const { refundId, providerPaymentId, receipt } =
+        await createPaymentWithException({ amountPaise: 75000 });
       const failId = 'rfnd_first_resolution_ok';
       scripted.refunds.set(failId, {
         id: failId,
@@ -1343,7 +1400,11 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
 
         for (const receipt of [undefined, null, '']) {
           it(`${action}: refuses a staff-supplied id whose refund has ${
-            receipt === undefined ? 'no' : receipt === null ? 'a null' : 'a blank'
+            receipt === undefined
+              ? 'no'
+              : receipt === null
+                ? 'a null'
+                : 'a blank'
           } receipt`, async () => {
             const { paymentId, refundId, providerPaymentId } =
               await createPaymentWithException({ amountPaise: 75000 });
@@ -1417,10 +1478,12 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
           }),
         );
         assert.equal(
-          (await resolve(admin, first.refundId, {
-            action: 'MARK_FAILED',
-            providerRefundId: id,
-          })).status,
+          (
+            await resolve(admin, first.refundId, {
+              action: 'MARK_FAILED',
+              providerRefundId: id,
+            })
+          ).status,
           200,
         );
         scripted.refunds.set(
@@ -1538,10 +1601,20 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
       });
 
       it('refuses ids that are not plain text, padded, or missing, on both lookup paths', async () => {
-        const badIds: unknown[] = [12345, 0, {}, ['rfnd_x'], true, ' rfnd_pad ', null];
+        const badIds: unknown[] = [
+          12345,
+          0,
+          {},
+          ['rfnd_x'],
+          true,
+          ' rfnd_pad ',
+          null,
+        ];
         for (const badId of badIds) {
           // Receipt-list path
-          const listed = await createPaymentWithException({ amountPaise: 75000 });
+          const listed = await createPaymentWithException({
+            amountPaise: 75000,
+          });
           scripted.paymentRefunds.set(listed.providerPaymentId, [
             providerRecord(listed.providerPaymentId, {
               id: badId,
@@ -1555,7 +1628,9 @@ describe('Phase 2.1: Refund Management Desk Backend', () => {
           await assertUntouched(listed.refundId, listed.paymentId, 75000);
 
           // Direct path: the provider answers with an id that is not the one asked for
-          const direct = await createPaymentWithException({ amountPaise: 75000 });
+          const direct = await createPaymentWithException({
+            amountPaise: 75000,
+          });
           const asked = `rfnd_asked_${direct.refundId.slice(0, 8)}`;
           scripted.refunds.set(
             asked,

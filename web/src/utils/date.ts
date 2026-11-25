@@ -58,3 +58,30 @@ export const formatDateTime = (value: string): string =>
     minute: '2-digit',
     timeZone: 'Asia/Kolkata',
   }).format(new Date(value));
+
+export type CountdownParts = {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+};
+
+// A long countdown in whole days, hours, minutes and seconds
+export const splitCountdown = (totalSeconds: number): CountdownParts => {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  return {
+    days: Math.floor(seconds / 86400),
+    hours: Math.floor((seconds % 86400) / 3600),
+    minutes: Math.floor((seconds % 3600) / 60),
+    seconds: seconds % 60,
+  };
+};
+
+// A class date with its weekday, e.g. "2026-12-19" -> "Sat, 19 Dec"
+export const formatClassDate = (value: string): string =>
+  new Intl.DateTimeFormat(DEFAULT_LOCALE, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(`${value}T00:00:00Z`));

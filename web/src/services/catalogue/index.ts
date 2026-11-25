@@ -1,5 +1,11 @@
 export { getCatalogue } from './api';
 export {
+  getBatchTimeline,
+  listBatchSessions,
+  type BatchTimeline,
+  type ClassSession,
+} from './batchSchedule';
+export {
   findBatchContext,
   findNextBatch,
   findTopicContext,

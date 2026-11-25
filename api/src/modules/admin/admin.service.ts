@@ -25,9 +25,11 @@ export const listTeamOrders = async ({
     providerPaymentId:
       row.provider_payment_id === null ? null : String(row.provider_payment_id),
     kind:
-      row.enrolment_id === null
-        ? CHECKOUT_KIND.preRegistration
-        : CHECKOUT_KIND.enrolment,
+      row.enrolment_id !== null
+        ? CHECKOUT_KIND.enrolment
+        : row.pre_registration_id !== null
+          ? CHECKOUT_KIND.preRegistration
+          : CHECKOUT_KIND.testAttempt,
     topic: String(row.topic_title),
     batch: row.batch_name === null ? null : String(row.batch_name),
     seatStatus: String(row.seat_status) as TeamOrder['seatStatus'],

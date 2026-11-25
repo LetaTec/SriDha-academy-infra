@@ -7,7 +7,10 @@ import type { Batch, Lesson, Price } from './catalogue.js';
 // shares these statuses
 export type SeatStatus = 'PENDING_PAYMENT' | 'CONFIRMED' | 'CANCELLED';
 
-export type CheckoutKind = 'ENROLMENT' | 'PRE_REGISTRATION';
+// ENROLMENT: a seat in a batch. PRE_REGISTRATION: a place for a topic
+// whose batches are not out yet. TEST_ATTEMPT: one attempt at a topic's
+// test (needs a signed-in student).
+export type CheckoutKind = 'ENROLMENT' | 'PRE_REGISTRATION' | 'TEST_ATTEMPT';
 
 // CREATED: order made, nothing paid. AUTHORIZED: the provider signed the
 // payment but has not reported it captured yet. PAID: captured (only a
@@ -82,7 +85,8 @@ export type BillingDetails = {
 };
 
 // The amount is never sent: the API prices the batch (ENROLMENT, with
-// batchId) or the topic (PRE_REGISTRATION, with topicId) itself
+// batchId), the topic (PRE_REGISTRATION, with topicId) or the topic's test
+// (TEST_ATTEMPT, with topicId) itself
 export type CreateCheckoutRequest = BillingDetails & {
   kind: CheckoutKind;
   batchId?: string;
@@ -156,3 +160,17 @@ export type PreRegistration = {
 };
 
 export type PreRegistrationsResponse = { preRegistrations: PreRegistration[] };
+
+// One paid attempt at a topic's test. It ends a fixed time after the
+// student starts it; startedAt and endsAt are null until then.
+export type TestAttempt = {
+  id: string;
+  topicId: string;
+  status: SeatStatus;
+  startedAt: string | null;
+  endsAt: string | null;
+};
+
+export type TestAttemptsResponse = { attempts: TestAttempt[] };
+
+export type TestAttemptResponse = { attempt: TestAttempt };
