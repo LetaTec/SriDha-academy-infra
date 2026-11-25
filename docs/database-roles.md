@@ -37,7 +37,7 @@ Database triggers (migrations 018–020) also guard these tables for every role,
    - `DATABASE_URL` signs in as the same role as the migration connection;
    - the application role does not exist;
    - the application role is a member of the owner role (it could act as the owner);
-   - the owner is a member of the application role.
+   - the owner can use or become the application role (an ADMIN-only membership, which PostgreSQL 16 gives the role's creator automatically, is allowed: it can do neither).
 
    The configuration already refuses identical URLs, and two URLs that name the same user.
 

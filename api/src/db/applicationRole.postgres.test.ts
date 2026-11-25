@@ -362,9 +362,21 @@ describe(
       await asPostgresAdmin(`GRANT ${related.name} TO ${owner.name}`);
       await assert.rejects(
         startWith(related),
-        /is a member of the application role/,
+        /can use or become the application role/,
       );
       await asPostgresAdmin(`REVOKE ${related.name} FROM ${owner.name}`);
+
+      // PostgreSQL 16 gives a role's creator an ADMIN-only membership of it
+      // (no INHERIT, no SET), which managed hosts cannot remove. It cannot
+      // use or become the application role, so start-up allows it.
+      const created = role('created');
+      await createRole(created);
+      await asPostgresAdmin(
+        `GRANT ${created.name} TO ${owner.name} WITH ADMIN TRUE, INHERIT FALSE, SET FALSE`,
+      );
+      const started = await startWith(created);
+      await started.close();
+      await asPostgresAdmin(`REVOKE ${created.name} FROM ${owner.name}`);
 
       // A role with powers the application must not have
       const powerful = role('powerful');
