@@ -5,7 +5,12 @@ import styles from './HeroScene.module.css';
 const cn = cx.bind(styles);
 
 export type HeroSceneName =
-  'studyGroup' | 'atTheBoard' | 'bookStack' | 'celebrate';
+  | 'studyGroup'
+  | 'atTheBoard'
+  | 'bookStack'
+  | 'celebrate'
+  | 'holoMath'
+  | 'codeLab';
 
 export type HeroSceneProps = {
   scene: HeroSceneName;
@@ -500,11 +505,160 @@ const Celebrate = () => (
   </>
 );
 
+// Holo maths: a student reaching into a floating graph, with circuit
+// traces and maths symbols around a dark, techy backdrop
+const HoloMath = () => (
+  <>
+    <circle cx="120" cy="110" r="94" fill={C.forest} />
+    <g className={cn('circuit')}>
+      <path d="M34 128 L58 128 L68 118 L88 118" />
+      <path d="M44 150 L76 150 L84 158 L104 158" />
+      <path d="M176 140 L196 140 L206 130 L214 130" />
+      <path d="M150 20 L150 34 L160 44" />
+    </g>
+    <g fill={C.gold}>
+      <circle cx="34" cy="128" r="2.6" />
+      <circle cx="88" cy="118" r="2.6" />
+      <circle cx="44" cy="150" r="2.6" />
+      <circle cx="104" cy="158" r="2.6" />
+      <circle cx="214" cy="130" r="2.6" />
+      <circle cx="160" cy="44" r="2.6" />
+    </g>
+    {/* The holographic panel */}
+    <rect
+      x="38"
+      y="36"
+      width="98"
+      height="66"
+      rx="6"
+      fill={C.sky}
+      opacity="0.92"
+    />
+    <rect
+      x="38"
+      y="36"
+      width="98"
+      height="66"
+      rx="6"
+      fill="none"
+      stroke={C.paper}
+      strokeWidth="1.6"
+    />
+    <path d="M50 92 L50 46 M50 92 L126 92" className={cn('line')} />
+    <path d="M54 88 Q76 40 96 70 T124 50" className={cn('chalkGold')} />
+    <text x="96" y="58" className={cn('formula')}>
+      f(x)
+    </text>
+    <text x="176" y="56" className={cn('symbol')}>
+      π
+    </text>
+    <text x="196" y="96" className={cn('symbol')}>
+      ∑
+    </text>
+    <text x="8" y="86" className={cn('symbol')}>
+      √x
+    </text>
+    <Student
+      x={152}
+      y={120}
+      pose="raiseLeft"
+      look={{
+        skin: SKIN.rich,
+        hair: HAIR.black,
+        style: 'curly',
+        shirt: C.gold,
+        glasses: true,
+      }}
+      length={78}
+    />
+    <path d="M14 198 L226 198" className={cn('ground')} />
+    <Star x={210} y={30} r={8} fill={C.gold} />
+    <Star x={24} y={40} r={5} fill={C.rust} />
+  </>
+);
+
+// Code lab: a student coding beside a little robot, a code window and maths
+// floating above
+const CodeLab = () => (
+  <>
+    <rect x="16" y="24" width="210" height="178" rx="30" fill={C.sage} />
+    <g fill={C.forest} opacity="0.35">
+      {[0, 1, 2].flatMap(row =>
+        [0, 1, 2, 3, 4].map(col => (
+          <circle
+            key={`${row}-${col}`}
+            cx={28 + col * 8}
+            cy={112 + row * 8}
+            r="1.5"
+          />
+        )),
+      )}
+    </g>
+    {/* The code window */}
+    <rect x="104" y="32" width="118" height="88" rx="6" fill={C.forest} />
+    <circle cx="114" cy="42" r="2.6" fill={C.rust} />
+    <circle cx="122" cy="42" r="2.6" fill={C.gold} />
+    <circle cx="130" cy="42" r="2.6" fill={C.sage} />
+    <path d="M114 58 L150 58" className={cn('code')} stroke={C.gold} />
+    <path d="M122 68 L178 68" className={cn('code')} stroke={C.paper} />
+    <path d="M122 78 L162 78" className={cn('code')} stroke={C.sky} />
+    <path d="M130 88 L170 88" className={cn('code')} stroke={C.blush} />
+    <path d="M114 98 L140 98" className={cn('code')} stroke={C.gold} />
+    <text x="184" y="112" className={cn('codeTag')}>
+      {'</>'}
+    </text>
+    <text x="30" y="60" className={cn('symbolDark')}>
+      ∑
+    </text>
+    <text x="70" y="46" className={cn('symbolDark')}>
+      x²
+    </text>
+    <Student
+      x={70}
+      y={110}
+      look={{
+        skin: SKIN.warm,
+        hair: HAIR.brown,
+        style: 'ponytail',
+        shirt: C.rust,
+      }}
+      length={50}
+    />
+    {/* The laptop, seen from behind */}
+    <path d="M46 160 L50 130 L94 130 L98 160 Z" className={cn('paper')} />
+    <text x="62" y="150" className={cn('formula')}>
+      {'{ }'}
+    </text>
+    {/* The robot buddy */}
+    <rect
+      x="148"
+      y="128"
+      width="36"
+      height="26"
+      rx="7"
+      className={cn('paper')}
+    />
+    <circle cx="160" cy="141" r="3.2" fill={C.forest} />
+    <circle cx="172" cy="141" r="3.2" fill={C.forest} />
+    <path d="M161 148 Q166 151 171 148" className={cn('line')} />
+    <path d="M166 128 L166 120" className={cn('line')} />
+    <circle cx="166" cy="118" r="3" fill={C.rust} />
+    <rect x="156" y="154" width="20" height="6" rx="1" fill={C.gold} />
+    <rect x="12" y="160" width="218" height="8" rx="2" fill={C.gold} />
+    <rect x="28" y="168" width="7" height="30" fill={C.forest} />
+    <rect x="207" y="168" width="7" height="30" fill={C.forest} />
+    <path d="M12 198 L230 198" className={cn('ground')} />
+    <Star x={92} y={84} r={6} fill={C.gold} />
+  </>
+);
+
 const SCENES: Record<HeroSceneName, () => React.ReactElement> = {
   studyGroup: StudyGroup,
   atTheBoard: AtTheBoard,
   bookStack: BookStack,
   celebrate: Celebrate,
+  holoMath: HoloMath,
+  codeLab: CodeLab,
 };
 
 export const HeroScene = ({ scene, className }: HeroSceneProps) => {

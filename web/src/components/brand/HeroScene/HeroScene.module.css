@@ -1,4 +1,4 @@
-/* Flat, static editorial scenes. Fills come from the illustration tokens. */
+﻿/* Flat, static editorial scenes. Fills come from the illustration tokens. */
 .scene {
   display: block;
   width: 100%;
@@ -84,4 +84,43 @@
   stroke: var(--color-illus-rust);
   stroke-width: 1.8;
   stroke-linecap: round;
+}
+
+/* Circuit traces on the tech scenes */
+.circuit {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
+/* A line of code in a code window; the colour comes from the line */
+.code {
+  fill: none;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+}
+
+.codeTag {
+  fill: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Maths symbols floating around a scene */
+.symbol {
+  fill: var(--color-accent);
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-style: italic;
+}
+
+.symbolDark {
+  fill: var(--color-bg-inverse);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-style: italic;
 }
