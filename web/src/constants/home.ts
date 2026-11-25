@@ -11,7 +11,7 @@ import { POLICY_LINKS, POLICY_LINKS_TITLE } from './policies';
 export const BRAND = {
   name: 'SriDha Academy',
   footerLead:
-    'A focused education platform for topic-wise classes, assessment, examination preparation and AI model papers',
+    'A focused education platform for topic-wise live classes, PYQ test papers and topic test papers',
   copyright: '© 2026 SriDha Academy',
   footerNote: 'Designed as an editorial learning experience',
 } as const;
@@ -68,11 +68,7 @@ export const HERO_TEXT = {
   lead: 'Type a topic or your class to see its fee, lessons and next batches. No account needed to look around',
   popularLabel: 'Popular',
   searchLabel: 'Search your topic',
-  highlights: [
-    'Live topic batches',
-    'Verifiable concept milestones',
-    'AI assessment papers',
-  ],
+  highlights: ['Live topic batches', 'PYQ test papers', 'Topic test papers'],
 } as const;
 
 // Scenes either side of the search (the first of each side on phones)
