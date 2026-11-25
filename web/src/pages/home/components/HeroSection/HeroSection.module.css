@@ -112,7 +112,7 @@
 
 .photo {
   width: 100%;
-  max-width: var(--width-hero-photo);
+  max-width: var(--width-hero-illustration);
 }
 
 /* The second is smaller and sits toward the page edge, so the pair

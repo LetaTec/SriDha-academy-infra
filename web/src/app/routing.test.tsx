@@ -276,12 +276,13 @@ describe('app routing', () => {
       expect(enrol).toHaveAccessibleDescription(
         /What we will teach.*What is GST.*GST entries/,
       );
-      // Topics without batches are priced and open for pre-registration
+      // Only topics with batches are classes; one with a topic test and no
+      // batch (Ray optics) is not listed for enrolment
       expect(
-        screen.getByRole('button', {
+        screen.queryByRole('button', {
           name: 'Pre-register now: Ray optics, Class 12',
         }),
-      ).toBeEnabled();
+      ).not.toBeInTheDocument();
 
       await user.click(enrol);
       await findCheckoutPage();
@@ -489,15 +490,22 @@ describe('app routing', () => {
 
       // Pasted in one go: typing re-renders every card on each keystroke
       await user.click(search);
-      await user.paste('hybridisation');
+      await user.paste('ecosystem');
       const results = screen.getByRole('region', {
         name: 'Matching topics and batches',
       });
+      // The topic and its batch
       expect(
-        within(results).getByRole('button', { name: /Chemical bonding/ }),
-      ).toBeInTheDocument();
+        within(results).getAllByRole('button', { name: /Ecosystem/ }).length,
+      ).toBeGreaterThan(0);
       expect(
         within(results).queryByRole('button', { name: /GST/ }),
+      ).not.toBeInTheDocument();
+      // A topic with no batch (Chemical bonding) is not a class to find
+      await user.clear(search);
+      await user.paste('hybridisation');
+      expect(
+        within(results).queryByRole('button', { name: /Chemical bonding/ }),
       ).not.toBeInTheDocument();
 
       // An open topic shows its fee and each batch with its timing
@@ -580,7 +588,7 @@ describe('app routing', () => {
       await user.paste('class 12');
       expect(
         screen.getByRole('button', {
-          name: 'Pre-register now: Ray optics, Class 12',
+          name: 'Enrol now: Ecosystem, Class 12',
         }),
       ).toBeInTheDocument();
       expect(

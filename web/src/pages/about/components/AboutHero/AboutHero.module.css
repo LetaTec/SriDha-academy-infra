@@ -22,10 +22,10 @@
   margin-top: var(--space-3);
 }
 
-.photo {
-  max-width: var(--width-about-photo);
+/* The homepage's illustration style, the same width a photo had */
+.illustration {
+  max-width: var(--width-about-illustration);
   justify-self: end;
-  width: 100%;
 }
 
 @media (--viewport-md) {
@@ -34,7 +34,7 @@
     gap: var(--space-8);
   }
 
-  .photo {
+  .illustration {
     justify-self: start;
   }
 }

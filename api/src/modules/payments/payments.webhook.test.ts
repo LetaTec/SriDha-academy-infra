@@ -10,7 +10,7 @@ import {
 } from '../../test/testServer.js';
 
 const WEBHOOK_SECRET = 'whsec_test';
-const PRE_REGISTER_TOPIC = 'topic_physics_wave_optics_class_12';
+const PRE_REGISTER_TOPIC = 'topic_physics_ray_optics_class_12';
 const BILLING = {
   fullName: 'Asha Verma',
   email: 'asha@example.com',

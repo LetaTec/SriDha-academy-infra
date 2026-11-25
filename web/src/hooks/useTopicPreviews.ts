@@ -1,20 +1,23 @@
 import { useMemo } from 'react';
 
 import { LIVE_TOPIC_COUNT } from '@constants/topics';
-import { toTopicPreviews } from '@services/catalogue';
+import { hasBatches, toTopicPreviews } from '@services/catalogue';
 
 import { useCatalogue } from './useCatalogue';
 
-// Every topic card, from the catalogue. The list keeps one identity until
+// The classes students can join: every topic with batches (the team's
+// roster), as cards. allPreviews also has the topics that only have a topic
+// test, for the Topic Test Paper pages. The lists keep one identity until
 // the catalogue changes, so memoised grids do not rebuild.
 export const useTopicPreviews = () => {
   const catalogue = useCatalogue();
-  const previews = useMemo(
+  const allPreviews = useMemo(
     () => toTopicPreviews(catalogue.subjects),
     [catalogue.subjects],
   );
+  const previews = useMemo(() => allPreviews.filter(hasBatches), [allPreviews]);
 
-  return { ...catalogue, previews };
+  return { ...catalogue, previews, allPreviews };
 };
 
 type Stat = { value: string; label: string };

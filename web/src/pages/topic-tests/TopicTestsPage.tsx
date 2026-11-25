@@ -58,7 +58,13 @@ const TopicTestGroup = ({
 // The Topic Test Paper page: every topic from the catalogue, searchable.
 // Topics with a test come first and open it; the rest say it is coming.
 const TopicTestsPage = () => {
-  const { previews, isLoading, hasError, reload } = useTopicPreviews();
+  // Every topic, including those with a topic test but no batches
+  const {
+    allPreviews: previews,
+    isLoading,
+    hasError,
+    reload,
+  } = useTopicPreviews();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get(TOPIC_FILTER_PARAM.query) ?? '';
 

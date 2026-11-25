@@ -23,7 +23,7 @@ import { reconcileMissingInvoices } from './invoices/invoices.service.js';
 
 const SECRET = 'whsec_ledger';
 const FINANCE_EMAIL = 'finance.ledger@sridha.test';
-const TOPIC = 'topic_physics_wave_optics_class_12';
+const TOPIC = 'topic_physics_ray_optics_class_12';
 const T0 = new Date(new Date(TEST_APPROVAL_EFFECTIVE_FROM).getTime() + 30_000);
 const HOUR = 60 * 60 * 1000;
 

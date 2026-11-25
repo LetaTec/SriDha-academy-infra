@@ -113,14 +113,14 @@
   --width-search-results: 440px;
   --width-hero-search: 680px;
   --height-hero-search: 92vh;
-  --width-hero-photo: 240px;
+  --width-hero-illustration: 240px;
   --size-checkout-icon: 96px;
   --size-tutor-portrait: 120px;
   --size-tutor-portrait-sm: 88px;
   --width-checkout-summary: 360px;
   --height-search-results: 480px;
   --height-test-questions: 560px;
-  --width-about-photo: 440px;
+  --width-about-illustration: 440px;
   /* The site header is the "Now enrolling" ticker above the menu bar; pages
      offset their content by the whole header */
   --height-header-bar: 76px;
@@ -263,8 +263,6 @@
   --duration-float: 6s;
   --distance-float: -8px;
   --duration-spinner: 700ms;
-  --duration-photo-reveal: 900ms;
-  --duration-photo-settle: 1600ms;
   --distance-lift: -2px;
   --distance-lift-card: -5px;
   --distance-reveal: 35px;
@@ -276,10 +274,6 @@
   --duration-hero-card-out: 380ms;
 
   /* Book */
-  --aspect-photo-landscape: 4 / 3;
-  --aspect-photo-portrait: 4 / 5;
-  --filter-photo: saturate(0.88) sepia(0.08) contrast(1.02);
-  --scale-photo-start: 1.08;
   --book-aspect-ratio: 820 / 540;
   --book-aspect-ratio-narrow: 1 / 0.95;
   /* The book lies straight, facing the reader */

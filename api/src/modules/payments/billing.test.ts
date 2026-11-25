@@ -4,7 +4,7 @@ import { after, before, describe, it } from 'node:test';
 import { createFakeRazorpay } from '../../test/fakeRazorpay.js';
 import { startTestServer } from '../../test/testServer.js';
 
-const PRE_REGISTER_TOPIC = 'topic_physics_wave_optics_class_12';
+const PRE_REGISTER_TOPIC = 'topic_physics_ray_optics_class_12';
 // The supplier's own GSTIN: a real, Rajasthan (08) GSTIN with a valid check
 // character, used here only to exercise the business checkout
 const RAJASTHAN_GSTIN = '08AAGCL9166P1ZL';

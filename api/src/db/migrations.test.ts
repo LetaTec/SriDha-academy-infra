@@ -41,7 +41,8 @@ describe('migration 007: topic card fields', () => {
           ('topic_accounts_trial_balance_class_11', 'chapter_a', 'Learn Trial balance for Class 11', '', 'Class 11', 1);
       `);
 
-      await runMigrations(db);
+      // 007 by itself: later migrations (027) remove non-roster topics
+      await runOnly(db, CARD_FIELDS_MIGRATION);
 
       const rows = await db.all<{
         id: string;
