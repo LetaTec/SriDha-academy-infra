@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { QUERY_KEY } from '@/app/queryClient';
+import { CATALOGUE_REFRESH_MS, QUERY_KEY } from '@/app/queryClient';
 import { getCatalogue, type Subject } from '@services/catalogue';
 
 export type CatalogueState = {
@@ -17,11 +17,13 @@ const NO_SUBJECTS: Subject[] = [];
 // One request serves every component on the page (header search, topic
 // cards, checkout page), so they always agree on prices and batches. A
 // failed load retries, and the catalogue refreshes when the student comes
-// back to the tab.
+// back to the tab. While the tab is open it also refreshes every minute, so
+// the seats left in each batch stay current.
 export const useCatalogue = (): CatalogueState => {
   const query = useQuery({
     queryKey: QUERY_KEY.catalogue,
     queryFn: getCatalogue,
+    refetchInterval: CATALOGUE_REFRESH_MS,
   });
 
   return {

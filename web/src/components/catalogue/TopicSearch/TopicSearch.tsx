@@ -24,6 +24,7 @@ import { formatPrice } from '@utils/currency';
 import { formatWallClockTime } from '@utils/date';
 import { searchTopicPreviews } from '@utils/topicSearch';
 
+import { formatBatchSeats } from '../batchDetails';
 import styles from './TopicSearch.module.css';
 
 const cn = cx.bind(styles);
@@ -67,9 +68,8 @@ const batchTiming = (batch: Batch) =>
     .join(' · ');
 
 const batchStatus = (batch: Batch) =>
-  isBatchOpen(batch) && batch.seatsRemaining !== null
-    ? CATALOGUE_TEXT.seatsRemaining(batch.seatsRemaining)
-    : BATCH_AVAILABILITY_LABEL[batch.availability];
+  (isBatchOpen(batch) ? formatBatchSeats(batch) : null) ??
+  BATCH_AVAILABILITY_LABEL[batch.availability];
 
 // Topic search: in the header, as the homepage's main search and on the
 // Topics page. Matches a class ("class 11", "12th", "XI")

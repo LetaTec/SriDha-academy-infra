@@ -41,6 +41,18 @@ export const findBatchContext = (
 export const isBatchOpen = (batch: Batch) =>
   batch.availability === BATCH_AVAILABILITY.OPEN;
 
+// Soonest first; a batch without a date goes last
+export const sortBatchesByStart = (batches: readonly Batch[]): Batch[] =>
+  [...batches].sort((a, b) =>
+    a.startDate === b.startDate
+      ? 0
+      : a.startDate === null
+        ? 1
+        : b.startDate === null
+          ? -1
+          : a.startDate.localeCompare(b.startDate),
+  );
+
 // The batch a student could join next: the earliest dated open batch, or the
 // earliest dated batch when none is open.
 export const findNextBatch = (topic: Topic): Batch | null => {

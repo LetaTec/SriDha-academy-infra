@@ -10,12 +10,14 @@ import { Icon } from '@components/ui/Icon/Icon';
 import { Input } from '@components/ui/Input/Input';
 import { StatusDot } from '@components/ui/StatusDot/StatusDot';
 import { Text } from '@components/ui/Text/Text';
-import { CATALOGUE_TEXT } from '@constants/catalogue';
+import { BATCH_AVAILABILITY_LABEL, CATALOGUE_TEXT } from '@constants/catalogue';
 import { LANDING_TEXT } from '@constants/landing';
 import { CHECKOUT_TEXT } from '@constants/payments';
 import {
   findNextBatch,
   hasBatches,
+  isBatchOpen,
+  sortBatchesByStart,
   type Topic,
   type TopicPreview,
 } from '@services/catalogue';
@@ -23,6 +25,7 @@ import { formatPrice } from '@utils/currency';
 import { formatDateOnly } from '@utils/date';
 import { searchTopicPreviews } from '@utils/topicSearch';
 
+import { formatBatchSeats } from '../batchDetails';
 import styles from './TopicPreviewGrid.module.css';
 
 const cn = cx.bind(styles);
@@ -50,6 +53,24 @@ const TopicOffer = ({ topic }: { topic: Topic }) => {
     </>
   );
 };
+
+// The seats left in each of the topic's batches, soonest first
+const BatchSeats = ({ topic }: { topic: Topic }) =>
+  topic.batches.length > 0 ? (
+    <ul className={cn('seats')} aria-label={CATALOGUE_TEXT.batchSeatsLabel}>
+      {sortBatchesByStart(topic.batches).map(batch => (
+        <li key={batch.id}>
+          <Text as="span" variant="small" tone="muted">
+            {CATALOGUE_TEXT.batchSeats(
+              batch.name,
+              (isBatchOpen(batch) ? formatBatchSeats(batch) : null) ??
+                BATCH_AVAILABILITY_LABEL[batch.availability],
+            )}
+          </Text>
+        </li>
+      ))}
+    </ul>
+  ) : null;
 
 export type TopicPreviewGridProps = {
   // The topic cards to show, from the catalogue (useTopicPreviews)
@@ -131,6 +152,7 @@ const TopicPreviewGridView = ({
                 </span>
                 <span className={cn('offer')}>
                   <TopicOffer topic={preview.topic} />
+                  <BatchSeats topic={preview.topic} />
                   <span className={cn('action')}>
                     <Text as="span" variant="strong">
                       {action}

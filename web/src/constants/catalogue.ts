@@ -119,6 +119,12 @@ export const CATALOGUE_TEXT = {
   retry: 'Try again',
   seatsRemaining: (seats: number) =>
     seats === 1 ? '1 seat left' : `${seats} seats left`,
+  // e.g. "286 of 300 seats left"
+  seatsOfCapacity: (seats: number, capacity: number) =>
+    `${seats} of ${capacity} seats left`,
+  // One line per batch on a topic card, e.g. "Batch 1: 286 of 300 seats left"
+  batchSeats: (batch: string, seats: string) => `${batch}: ${seats}`,
+  batchSeatsLabel: 'Seats in each batch',
   sessionCount: (count: number) =>
     count === 1 ? '1 session' : `${count} sessions`,
   durationMinutes: (minutes: number) => `${minutes} min`,
