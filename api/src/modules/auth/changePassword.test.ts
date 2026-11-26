@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
-import { startTestServer } from '../../test/testServer.js';
+import { startTestServer, SIGN_UP_CONTACT } from '../../test/testServer.js';
 
 const EMAIL = 'leela@example.com';
 const PASSWORD = 'correct-horse-1';
@@ -15,6 +15,7 @@ describe('change password', () => {
       fullName: 'Leela Das',
       email: EMAIL,
       password: PASSWORD,
+      ...SIGN_UP_CONTACT,
     });
   });
 

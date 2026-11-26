@@ -104,7 +104,7 @@ export type NewPayment = {
   billingState: string;
   billingCity: string;
   customerType: string;
-  addressLine1: string;
+  addressLine1: string | null;
   addressLine2: string | null;
   pinCode: string;
   billingStateCode: string;

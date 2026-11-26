@@ -4,6 +4,7 @@ import { after, before, describe, it } from 'node:test';
 import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
+  SIGN_UP_CONTACT,
 } from '../../test/testServer.js';
 
 const PASSWORD = 'correct-horse-1';
@@ -25,6 +26,7 @@ describe('student sign-up', () => {
       fullName: '  Meera Iyer ',
       email: 'Meera@Example.com',
       password: PASSWORD,
+      ...SIGN_UP_CONTACT,
     });
 
     assert.equal(response.status, 201);
@@ -66,6 +68,7 @@ describe('student sign-up', () => {
         fullName: 'Someone Else',
         email: 'MEERA@example.com',
         password: 'another-pass-2',
+        ...SIGN_UP_CONTACT,
       });
 
     assert.equal(response.status, 409);
@@ -95,6 +98,7 @@ describe('student sign-up', () => {
         fullName: 'Ravi Kumar',
         email: 'buyer@example.com',
         password: PASSWORD,
+        ...SIGN_UP_CONTACT,
       });
 
     assert.equal(response.status, 201);
@@ -110,6 +114,7 @@ describe('student sign-up', () => {
         fullName: 'Not Staff',
         email: TEST_SUPER_ADMIN_EMAIL,
         password: PASSWORD,
+        ...SIGN_UP_CONTACT,
       });
 
     assert.equal(response.status, 409);
@@ -127,6 +132,7 @@ describe('student sign-up', () => {
         fullName: 'A',
         email: 'not-an-email',
         password: 'short',
+        ...SIGN_UP_CONTACT,
       });
 
     assert.equal(response.status, 400);
@@ -144,6 +150,7 @@ describe('student sign-up', () => {
         fullName: 'Asha Verma',
         email: 'asha.extra@example.com',
         password: PASSWORD,
+        ...SIGN_UP_CONTACT,
         role: 'SUPER_ADMIN',
       });
     assert.equal(extra.status, 400);

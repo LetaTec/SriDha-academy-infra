@@ -93,14 +93,14 @@ describe('billing details at checkout', () => {
     });
   });
 
-  it('asks an individual for an address and a valid PIN', async () => {
+  it('asks an individual for a valid PIN, but not a street address', async () => {
     const missing = await checkout({
       ...INDIVIDUAL,
       addressLine1: '',
       pinCode: '30200',
     });
     assert.equal(missing.status, 400);
-    assert.deepEqual(fieldsOf(missing.body), ['addressLine1', 'pinCode']);
+    assert.deepEqual(fieldsOf(missing.body), ['pinCode']);
 
     for (const pinCode of ['012345', '30200A', '3020066']) {
       const invalid = await checkout({ ...INDIVIDUAL, pinCode });

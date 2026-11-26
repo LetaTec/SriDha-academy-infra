@@ -9,6 +9,7 @@ import type { DatabaseClient, Row } from '../../db/client.js';
 export const findAuthUserRow = (db: DatabaseClient, userId: string) =>
   db.get<Row>(
     `SELECT u.id, u.email, u.role, u.full_name AS account_name, u.password_hash IS NOT NULL AS has_password,
+       u.mobile, u.state, u.city, u.pin_code,
        s.id AS student_id, s.full_name, s.standard, s.stream, s.stream_other
      FROM users u
      LEFT JOIN student_profiles s ON s.user_id = u.id
@@ -57,6 +58,14 @@ export const findAccountByEmail = (db: DatabaseClient, email: string) =>
     [email],
   );
 
+// The contact details a student gives at sign-up
+export type StudentContact = {
+  mobile: string;
+  state: string;
+  city: string;
+  pinCode: string;
+};
+
 export const insertSignedUpStudent = (
   db: DatabaseClient,
   student: {
@@ -66,17 +75,22 @@ export const insertSignedUpStudent = (
     passwordHash: string;
     role: string;
     timestamp: string;
-  },
+  } & StudentContact,
 ) =>
   db.query(
-    `INSERT INTO users (id, email, password_hash, role, full_name, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $6)`,
+    `INSERT INTO users (id, email, password_hash, role, full_name, mobile, state, city,
+       pin_code, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)`,
     [
       student.id,
       student.email,
       student.passwordHash,
       student.role,
       student.fullName,
+      student.mobile,
+      student.state,
+      student.city,
+      student.pinCode,
       student.timestamp,
     ],
   );
@@ -92,10 +106,11 @@ export const claimPasswordlessStudent = async (
     passwordHash: string;
     role: string;
     timestamp: string;
-  },
+  } & StudentContact,
 ) => {
   const row = await db.get<{ id: string }>(
-    `UPDATE users SET password_hash = $1, full_name = $2, updated_at = $3
+    `UPDATE users SET password_hash = $1, full_name = $2, updated_at = $3,
+       mobile = $6, state = $7, city = $8, pin_code = $9
      WHERE id = $4 AND role = $5 AND password_hash IS NULL
      RETURNING id`,
     [
@@ -104,6 +119,10 @@ export const claimPasswordlessStudent = async (
       claim.timestamp,
       claim.userId,
       claim.role,
+      claim.mobile,
+      claim.state,
+      claim.city,
+      claim.pinCode,
     ],
   );
   return row !== null && row !== undefined;

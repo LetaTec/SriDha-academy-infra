@@ -182,9 +182,6 @@ export const TEST_CHECKOUT_TEXT = {
   oneAttempt: '1 attempt',
   coversTitle: 'What the test covers',
   fee: 'Test fee',
-  signInTitle: 'Sign in to buy the test',
-  signInMessage:
-    'The test is taken signed in, so your attempt is kept on your account',
   signIn: 'Sign up or log in',
   paid: 'Your attempt is paid. Start the test when you are ready',
   startTest: 'Start the test',
@@ -232,6 +229,11 @@ export const CHECKOUT_TEXT = {
   teachTitle: 'What we will teach',
   // Shown under what the topic teaches; there is no refund policy yet
   seeMyBatches: 'See it in My batches',
+  createPasswordLabel: 'Create a password',
+  passwordTooShort: 'Use at least 8 characters',
+  createAccountNote:
+    'Paying also creates your SriDha account with these details, so you can see your batches and take tests',
+  haveAccount: 'Already have an account? Log in',
   signUpForMyBatches: (email: string) =>
     `Sign up with ${email} to see this batch, with a countdown to your class, under My batches`,
   paymentNote: `Please check the topic and batch before you pay. For any question about a payment, write to ${SUPPORT_EMAIL}`,

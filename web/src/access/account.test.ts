@@ -6,7 +6,14 @@ import { canChangePassword } from './account';
 const auth = (role: AuthUser['role'] | null): AuthContextValue => ({
   status: role ? 'authenticated' : 'anonymous',
   user: role
-    ? { id: 'u1', email: 'a@example.com', role, name: null, student: null }
+    ? {
+        id: 'u1',
+        email: 'a@example.com',
+        role,
+        name: null,
+        contact: null,
+        student: null,
+      }
     : null,
   isLoggedIn: role !== null,
   login: () => undefined,

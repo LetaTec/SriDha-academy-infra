@@ -4,6 +4,7 @@ import { after, before, describe, it } from 'node:test';
 import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
+  SIGN_UP_CONTACT,
 } from '../../test/testServer.js';
 
 const PASSWORD = 'correct-horse-1';
@@ -16,6 +17,7 @@ describe('forgot password codes', () => {
       fullName: 'Kiran Rao',
       email,
       password: PASSWORD,
+      ...SIGN_UP_CONTACT,
     });
 
   const askForCode = async (email: string) => {

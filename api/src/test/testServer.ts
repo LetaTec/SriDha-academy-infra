@@ -215,3 +215,11 @@ export const validRegistration = (overrides: Record<string, unknown> = {}) => ({
   address: 'Jaipur',
   ...overrides,
 });
+
+// The contact details sign-up asks for, alongside name, email and password
+export const SIGN_UP_CONTACT = {
+  mobile: '+91 98765 43210',
+  state: 'Rajasthan',
+  city: 'Jaipur',
+  pinCode: '302006',
+};

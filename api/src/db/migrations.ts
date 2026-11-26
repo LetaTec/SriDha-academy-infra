@@ -1589,4 +1589,38 @@ export const MIGRATIONS: readonly Migration[] = [
         CHECK (num_nonnulls(enrolment_id, pre_registration_id, test_attempt_id) = 1);
     `,
   },
+  {
+    // An account keeps the student's contact details from sign-up (mobile,
+    // state, city, PIN code), so checkout can fill them in. An individual's
+    // payment no longer needs a billing address: only a business's tax
+    // invoice does. To reverse (only once no individual payment lacks an
+    // address): restore payments_billing_complete from 015 and
+    //   ALTER TABLE users DROP COLUMN mobile, DROP COLUMN state,
+    //     DROP COLUMN city, DROP COLUMN pin_code;
+    id: '029_account_contact_and_optional_address',
+    sql: `
+      ALTER TABLE users ADD COLUMN mobile TEXT;
+      ALTER TABLE users ADD COLUMN state TEXT;
+      ALTER TABLE users ADD COLUMN city TEXT;
+      ALTER TABLE users
+        ADD COLUMN pin_code TEXT CHECK (pin_code ~ '^[1-9][0-9]{5}$');
+
+      ALTER TABLE payments DROP CONSTRAINT payments_billing_complete;
+      ALTER TABLE payments ADD CONSTRAINT payments_billing_complete CHECK (
+        customer_type IS NULL
+        OR (
+          pin_code IS NOT NULL AND billing_state_code IS NOT NULL
+          AND (
+            (customer_type = 'INDIVIDUAL'
+              AND gstin IS NULL AND business_legal_name IS NULL
+              AND purchase_order_reference IS NULL)
+            OR (customer_type = 'BUSINESS'
+              AND address_line1 IS NOT NULL
+              AND gstin IS NOT NULL AND business_legal_name IS NOT NULL
+              AND gstin_state_code IS NOT NULL AND gstin_check IS NOT NULL)
+          )
+        )
+      );
+    `,
+  },
 ];

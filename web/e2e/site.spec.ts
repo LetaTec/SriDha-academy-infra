@@ -200,7 +200,7 @@ test.describe('interactive book', () => {
 });
 
 test.describe('student journey', () => {
-  test('reserve a seat with just the payment details, no account', async ({
+  test('reserve a seat and create an account in the same step', async ({
     page,
   }, testInfo) => {
     await page.goto('/topics?q=rectification');
@@ -225,8 +225,6 @@ test.describe('student journey', () => {
     await expect(
       page.getByRole('region', { name: 'Your tutor, Richa Varyani' }),
     ).toBeVisible();
-    // Nothing asks for a password or an account
-    await expect(page.getByLabel('Password')).toHaveCount(0);
     await page.getByLabel('Full name').fill('Asha Verma');
     await page
       .getByLabel('Email ID')
@@ -234,9 +232,11 @@ test.describe('student journey', () => {
     await page.getByLabel('Mobile number').fill('+91 98765 43210');
     await page.getByLabel('State', { exact: true }).selectOption('Rajasthan');
     await page.getByLabel('City', { exact: true }).fill('Jaipur');
-    // Checkout records the billing address; the PIN code must be 6 digits
-    await page.getByLabel('Billing address').fill('12 Civil Lines');
+    // No street address for an individual; the PIN code must be 6 digits
+    await expect(page.getByLabel('Billing address')).toHaveCount(0);
     await page.getByLabel('PIN code').fill('302006');
+    // A visitor chooses a password: paying also creates their account
+    await page.getByLabel('Create a password').fill('correct-horse-1');
     await page.getByRole('checkbox', { name: /I agree to the/ }).check();
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/${testInfo.project.name}-checkout.png`,
@@ -250,7 +250,7 @@ test.describe('student journey', () => {
     await expect(page).toHaveURL(/\/topics$/);
   });
 
-  test('checkout still refuses an invalid PIN code and a missing address', async ({
+  test('checkout still refuses an invalid PIN code', async ({
     page,
   }, testInfo) => {
     await page.goto('/topics?q=rectification');
@@ -268,6 +268,7 @@ test.describe('student journey', () => {
     await page.getByLabel('State', { exact: true }).selectOption('Rajasthan');
     await page.getByLabel('City', { exact: true }).fill('Jaipur');
     await page.getByLabel('PIN code').fill('12345');
+    await page.getByLabel('Create a password').fill('correct-horse-1');
     await page.getByRole('checkbox', { name: /I agree to the/ }).check();
     await page.getByRole('button', { name: 'Pay ₹129' }).click();
 
@@ -319,6 +320,10 @@ test.describe('student account', () => {
     const signUp = page.getByRole('dialog', { name: /Create your/ });
     await signUp.getByLabel('Full name').fill('Meera Iyer');
     await signUp.getByLabel('Email ID').fill(email);
+    await signUp.getByLabel('Mobile number').fill('+91 98765 43210');
+    await signUp.getByLabel('State', { exact: true }).selectOption('Karnataka');
+    await signUp.getByLabel('City', { exact: true }).fill('Bengaluru');
+    await signUp.getByLabel('PIN code').fill('560001');
     await signUp.getByLabel('Create a password').fill(password);
     await signUp.getByRole('button', { name: 'Create account' }).click();
 

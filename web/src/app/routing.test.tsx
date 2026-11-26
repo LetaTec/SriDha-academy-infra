@@ -32,6 +32,15 @@ vi.mock('@services/catalogue/api', () => ({ getCatalogue: vi.fn() }));
 vi.mock('@services/auth/api', () => ({
   getCurrentSession: vi.fn(),
   logoutStudent: vi.fn(),
+  // Checkout creates a visitor's account with their details
+  signUpStudent: vi.fn(async (body: { email: string; fullName: string }) => ({
+    id: 'user_new',
+    email: body.email,
+    role: 'STUDENT',
+    name: body.fullName,
+    contact: null,
+    student: null,
+  })),
   requestAdminSignIn: vi.fn(),
   confirmAdminSignIn: vi.fn(),
 }));
@@ -73,6 +82,7 @@ const student = {
   email: 'asha@example.com',
   role: 'STUDENT' as const,
   name: 'Asha Verma',
+  contact: null,
   student: {
     id: '6f0a3c1e-0000-4000-8000-000000000002',
     fullName: 'Asha Verma',
@@ -88,6 +98,7 @@ const superAdmin = {
   email: 'admin@example.com',
   role: 'SUPER_ADMIN' as const,
   name: null,
+  contact: null,
   student: null,
 };
 
@@ -330,7 +341,7 @@ describe('app routing', () => {
         screen.getByRole('textbox', { name: 'Mobile number' }),
         '+91 98765 43210',
       );
-      // Paying needs the state, the city, address, PIN and the terms ticked first
+      // Paying needs the state, the city, PIN and the terms ticked first
       await user.click(screen.getByRole('button', { name: 'Pay ₹129' }));
       expect(
         await screen.findByText('Tick the box to agree before paying'),
@@ -340,17 +351,10 @@ describe('app routing', () => {
       );
       expect(screen.getByText('Enter your city')).toBeInTheDocument();
       expect(
-        screen.getByText('Enter your billing address'),
-      ).toBeInTheDocument();
-      expect(
         screen.getByText('Enter a valid 6-digit PIN code'),
       ).toBeInTheDocument();
       expect(createCheckout).not.toHaveBeenCalled();
 
-      await user.type(
-        screen.getByRole('textbox', { name: 'Billing address' }),
-        '12 Civil Lines',
-      );
       await user.selectOptions(
         screen.getByRole('combobox', { name: 'State' }),
         'Rajasthan',
@@ -359,6 +363,10 @@ describe('app routing', () => {
       await user.type(
         screen.getByRole('textbox', { name: 'PIN code' }),
         '302006',
+      );
+      await user.type(
+        screen.getByLabelText('Create a password'),
+        'correct-horse-1',
       );
       await user.click(
         screen.getByRole('checkbox', { name: /I agree to the/ }),
@@ -372,7 +380,6 @@ describe('app routing', () => {
         fullName: 'Asha Verma',
         email: 'asha@example.com',
         mobile: '+91 98765 43210',
-        addressLine1: '12 Civil Lines',
         state: 'Rajasthan',
         city: 'Jaipur',
         pinCode: '302006',
@@ -449,10 +456,6 @@ describe('app routing', () => {
         screen.getByRole('textbox', { name: 'Mobile number' }),
         '+91 98765 43210',
       );
-      await user.type(
-        screen.getByRole('textbox', { name: 'Billing address' }),
-        '12 Civil Lines',
-      );
       await user.selectOptions(
         screen.getByRole('combobox', { name: 'State' }),
         'Rajasthan',
@@ -461,6 +464,10 @@ describe('app routing', () => {
       await user.type(
         screen.getByRole('textbox', { name: 'PIN code' }),
         '302006',
+      );
+      await user.type(
+        screen.getByLabelText('Create a password'),
+        'correct-horse-1',
       );
       await user.click(
         screen.getByRole('checkbox', { name: /I agree to the/ }),

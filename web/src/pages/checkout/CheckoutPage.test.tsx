@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QUERY_KEY } from '@/app/queryClient';
 import { AuthProvider } from '@context/AuthContext';
 import { ToastProvider } from '@context/ToastContext';
-import { getCurrentSession } from '@services/auth/api';
+import { getCurrentSession, signUpStudent } from '@services/auth/api';
 import { getCatalogue } from '@services/catalogue/api';
 import { createCheckout } from '@services/payments/api';
 import { catalogueFixture, openBatch } from '@/test/catalogueFixture';
@@ -32,6 +32,12 @@ const signedInStudent = {
   email: 'meera@example.com',
   role: 'STUDENT' as const,
   name: 'Meera Iyer',
+  contact: {
+    mobile: '+91 98765 43210',
+    state: 'Karnataka' as const,
+    city: 'Bengaluru',
+    pinCode: '560001',
+  },
   student: null,
 };
 
@@ -77,6 +83,19 @@ const renderCheckout = (path = `/checkout?topic=${GST_TOPIC_ID}`) => {
 describe('CheckoutPage — B2C & B2B Billing', () => {
   beforeEach(() => {
     vi.mocked(getCurrentSession).mockRejectedValue(signedOut());
+    vi.mocked(signUpStudent).mockImplementation(async body => ({
+      id: 'user_new',
+      email: body.email,
+      role: 'STUDENT',
+      name: body.fullName,
+      contact: {
+        mobile: body.mobile,
+        state: body.state,
+        city: body.city,
+        pinCode: body.pinCode,
+      },
+      student: null,
+    }));
     vi.mocked(getCatalogue).mockResolvedValue(catalogueFixture);
     vi.mocked(createCheckout).mockResolvedValue({
       paymentId: 'pay_test_123',
@@ -136,10 +155,10 @@ describe('CheckoutPage — B2C & B2B Billing', () => {
       screen.getByRole('textbox', { name: /Mobile number/i }),
       '+91 98765 43210',
     );
-    await user.type(
-      screen.getByRole('textbox', { name: /Billing address/i }),
-      '12 Civil Lines',
-    );
+    // No street address for an individual
+    expect(
+      screen.queryByRole('textbox', { name: /Billing address/i }),
+    ).not.toBeInTheDocument();
     await user.selectOptions(
       screen.getByRole('combobox', { name: /State/i }),
       'Rajasthan',
@@ -148,6 +167,11 @@ describe('CheckoutPage — B2C & B2B Billing', () => {
     await user.type(
       screen.getByRole('textbox', { name: /PIN code/i }),
       '302006',
+    );
+    // A visitor's account is made with the order
+    await user.type(
+      screen.getByLabelText(/Create a password/i),
+      'correct-horse-1',
     );
     await user.click(screen.getByRole('checkbox', { name: /I agree to the/i }));
 
@@ -161,12 +185,57 @@ describe('CheckoutPage — B2C & B2B Billing', () => {
         fullName: 'Asha Verma',
         email: 'asha@example.com',
         mobile: '+91 98765 43210',
-        addressLine1: '12 Civil Lines',
         state: 'Rajasthan',
         city: 'Jaipur',
         pinCode: '302006',
       });
     });
+    expect(signUpStudent).toHaveBeenCalledWith({
+      fullName: 'Asha Verma',
+      email: 'asha@example.com',
+      password: 'correct-horse-1',
+      mobile: '+91 98765 43210',
+      state: 'Rajasthan',
+      city: 'Jaipur',
+      pinCode: '302006',
+    });
+  });
+
+  it('asks a visitor for a password of at least 8 characters before paying', async () => {
+    const user = userEvent.setup();
+    renderCheckout();
+
+    await screen.findByText('Billing details');
+    await user.type(
+      screen.getByRole('textbox', { name: /Full name/i }),
+      'Asha Verma',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /Email ID/i }),
+      'asha@example.com',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /Mobile number/i }),
+      '+91 98765 43210',
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /State/i }),
+      'Rajasthan',
+    );
+    await user.type(screen.getByRole('textbox', { name: /City/i }), 'Jaipur');
+    await user.type(
+      screen.getByRole('textbox', { name: /PIN code/i }),
+      '302006',
+    );
+    await user.type(screen.getByLabelText(/Create a password/i), 'short');
+    await user.click(screen.getByRole('checkbox', { name: /I agree to the/i }));
+    await user.click(screen.getByRole('button', { name: /Pay ₹129/i }));
+
+    expect(
+      await screen.findByText('Use at least 8 characters'),
+    ).toBeInTheDocument();
+    expect(signUpStudent).not.toHaveBeenCalled();
+    expect(createCheckout).not.toHaveBeenCalled();
   });
 
   it('sells a signed-in student one ₹5 attempt at a topic test, with no teacher or batch', async () => {
@@ -181,7 +250,7 @@ describe('CheckoutPage — B2C & B2B Billing', () => {
     expect(screen.queryByText(/Your tutor/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Choose your batch/i)).not.toBeInTheDocument();
 
-    // The account's name and email are filled in
+    // Every detail comes from the account; no password is asked for
     await waitFor(() =>
       expect(screen.getByRole('textbox', { name: /Full name/i })).toHaveValue(
         'Meera Iyer',
@@ -190,27 +259,22 @@ describe('CheckoutPage — B2C & B2B Billing', () => {
     expect(screen.getByRole('textbox', { name: /Email ID/i })).toHaveValue(
       'meera@example.com',
     );
-
-    await user.type(
-      screen.getByRole('textbox', { name: /Mobile number/i }),
+    expect(screen.getByRole('textbox', { name: /Mobile number/i })).toHaveValue(
       '+91 98765 43210',
     );
-    await user.type(
-      screen.getByRole('textbox', { name: /Billing address/i }),
-      '4 MG Road',
-    );
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: /State/i }),
+    expect(screen.getByRole('combobox', { name: /State/i })).toHaveValue(
       'Karnataka',
     );
-    await user.type(
-      screen.getByRole('textbox', { name: /City/i }),
+    expect(screen.getByRole('textbox', { name: /City/i })).toHaveValue(
       'Bengaluru',
     );
-    await user.type(
-      screen.getByRole('textbox', { name: /PIN code/i }),
+    expect(screen.getByRole('textbox', { name: /PIN code/i })).toHaveValue(
       '560001',
     );
+    expect(
+      screen.queryByLabelText(/Create a password/i),
+    ).not.toBeInTheDocument();
+
     await user.click(screen.getByRole('checkbox', { name: /I agree to the/i }));
     await user.click(screen.getByRole('button', { name: /Pay ₹5/i }));
 
@@ -222,7 +286,6 @@ describe('CheckoutPage — B2C & B2B Billing', () => {
         fullName: 'Meera Iyer',
         email: 'meera@example.com',
         mobile: '+91 98765 43210',
-        addressLine1: '4 MG Road',
         state: 'Karnataka',
         city: 'Bengaluru',
         pinCode: '560001',
@@ -230,15 +293,15 @@ describe('CheckoutPage — B2C & B2B Billing', () => {
     });
   });
 
-  it('asks a visitor to sign in before buying a topic test', async () => {
+  it('lets a visitor create their account while buying a topic test', async () => {
     renderCheckout(`/checkout?test=${GST_TOPIC_ID}`);
 
     expect(
-      await screen.findByText('Sign in to buy the test'),
+      await screen.findByLabelText(/Create a password/i),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /Pay ₹5/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole('button', { name: /Already have an account\? Log in/ }),
+    ).toBeInTheDocument();
   });
 
   it('submits B2B Business checkout with legal name, GSTIN and PO reference', async () => {
@@ -264,7 +327,7 @@ describe('CheckoutPage — B2C & B2B Billing', () => {
       screen.getByRole('textbox', { name: /Purchase order reference/i }),
     ).toBeInTheDocument();
 
-    // Fill contact & address
+    // Fill contact details, and the address the tax invoice needs
     await user.type(
       screen.getByRole('textbox', { name: /Contact person full name/i }),
       'Asha Verma',
@@ -289,6 +352,10 @@ describe('CheckoutPage — B2C & B2B Billing', () => {
     await user.type(
       screen.getByRole('textbox', { name: /PIN code/i }),
       '302015',
+    );
+    await user.type(
+      screen.getByLabelText(/Create a password/i),
+      'correct-horse-1',
     );
 
     // Fill business fields
