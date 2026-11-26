@@ -1,6 +1,6 @@
 import cx from 'classnames/bind';
 
-import { formatBatchSeats } from '@components/catalogue/batchDetails';
+import { formatBatchEnrolment } from '@components/catalogue/batchDetails';
 import { TutorProfile } from '@components/catalogue/TutorProfile/TutorProfile';
 import { Heading } from '@components/ui/Heading/Heading';
 import { Icon } from '@components/ui/Icon/Icon';
@@ -82,7 +82,7 @@ export const CheckoutTopicCard = ({
           },
           {
             label: CHECKOUT_TEXT.seatsLabel,
-            value: orToBeAnnounced(formatBatchSeats(batch), seats => seats),
+            value: orToBeAnnounced(formatBatchEnrolment(batch), line => line),
           },
         ]
       : [

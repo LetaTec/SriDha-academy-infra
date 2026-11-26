@@ -29,8 +29,9 @@ export const TICKER_TEXT = {
   label: 'Now enrolling',
   regionLabel: 'Batches open for enrolment',
   starts: 'starts',
+  // Only for a nearly full batch
   seatsLeft: (seats: number) =>
-    `${seats} ${seats === 1 ? 'seat' : 'seats'} left`,
+    `Only ${seats} ${seats === 1 ? 'seat' : 'seats'} left`,
   enrol: 'Enrol',
   enrolLabel: (topic: string, batch: string) => `Enrol in ${topic}, ${batch}`,
   quiet:

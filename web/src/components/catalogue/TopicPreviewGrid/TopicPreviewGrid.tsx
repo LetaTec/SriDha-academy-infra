@@ -25,7 +25,7 @@ import { formatPrice } from '@utils/currency';
 import { formatDateOnly } from '@utils/date';
 import { searchTopicPreviews } from '@utils/topicSearch';
 
-import { formatBatchSeats } from '../batchDetails';
+import { formatBatchCapacity, formatBatchEnrolment } from '../batchDetails';
 import styles from './TopicPreviewGrid.module.css';
 
 const cn = cx.bind(styles);
@@ -54,24 +54,36 @@ const TopicOffer = ({ topic }: { topic: Topic }) => {
   );
 };
 
-// The seats left in each of the topic's batches, soonest first: the
-// batch on the left, its seats on the right, one ruled row each
-const BatchSeats = ({ topic }: { topic: Topic }) =>
-  topic.batches.length > 0 ? (
-    <ul className={cn('seats')} aria-label={CATALOGUE_TEXT.batchSeatsLabel}>
-      {sortBatchesByStart(topic.batches).map(batch => (
-        <li key={batch.id} className={cn('seat')}>
-          <Text as="span" variant="small">
-            {batch.name}
-          </Text>
-          <Text as="span" variant="small" tone="muted">
-            {(isBatchOpen(batch) ? formatBatchSeats(batch) : null) ??
-              BATCH_AVAILABILITY_LABEL[batch.availability]}
-          </Text>
-        </li>
-      ))}
-    </ul>
-  ) : null;
+// When enrolment closes for each of the topic's batches, soonest first:
+// the batch on the left, its closing date on the right, one ruled row
+// each, then how many students a batch takes
+const BatchSeats = ({ topic }: { topic: Topic }) => {
+  if (topic.batches.length === 0) return null;
+  const capacity = formatBatchCapacity(topic.batches);
+
+  return (
+    <>
+      <ul className={cn('seats')} aria-label={CATALOGUE_TEXT.batchSeatsLabel}>
+        {sortBatchesByStart(topic.batches).map(batch => (
+          <li key={batch.id} className={cn('seat')}>
+            <Text as="span" variant="small">
+              {batch.name}
+            </Text>
+            <Text as="span" variant="small" tone="muted">
+              {(isBatchOpen(batch) ? formatBatchEnrolment(batch) : null) ??
+                BATCH_AVAILABILITY_LABEL[batch.availability]}
+            </Text>
+          </li>
+        ))}
+      </ul>
+      {capacity ? (
+        <Text as="span" variant="caption" tone="muted">
+          {capacity}
+        </Text>
+      ) : null}
+    </>
+  );
+};
 
 export type TopicPreviewGridProps = {
   // The topic cards to show, from the catalogue (useTopicPreviews)
