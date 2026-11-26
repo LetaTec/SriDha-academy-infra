@@ -110,11 +110,7 @@ export const createCheckoutSchema = z
     fullName: z.string().trim().min(2, 'Enter your full name').max(120),
     email: emailSchema,
     mobile: mobileSchema,
-    addressLine1: z
-      .string()
-      .trim()
-      .min(3, 'Enter the billing address')
-      .max(200),
+    addressLine1: z.string().trim().max(200).optional(),
     addressLine2: z.string().trim().max(200).optional(),
     state: z.enum(INDIAN_STATES, 'Select your state'),
     city: z.string().trim().min(2, 'Enter your city').max(80),
@@ -157,6 +153,14 @@ export const createCheckoutSchema = z
         }
       }
       return;
+    }
+
+    if (!input.addressLine1 || input.addressLine1.length < 3) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['addressLine1'],
+        message: 'Enter the billing address',
+      });
     }
 
     if (!input.businessLegalName || input.businessLegalName.length < 2) {
@@ -202,7 +206,7 @@ const toBillingSnapshot = (input: CreateCheckoutInput) => {
       : null;
   return {
     customerType: input.customerType,
-    addressLine1: input.addressLine1,
+    addressLine1: input.addressLine1?.trim() || null,
     addressLine2: input.addressLine2?.trim() || null,
     pinCode: input.pinCode,
     billingStateCode: GST_STATE_CODE[input.state],

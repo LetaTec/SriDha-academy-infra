@@ -5,6 +5,7 @@ import type {
   AuthUser,
   StudentStandard,
   StudentStream,
+  AccountContact,
 } from '../../contracts/auth.js';
 import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
@@ -127,6 +128,18 @@ export const getAuthUser = async (
     email: String(row.email),
     role,
     name: name === null ? null : String(name),
+    contact:
+      row.mobile === null ||
+      row.state === null ||
+      row.city === null ||
+      row.pin_code === null
+        ? null
+        : {
+            mobile: String(row.mobile),
+            state: String(row.state) as AccountContact['state'],
+            city: String(row.city),
+            pinCode: String(row.pin_code),
+          },
     student:
       row.student_id === null
         ? null
@@ -197,6 +210,13 @@ export const registerStudent = async (
 // check the address yet. A billing email that checkout already recorded
 // (with no password) becomes this account. An email that already has a
 // password, or belongs to staff, must sign in instead.
+const contactOf = (input: SignUpInput) => ({
+  mobile: input.mobile,
+  state: input.state,
+  city: input.city,
+  pinCode: input.pinCode,
+});
+
 export const signUpStudent = async (
   context: AppContext,
   input: SignUpInput,
@@ -217,6 +237,7 @@ export const signUpStudent = async (
         passwordHash,
         role: USER_ROLE.student,
         timestamp,
+        ...contactOf(input),
       });
     } catch (error) {
       // Two sign-ups for one email at once: the second gets the same answer
@@ -231,6 +252,7 @@ export const signUpStudent = async (
       passwordHash,
       role: USER_ROLE.student,
       timestamp,
+      ...contactOf(input),
     });
     if (!isClaimed) throw emailAlreadyRegistered();
   }

@@ -6,7 +6,11 @@ import {
   createFakeRazorpay,
   FAKE_RAZORPAY_KEY_SECRET as KEY_SECRET,
 } from '../../test/fakeRazorpay.js';
-import { startTestServer, type TestClient } from '../../test/testServer.js';
+import {
+  startTestServer,
+  type TestClient,
+  SIGN_UP_CONTACT,
+} from '../../test/testServer.js';
 
 const GST_TOPIC = 'topic_accounts_gst_class_11';
 // A roster topic: live classes, no topic test
@@ -42,6 +46,7 @@ describe('topic test attempts', () => {
       fullName: 'Meera Iyer',
       email,
       password: 'correct-horse-1',
+      ...SIGN_UP_CONTACT,
     });
     assert.equal(response.status, 201);
     return client;

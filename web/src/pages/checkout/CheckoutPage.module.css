@@ -221,3 +221,11 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Under the new password: what it is for, and the way in for returning
+   students */
+.accountNote {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+}

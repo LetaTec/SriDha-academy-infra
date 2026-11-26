@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { INDIAN_STATES } from '../payments/indianStates.js';
+
 import type {
   AdminSignInConfirmRequest,
   ChangePasswordRequest,
@@ -107,6 +109,13 @@ export const signUpSchema = z.strictObject({
   fullName: z.string().trim().min(2, 'Enter your full name').max(120),
   email: emailSchema,
   password: passwordSchema,
+  mobile: mobileSchema,
+  state: z.enum(INDIAN_STATES, 'Select your state'),
+  city: z.string().trim().min(2, 'Enter your city').max(80),
+  pinCode: z
+    .string()
+    .trim()
+    .regex(/^[1-9][0-9]{5}$/, 'Enter the 6-digit PIN code'),
 }) satisfies z.ZodType<SignUpRequest>;
 
 export const changePasswordSchema = z.strictObject({

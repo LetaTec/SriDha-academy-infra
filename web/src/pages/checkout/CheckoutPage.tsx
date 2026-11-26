@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { canViewMyBatches } from '@/access/account';
 import { canAnswerPapers } from '@/access/papers';
 import { AccountDialog } from '@components/auth/AccountDialog/AccountDialog';
+import { PasswordField } from '@components/auth/PasswordField/PasswordField';
 import { Button, ButtonRouteLink } from '@components/ui/Button/Button';
 import { Checkbox } from '@components/ui/Checkbox/Checkbox';
 import { EmptyState } from '@components/ui/EmptyState/EmptyState';
@@ -39,6 +40,7 @@ import { APP_ROUTES, toTopicTest } from '@constants/routes';
 import { useAuth } from '@context/AuthContext';
 import { useApiForm } from '@hooks/useApiForm';
 import { useRefreshAfterPayment } from '@hooks/useRefreshAfterPayment';
+import { signUpStudent } from '@services/auth';
 import { useTopicPreviews } from '@hooks/useTopicPreviews';
 import {
   isBatchOpen,
@@ -62,6 +64,8 @@ import styles from './CheckoutPage.module.css';
 const cn = cx.bind(styles);
 
 const TITLE_ID = 'checkout-title';
+// The API's minimum for a new password
+const PASSWORD_MIN_LENGTH = 8;
 const FORM_ID = 'checkout-form';
 
 const billingSchema = z
@@ -73,11 +77,8 @@ const billingSchema = z
       .string()
       .trim()
       .regex(/^\+?[0-9][0-9\s-]{8,16}[0-9]$/, CHECKOUT_TEXT.mobileInvalid),
-    addressLine1: z
-      .string()
-      .trim()
-      .min(3, CHECKOUT_TEXT.addressLine1Invalid)
-      .max(200),
+    // A business's tax invoice needs its address; an individual has none
+    addressLine1: z.string().trim().max(200).optional(),
     addressLine2: z.string().trim().max(200).optional(),
     state: z
       .union([z.enum(INDIAN_STATES), z.literal('')])
@@ -91,9 +92,18 @@ const billingSchema = z
     gstin: z.string().trim().max(30).optional(),
     purchaseOrderReference: z.string().trim().max(60).optional(),
     agreed: z.boolean().refine(Boolean, CHECKOUT_TEXT.agreeRequired),
+    // A visitor creates their account with the order; checked on submit
+    password: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.customerType === CUSTOMER_TYPE.business) {
+      if (!data.addressLine1 || data.addressLine1.trim().length < 3) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['addressLine1'],
+          message: CHECKOUT_TEXT.addressLine1Invalid,
+        });
+      }
       if (!data.businessLegalName || data.businessLegalName.trim().length < 2) {
         ctx.addIssue({
           code: 'custom',
@@ -131,6 +141,9 @@ const billingSchema = z
 // The state starts empty, so the form holds more than it submits
 type BillingFormInput = z.input<typeof billingSchema>;
 type BillingFormValues = z.output<typeof billingSchema>;
+// The fields an account's details fill in
+type AccountField =
+  'fullName' | 'email' | 'mobile' | 'state' | 'city' | 'pinCode';
 
 type Stage =
   | { name: 'details' }
@@ -293,7 +306,8 @@ const CheckoutDetails = ({
   const batchFieldName = useId();
   const auth = useAuth();
   const [isAccountOpen, setIsAccountOpen] = useState(false);
-  const needsAccount = isTest && !canAnswerPapers(auth);
+  // A visitor's account is made with the order: they choose a password
+  const isSignedIn = canAnswerPapers(auth);
   const testQuestionCount = findTopicTestSize(preview.catalogueTopicId) ?? 0;
   const testMinutes = TOPIC_TEST_DURATION_SECONDS / 60;
   const refreshAfterPayment = useRefreshAfterPayment();
@@ -312,8 +326,7 @@ const CheckoutDetails = ({
     null;
   const price = isTest ? topic.testPrice : topic.price;
   const amount = price ? formatPrice(price) : null;
-  const canPay =
-    Boolean(amount) && (!isEnrolment || batch !== null) && !needsAccount;
+  const canPay = Boolean(amount) && (!isEnrolment || batch !== null);
 
   const {
     register,
@@ -325,6 +338,7 @@ const CheckoutDetails = ({
     handleApiError,
     getValues,
     setValue,
+    setError,
   } = useApiForm<BillingFormInput, BillingFormValues>({
     resolver: zodResolver(billingSchema),
     defaultValues: {
@@ -341,117 +355,156 @@ const CheckoutDetails = ({
       gstin: '',
       purchaseOrderReference: '',
       agreed: false,
+      password: '',
     },
   });
 
-  // A signed-in student starts from their account's name and email, so the
-  // seat or test lands on their account (and in My batches)
-  const accountName = auth.user?.name ?? '';
-  const accountEmail = auth.user?.email ?? '';
+  // A signed-in student starts from their account's details (name, email,
+  // mobile, state, city, PIN code), so the seat or test lands on their
+  // account (and in My batches). Fields they have typed are kept.
+  const { user } = auth;
   useEffect(() => {
-    if (!canViewMyBatches(auth)) return;
-    if (accountName && !getValues('fullName')) {
-      setValue('fullName', accountName);
-    }
-    if (accountEmail && !getValues('email')) setValue('email', accountEmail);
-  }, [auth, accountName, accountEmail, getValues, setValue]);
+    if (!user || !canViewMyBatches(auth)) return;
+    const fill = (field: AccountField, value: string | null | undefined) => {
+      if (value && !getValues(field)) {
+        setValue(field, value, { shouldValidate: true });
+      }
+    };
+    fill('fullName', user.name);
+    fill('email', user.email);
+    fill('mobile', user.contact?.mobile);
+    fill('state', user.contact?.state);
+    fill('city', user.contact?.city);
+    fill('pinCode', user.contact?.pinCode);
+  }, [auth, user, getValues, setValue]);
 
   const customerType = watch('customerType');
   const isBusiness = customerType === CUSTOMER_TYPE.business;
 
-  const onSubmit = handleSubmit(async ({ agreed: _agreed, ...billing }) => {
-    clearFormError();
-    setPaymentError(null);
+  const onSubmit = handleSubmit(
+    async ({ agreed: _agreed, password, ...billing }) => {
+      clearFormError();
+      setPaymentError(null);
 
-    const billingPayload: BillingDetails = {
-      customerType: billing.customerType,
-      fullName: billing.fullName,
-      email: billing.email,
-      mobile: billing.mobile,
-      addressLine1: billing.addressLine1,
-      ...(billing.addressLine2?.trim()
-        ? { addressLine2: billing.addressLine2.trim() }
-        : {}),
-      state: billing.state as IndianState,
-      city: billing.city,
-      pinCode: billing.pinCode,
-      ...(billing.customerType === CUSTOMER_TYPE.business
-        ? {
-            businessLegalName: billing.businessLegalName?.trim(),
-            gstin: billing.gstin?.trim().toUpperCase(),
-            ...(billing.purchaseOrderReference?.trim()
-              ? {
-                  purchaseOrderReference: billing.purchaseOrderReference.trim(),
-                }
-              : {}),
-          }
-        : {}),
-    };
+      // A visitor's account is created first, with the same details, so the
+      // seat or test is theirs and shows under My batches
+      if (!isSignedIn) {
+        if (!password || password.length < PASSWORD_MIN_LENGTH) {
+          setError('password', { message: CHECKOUT_TEXT.passwordTooShort });
+          return;
+        }
+        try {
+          auth.login(
+            await signUpStudent({
+              fullName: billing.fullName,
+              email: billing.email,
+              password,
+              mobile: billing.mobile,
+              state: billing.state as IndianState,
+              city: billing.city,
+              pinCode: billing.pinCode,
+            }),
+          );
+        } catch (error) {
+          handleApiError(error);
+          return;
+        }
+      }
 
-    try {
-      const checkout = await createCheckout(
-        isTest
+      const isBusinessBuyer = billing.customerType === CUSTOMER_TYPE.business;
+      const billingPayload: BillingDetails = {
+        customerType: billing.customerType,
+        fullName: billing.fullName,
+        email: billing.email,
+        mobile: billing.mobile,
+        ...(isBusinessBuyer && billing.addressLine1?.trim()
+          ? { addressLine1: billing.addressLine1.trim() }
+          : {}),
+        ...(isBusinessBuyer && billing.addressLine2?.trim()
+          ? { addressLine2: billing.addressLine2.trim() }
+          : {}),
+        state: billing.state as IndianState,
+        city: billing.city,
+        pinCode: billing.pinCode,
+        ...(isBusinessBuyer
           ? {
-              kind: CHECKOUT_KIND.testAttempt,
-              topicId: topic.id,
-              ...billingPayload,
+              businessLegalName: billing.businessLegalName?.trim(),
+              gstin: billing.gstin?.trim().toUpperCase(),
+              ...(billing.purchaseOrderReference?.trim()
+                ? {
+                    purchaseOrderReference:
+                      billing.purchaseOrderReference.trim(),
+                  }
+                : {}),
             }
-          : isEnrolment && batch
+          : {}),
+      };
+
+      try {
+        const checkout = await createCheckout(
+          isTest
             ? {
-                kind: CHECKOUT_KIND.enrolment,
-                batchId: batch.id,
-                ...billingPayload,
-              }
-            : {
-                kind: CHECKOUT_KIND.preRegistration,
+                kind: CHECKOUT_KIND.testAttempt,
                 topicId: topic.id,
                 ...billingPayload,
-              },
-      );
+              }
+            : isEnrolment && batch
+              ? {
+                  kind: CHECKOUT_KIND.enrolment,
+                  batchId: batch.id,
+                  ...billingPayload,
+                }
+              : {
+                  kind: CHECKOUT_KIND.preRegistration,
+                  topicId: topic.id,
+                  ...billingPayload,
+                },
+        );
 
-      if (checkout.provider.name !== PAYMENT_PROVIDER.razorpay) {
-        refreshAfterPayment();
-        setStage({ name: 'pending', checkout });
-        return;
-      }
-
-      const result = await payWithRazorpay(checkout, billingPayload).catch(
-        () => {
-          setPaymentError(CHECKOUT_TEXT.loadFailed);
-          return null;
-        },
-      );
-
-      if (!result || result.status === 'closed') {
-        // Closed after a declined attempt: say why, so they can try again
-        if (result?.failureReason) {
-          setPaymentError(CHECKOUT_TEXT.paymentFailed(result.failureReason));
+        if (checkout.provider.name !== PAYMENT_PROVIDER.razorpay) {
+          refreshAfterPayment();
+          setStage({ name: 'pending', checkout });
+          return;
         }
-        return;
-      }
 
-      const payment = await verifyPayment(result.verification).catch(() => {
-        throw new Error(CHECKOUT_TEXT.verifyFailed);
-      });
-      refreshAfterPayment();
-      // Paid only once Razorpay reports the capture; until then the
-      // student is told it is being confirmed, never that the seat is theirs
-      setStage(
-        payment.status === PAYMENT_STATUS.paid
-          ? { name: 'paid', checkout, email: billing.email }
-          : { name: 'confirming', checkout, email: billing.email },
-      );
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === CHECKOUT_TEXT.verifyFailed
-      ) {
-        setPaymentError(CHECKOUT_TEXT.verifyFailed);
-      } else {
-        handleApiError(error);
+        const result = await payWithRazorpay(checkout, billingPayload).catch(
+          () => {
+            setPaymentError(CHECKOUT_TEXT.loadFailed);
+            return null;
+          },
+        );
+
+        if (!result || result.status === 'closed') {
+          // Closed after a declined attempt: say why, so they can try again
+          if (result?.failureReason) {
+            setPaymentError(CHECKOUT_TEXT.paymentFailed(result.failureReason));
+          }
+          return;
+        }
+
+        const payment = await verifyPayment(result.verification).catch(() => {
+          throw new Error(CHECKOUT_TEXT.verifyFailed);
+        });
+        refreshAfterPayment();
+        // Paid only once Razorpay reports the capture; until then the
+        // student is told it is being confirmed, never that the seat is theirs
+        setStage(
+          payment.status === PAYMENT_STATUS.paid
+            ? { name: 'paid', checkout, email: billing.email }
+            : { name: 'confirming', checkout, email: billing.email },
+        );
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === CHECKOUT_TEXT.verifyFailed
+        ) {
+          setPaymentError(CHECKOUT_TEXT.verifyFailed);
+        } else {
+          handleApiError(error);
+        }
       }
-    }
-  });
+    },
+  );
 
   if (stage.name !== 'details') {
     const isPaid = stage.name === 'paid';
@@ -517,27 +570,7 @@ const CheckoutDetails = ({
     );
   }
 
-  const payAction = needsAccount ? (
-    <>
-      <Text as="p" variant="strong">
-        {TEST_CHECKOUT_TEXT.signInTitle}
-      </Text>
-      <Text as="p" variant="small" tone="muted">
-        {TEST_CHECKOUT_TEXT.signInMessage}
-      </Text>
-      <Button
-        fullWidth
-        endIcon="arrowRight"
-        onClick={() => setIsAccountOpen(true)}
-      >
-        {TEST_CHECKOUT_TEXT.signIn}
-      </Button>
-      <AccountDialog
-        open={isAccountOpen}
-        onClose={() => setIsAccountOpen(false)}
-      />
-    </>
-  ) : (
+  const payAction = (
     <>
       {formError || paymentError ? (
         <FieldStatus tone="error">{formError ?? paymentError}</FieldStatus>
@@ -740,20 +773,6 @@ const CheckoutDetails = ({
               />
             </div>
 
-            <Input
-              label={CHECKOUT_TEXT.addressLine1Label}
-              placeholder={CHECKOUT_TEXT.addressLine1Placeholder}
-              autoComplete="street-address"
-              error={errors.addressLine1?.message}
-              {...register('addressLine1')}
-            />
-            <Input
-              label={CHECKOUT_TEXT.addressLine2Label}
-              placeholder={CHECKOUT_TEXT.addressLine2Placeholder}
-              error={errors.addressLine2?.message}
-              {...register('addressLine2')}
-            />
-
             {/* Where the student/business lives, for billing and tax records */}
             <div className={cn('fieldPair')}>
               <Select
@@ -772,13 +791,41 @@ const CheckoutDetails = ({
                 {...register('city')}
               />
             </div>
-            <Input
-              label={CHECKOUT_TEXT.pinCodeLabel}
-              placeholder={CHECKOUT_TEXT.pinCodePlaceholder}
-              autoComplete="postal-code"
-              error={errors.pinCode?.message}
-              {...register('pinCode')}
-            />
+            {/* A visitor chooses a password here: paying also creates
+                their account, with these details */}
+            <div className={cn({ fieldPair: !isSignedIn })}>
+              <Input
+                label={CHECKOUT_TEXT.pinCodeLabel}
+                placeholder={CHECKOUT_TEXT.pinCodePlaceholder}
+                autoComplete="postal-code"
+                inputMode="numeric"
+                error={errors.pinCode?.message}
+                {...register('pinCode')}
+              />
+              {isSignedIn ? null : (
+                <PasswordField
+                  label={CHECKOUT_TEXT.createPasswordLabel}
+                  autoComplete="new-password"
+                  error={errors.password?.message}
+                  {...register('password')}
+                />
+              )}
+            </div>
+            {isSignedIn ? null : (
+              <div className={cn('accountNote')}>
+                <Text as="p" variant="small" tone="muted">
+                  {CHECKOUT_TEXT.createAccountNote}
+                </Text>
+                <Button variant="plain" onClick={() => setIsAccountOpen(true)}>
+                  {CHECKOUT_TEXT.haveAccount}
+                </Button>
+                <AccountDialog
+                  open={isAccountOpen}
+                  onClose={() => setIsAccountOpen(false)}
+                  initialMode="signIn"
+                />
+              </div>
+            )}
 
             {/* Business Details (rendered when customerType is Business) */}
             {isBusiness ? (
@@ -791,6 +838,19 @@ const CheckoutDetails = ({
                     {CHECKOUT_TEXT.businessSectionNote}
                   </Text>
                 </div>
+                <Input
+                  label={CHECKOUT_TEXT.addressLine1Label}
+                  placeholder={CHECKOUT_TEXT.addressLine1Placeholder}
+                  autoComplete="street-address"
+                  error={errors.addressLine1?.message}
+                  {...register('addressLine1')}
+                />
+                <Input
+                  label={CHECKOUT_TEXT.addressLine2Label}
+                  placeholder={CHECKOUT_TEXT.addressLine2Placeholder}
+                  error={errors.addressLine2?.message}
+                  {...register('addressLine2')}
+                />
                 <Input
                   label={CHECKOUT_TEXT.businessLegalNameLabel}
                   placeholder={CHECKOUT_TEXT.businessLegalNamePlaceholder}

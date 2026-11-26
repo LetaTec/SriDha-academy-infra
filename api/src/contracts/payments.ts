@@ -72,7 +72,9 @@ export type BillingDetails = {
   email: string;
   mobile: string;
   // The billing address printed on the tax invoice
-  addressLine1: string;
+  // The billing address: a business's tax invoice needs it; an
+  // individual may leave it out
+  addressLine1?: string;
   addressLine2?: string;
   city: string;
   state: IndianState;

@@ -35,6 +35,7 @@ const student = {
   email: 'meera@example.com',
   role: 'STUDENT' as const,
   name: 'Meera Iyer',
+  contact: null,
   student: null,
 };
 
@@ -320,6 +321,18 @@ describe('SampleTestPaper', () => {
     fireEvent.change(within(dialog).getByLabelText('Email ID'), {
       target: { value: 'meera@example.com' },
     });
+    fireEvent.change(within(dialog).getByLabelText('Mobile number'), {
+      target: { value: '+91 98765 43210' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('State'), {
+      target: { value: 'Karnataka' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('City'), {
+      target: { value: 'Bengaluru' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('PIN code'), {
+      target: { value: '560001' },
+    });
     fireEvent.change(within(dialog).getByLabelText('Create a password'), {
       target: { value: 'correct-horse-1' },
     });
@@ -333,6 +346,10 @@ describe('SampleTestPaper', () => {
       fullName: 'Meera Iyer',
       email: 'meera@example.com',
       password: 'correct-horse-1',
+      mobile: '+91 98765 43210',
+      state: 'Karnataka',
+      city: 'Bengaluru',
+      pinCode: '560001',
     });
     // Signed in: the lock is gone and the paper can be answered
     expect(

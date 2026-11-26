@@ -125,7 +125,11 @@ const billingDetailsOf = (payment: Row): BillingDetails => {
     name: need('billing_name'),
     email: need('billing_email'),
     mobile: need('billing_mobile'),
-    addressLine1: need('address_line1'),
+    // An individual's invoice may go without a street address (B2C under
+    // the e-invoice limits): it names their city instead
+    addressLine1: isBusiness
+      ? need('address_line1')
+      : (textOf(payment.address_line1) ?? need('billing_city')),
     addressLine2: textOf(payment.address_line2),
     city: need('billing_city'),
     state: need('billing_state'),

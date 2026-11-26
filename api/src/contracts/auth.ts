@@ -1,6 +1,8 @@
 // Accounts, sign-in and registration. See catalogue.ts for what this folder
 // is.
 
+import type { IndianState } from './payments.js';
+
 // Staff roles sign in with an emailed one-time link and have no student
 // profile. FINANCE_ADMIN works with payments, refunds, invoices and
 // reports; OPERATIONS_ADMIN with operational views only.
@@ -27,6 +29,8 @@ export type AuthUser = {
   role: UserRole;
   // The name to greet them by: from sign-up, or an older student profile
   name: string | null;
+  // From sign-up; null for older accounts and the team
+  contact: AccountContact | null;
   student: {
     id: string;
     fullName: string;
@@ -56,6 +60,19 @@ export type SignUpRequest = {
   fullName: string;
   email: string;
   password: string;
+  mobile: string;
+  state: IndianState;
+  city: string;
+  // A 6-digit Indian PIN code
+  pinCode: string;
+};
+
+// The contact details a student gave at sign-up, which checkout fills in
+export type AccountContact = {
+  mobile: string;
+  state: IndianState;
+  city: string;
+  pinCode: string;
 };
 
 // A signed-in student changes their password; other devices sign out

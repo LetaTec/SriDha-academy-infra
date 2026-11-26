@@ -24,6 +24,7 @@ const student = {
   email: 'meera@example.com',
   role: 'STUDENT' as const,
   name: 'Meera Iyer',
+  contact: null,
   student: null,
 };
 
