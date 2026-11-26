@@ -210,6 +210,7 @@ export const CONTINUE_PAPER_TEXT = {
   title: 'Continue your paper',
   action: 'Continue',
   seeScore: 'See your score',
+  dismiss: 'Close',
 } as const;
 
 // The AI Test page (from the header): the paper leads the page

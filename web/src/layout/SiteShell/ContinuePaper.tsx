@@ -2,9 +2,14 @@ import cx from 'classnames/bind';
 
 import { PaperClock } from '@components/assessment/PaperClock/PaperClock';
 import { ButtonRouteLink } from '@components/ui/Button/Button';
+import { IconButton } from '@components/ui/IconButton/IconButton';
 import { Text } from '@components/ui/Text/Text';
 import { CONTINUE_PAPER_TEXT as TEXT } from '@constants/assessment';
-import { useActivePaper, useIsPaperOnScreen } from '@hooks/useActivePaper';
+import {
+  clearActivePaper,
+  useActivePaper,
+  useIsPaperOnScreen,
+} from '@hooks/useActivePaper';
 import { useNow } from '@hooks/useNow';
 
 import styles from './ContinuePaper.module.css';
@@ -14,6 +19,8 @@ const cn = cx.bind(styles);
 // A small card under the header while a test paper is in progress and the
 // student is on another page: the paper, its red clock still counting down
 // and a link back. Once the time is up the link opens the marked paper.
+// The close button puts the paper away: the card goes, and the paper is no
+// longer kept in this browser.
 export const ContinuePaper = () => {
   const paper = useActivePaper();
   const isOnPaper = useIsPaperOnScreen(paper?.key ?? null);
@@ -39,6 +46,12 @@ export const ContinuePaper = () => {
       <ButtonRouteLink to={paper.href} endIcon="arrowRight">
         {hasTimedOut ? TEXT.seeScore : TEXT.action}
       </ButtonRouteLink>
+      <IconButton
+        icon="close"
+        label={TEXT.dismiss}
+        className={cn('close')}
+        onClick={() => clearActivePaper(paper.key)}
+      />
     </aside>
   );
 };

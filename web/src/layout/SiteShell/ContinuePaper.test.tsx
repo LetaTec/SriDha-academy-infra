@@ -1,7 +1,11 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-import { saveActivePaper, showPaperOnScreen } from '@hooks/useActivePaper';
+import {
+  readActivePaper,
+  saveActivePaper,
+  showPaperOnScreen,
+} from '@hooks/useActivePaper';
 
 import { ContinuePaper } from './ContinuePaper';
 
@@ -60,5 +64,13 @@ describe('ContinuePaper', () => {
     expect(
       screen.getByRole('link', { name: /See your score/ }),
     ).toBeInTheDocument();
+  });
+
+  it('closes, putting the paper away', () => {
+    startPaper(Date.now() - 1000);
+    renderAt('/');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByText('Continue your paper')).not.toBeInTheDocument();
+    expect(readActivePaper()).toBeNull();
   });
 });

@@ -23,6 +23,7 @@ import {
   startTestAttempt,
   verifyPayment,
 } from '@services/payments/api';
+import { readActivePaper, saveActivePaper } from '@hooks/useActivePaper';
 import { payWithRazorpay } from '@services/payments/razorpay';
 import { catalogueFixture, openBatch } from '@/test/catalogueFixture';
 
@@ -931,6 +932,44 @@ describe('app routing', () => {
       '/checkout?test=topic_physics_ray_optics_class_12',
     );
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+  });
+
+  it('opens the test paper named in the address, e.g. from the continue card', async () => {
+    vi.mocked(getCurrentSession).mockResolvedValue(student);
+    renderApp('/ai-test?track=class12&subject=physics');
+
+    const paper = await screen.findByRole(
+      'region',
+      { name: 'Sample test paper' },
+      { timeout: LAZY_PAGE_TIMEOUT_MS },
+    );
+    expect(
+      within(paper).getByText('Physics', { selector: 'span' }),
+    ).toBeInTheDocument();
+    expect(
+      within(paper).getByRole('button', { name: 'Physics', pressed: true }),
+    ).toBeInTheDocument();
+  });
+
+  it('puts away a kept topic paper the page cannot open', async () => {
+    vi.mocked(getCurrentSession).mockResolvedValue(student);
+    vi.mocked(listTestAttempts).mockResolvedValue([]);
+    // A free paper from before topic tests were paid
+    saveActivePaper({
+      key: 'topic:topic_physics_ray_optics_class_12',
+      title: 'Ray optics · Class 12',
+      href: '/topic-tests/topic_physics_ray_optics_class_12',
+      endsAt: Date.now() - 1000,
+      answers: {},
+    });
+    renderApp('/topic-tests/topic_physics_ray_optics_class_12');
+
+    await screen.findByRole(
+      'link',
+      { name: /Pay ₹5 to take the test/ },
+      { timeout: LAZY_PAGE_TIMEOUT_MS },
+    );
+    await waitFor(() => expect(readActivePaper()).toBeNull());
   });
 
   it('says when a topic’s test is not ready yet', async () => {

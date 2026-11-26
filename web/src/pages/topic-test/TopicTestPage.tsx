@@ -23,7 +23,7 @@ import {
 } from '@constants/assessment';
 import { APP_ROUTES, toTopicTest } from '@constants/routes';
 import { useAuth } from '@context/AuthContext';
-import { useActivePaper } from '@hooks/useActivePaper';
+import { clearActivePaper, useActivePaper } from '@hooks/useActivePaper';
 import { toTestCheckoutPath } from '@hooks/useCheckout';
 import { loadTopicPapers, useTopicPaper } from '@hooks/useQuestionBanks';
 import { useTestAttempts } from '@hooks/useTestAttempts';
@@ -130,6 +130,24 @@ const TopicTest = ({
       attempt => activePaper?.key === sessionKey(topicId, attempt.id),
     ) ??
     (available?.startedAt ? available : null);
+
+  // A paper kept for this topic that matches none of the student's paid
+  // attempts (a free paper from before topic tests were paid, or one from
+  // another account) cannot be opened here, so it is put away rather than
+  // left on the header for good
+  const keptKey = activePaper?.key ?? null;
+  const isThisTopic =
+    keptKey !== null &&
+    (keptKey === `topic:${topicId}` || keptKey.startsWith(`topic:${topicId}:`));
+  const attemptsKnown =
+    auth.status === 'anonymous' || (canTake && !isLoading && !hasError);
+  useEffect(() => {
+    if (!isThisTopic || !attemptsKnown || keptKey === null) return;
+    const matches = attempts.some(
+      attempt => keptKey === sessionKey(topicId, attempt.id),
+    );
+    if (!matches) clearActivePaper(keptKey);
+  }, [isThisTopic, attemptsKnown, keptKey, attempts, topicId]);
 
   // Once a paper is open it stays, so its marks remain on screen after the
   // attempt ends (and is no longer in progress)
