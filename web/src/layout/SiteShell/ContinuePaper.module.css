@@ -31,6 +31,12 @@
   white-space: nowrap;
 }
 
+/* The close button, in the card's corner */
+.close {
+  align-self: flex-start;
+  margin: calc(var(--space-1) * -1) calc(var(--space-1) * -1) 0 0;
+}
+
 /* Phones: across the top, the link under the paper and clock */
 @media (--viewport-sm) {
   .card {
@@ -43,5 +49,17 @@
 
   .text {
     flex: 1 1 auto;
+  }
+
+  /* In the top corner, clear of the paper's name */
+  .card {
+    padding-right: var(--space-6);
+  }
+
+  .close {
+    position: absolute;
+    top: var(--space-0-5);
+    right: var(--space-0-5);
+    margin: 0;
   }
 }

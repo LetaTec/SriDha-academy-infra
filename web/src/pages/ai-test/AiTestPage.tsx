@@ -42,7 +42,12 @@ const AiTestPage = () => {
       </div>
 
       <div className={cn('paper')}>
+        {/* Keyed by the address, so a link to another class or subject
+            (e.g. "Continue your paper") opens that paper */}
         <SampleTestPaper
+          key={`${searchParams.get(TEST_PAPER_PARAM.track) ?? ''}:${
+            searchParams.get(TEST_PAPER_PARAM.subject) ?? ''
+          }`}
           layout="wide"
           initialTrack={
             searchParams.get(TEST_PAPER_PARAM.track) ?? TEXT.initialTrack
