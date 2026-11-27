@@ -4,9 +4,10 @@ import { createApp } from '../app/app.js';
 import { loadConfig } from '../config/env.js';
 import { seedCatalogue } from '../db/catalogueSeed.js';
 import { openDatabase, runMigrations } from '../db/client.js';
-import type { Mailer } from '../mail/mailer.js';
+import type { Mailer, PaymentFinanceCopy } from '../mail/mailer.js';
 import { configureLogger } from '../logging/logger.js';
 import { syncStaffRoles, type StaffEmails } from '../modules/auth/roles.js';
+import { processEmailOutbox } from '../modules/outbox/outbox.service.js';
 import type { PaymentGateway } from '../modules/payments/gateway.js';
 
 export const TEST_WEB_ORIGIN = 'http://localhost:5173';
@@ -64,6 +65,7 @@ export const startTestServer = async ({
   const sentEmails: SentResetEmail[] = [];
   const sentSignUpCodes: SentResetEmail[] = [];
   const sentAccountNotices: SentSignInLink[] = [];
+  const sentFinanceCopies: Array<{ email: string } & PaymentFinanceCopy> = [];
   const sentSignInLinks: SentSignInLink[] = [];
   const sentPaymentConfirmations: Array<{
     email: string;
@@ -88,6 +90,9 @@ export const startTestServer = async ({
           },
           sendPaymentConfirmation: async (email, confirmation) => {
             sentPaymentConfirmations.push({ email, ...confirmation });
+          },
+          sendPaymentFinanceCopy: async (email, copy) => {
+            sentFinanceCopies.push({ email, ...copy });
           },
         }
       : null;
@@ -229,6 +234,11 @@ export const startTestServer = async ({
     return { client, response: confirmed };
   };
 
+  // Sends what the outbox holds, as the background worker does every 15
+  // seconds (payment requests never send email themselves)
+  const runOutbox = () =>
+    processEmailOutbox({ db, mailer, now: () => clock.now() });
+
   // Runs the start-up role sync again with changed lists (unchanged lists
   // keep their configured emails)
   const syncStaff = (changes: Partial<StaffEmails>) =>
@@ -243,11 +253,14 @@ export const startTestServer = async ({
     sentAccountNotices,
     sentSignInLinks,
     sentPaymentConfirmations,
+    sentFinanceCopies,
+    mailer,
     port,
     baseUrl,
     createClient,
     signInStaff,
     signUpStudent,
+    runOutbox,
     syncStaff,
     close: () =>
       new Promise<void>((resolve, reject) => {

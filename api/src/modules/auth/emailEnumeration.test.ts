@@ -23,6 +23,7 @@ const mailerWhere = (send: () => Promise<void>): Mailer => ({
   sendAccountExistsNotice: send,
   sendAdminSignInLink: send,
   sendPaymentConfirmation: send,
+  sendPaymentFinanceCopy: send,
 });
 
 // A provider that never answers, and one that refuses everything

@@ -50,6 +50,7 @@ describe(
       sendAccountExistsNotice: async () => {},
       sendAdminSignInLink: async () => {},
       sendPaymentConfirmation: async () => {},
+      sendPaymentFinanceCopy: async () => {},
     };
 
     const signUpRequest = async (email: string) => {

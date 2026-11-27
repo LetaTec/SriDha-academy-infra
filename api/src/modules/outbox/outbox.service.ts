@@ -3,7 +3,11 @@ import { randomUUID } from 'node:crypto';
 import type { AppContext } from '../../app/context.js';
 import type { DatabaseClient } from '../../db/client.js';
 import { logger } from '../../logging/logger.js';
-import type { PaymentConfirmation } from '../../mail/mailer.js';
+import type {
+  Mailer,
+  PaymentConfirmation,
+  PaymentFinanceCopy,
+} from '../../mail/mailer.js';
 import { findPaymentConfirmationRow } from '../payments/payments.repository.js';
 import {
   claimOutboxEmails,
@@ -33,6 +37,48 @@ export const BACKOFF_DELAYS_MS = [
 export const DEFAULT_BATCH_SIZE = 20;
 
 export const TEMPLATE_PAYMENT_CONFIRMATION = 'payment_confirmation';
+// The finance team's copy: its own template, subject and content
+export const TEMPLATE_PAYMENT_FINANCE_COPY = 'payment_finance_copy';
+
+const FINANCE_KEY_MARKER = ':finance:';
+
+// Sends one outbox row with the mailer method its template names. Finance
+// copies queued before they had their own template were stored as payment
+// confirmations; their idempotency key (…:finance:<email>) identifies them,
+// so they too go out as finance copies, never as the student's email.
+const sendOutboxRow = (
+  mailer: Mailer,
+  row: Pick<OutboxRow, 'template' | 'recipient' | 'payload'> & {
+    idempotencyKey: string;
+  },
+) => {
+  const options = { idempotencyKey: row.idempotencyKey };
+  const isLegacyFinanceCopy =
+    row.template === TEMPLATE_PAYMENT_CONFIRMATION &&
+    row.idempotencyKey.includes(FINANCE_KEY_MARKER);
+  if (row.template === TEMPLATE_PAYMENT_FINANCE_COPY || isLegacyFinanceCopy) {
+    const payload = row.payload as unknown as PaymentFinanceCopy;
+    return mailer.sendPaymentFinanceCopy(
+      row.recipient,
+      {
+        fullName: payload.fullName,
+        topic: payload.topic,
+        batch: payload.batch,
+        amount: payload.amount,
+        paymentReference: payload.paymentReference,
+      },
+      options,
+    );
+  }
+  if (row.template === TEMPLATE_PAYMENT_CONFIRMATION) {
+    return mailer.sendPaymentConfirmation(
+      row.recipient,
+      row.payload as unknown as PaymentConfirmation,
+      options,
+    );
+  }
+  throw new Error(`Unknown email template: "${row.template}"`);
+};
 
 const formatRupees = (paise: number) =>
   `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -85,6 +131,14 @@ export const enqueuePaymentConfirmationEmails = async (
   };
 
   const subject = `Payment received: ${row.topic_title}`;
+  // The finance copy carries no student-facing link
+  const financeCopy: PaymentFinanceCopy = {
+    fullName: payload.fullName,
+    topic: payload.topic,
+    batch: payload.batch,
+    amount: payload.amount,
+    paymentReference: payload.paymentReference,
+  };
   const now = new Date(params.timestamp);
 
   // 1. Customer confirmation email
@@ -108,9 +162,9 @@ export const enqueuePaymentConfirmationEmails = async (
     const inserted = await insertOutboxEmail(tx, {
       id: `outbox_${randomUUID()}`,
       recipient: normalised,
-      subject: `[Finance Copy] ${subject}`,
-      template: TEMPLATE_PAYMENT_CONFIRMATION,
-      payload: payload as unknown as Record<string, unknown>,
+      subject: `[Finance] ${subject} (${financeCopy.amount})`,
+      template: TEMPLATE_PAYMENT_FINANCE_COPY,
+      payload: financeCopy as unknown as Record<string, unknown>,
       idempotencyKey: `payment_confirmation:${params.paymentId}:finance:${normalised}`,
       createdAt: now,
       nextAttemptAt: now,
@@ -182,16 +236,14 @@ export const processEmailOutbox = async (
     const recipient = maskEmail(row.recipient);
 
     try {
-      if (row.template !== TEMPLATE_PAYMENT_CONFIRMATION) {
-        throw new Error(`Unknown email template: "${row.template}"`);
-      }
       // The same key on every attempt: if an earlier attempt reached the
       // provider, it delivers nothing new
-      await context.mailer.sendPaymentConfirmation(
-        row.recipient,
-        row.payload as unknown as PaymentConfirmation,
-        { idempotencyKey: row.idempotency_key ?? row.id },
-      );
+      await sendOutboxRow(context.mailer, {
+        template: row.template,
+        recipient: row.recipient,
+        payload: row.payload,
+        idempotencyKey: row.idempotency_key ?? row.id,
+      });
     } catch (error) {
       const sanitizedError = sanitizeErrorMessage(error);
       const isExhausted = row.attempts >= MAX_OUTBOX_ATTEMPTS;

@@ -25,6 +25,17 @@ import {
 } from './outbox.service.js';
 
 const WEBHOOK_SECRET = 'whsec_outbox_test';
+
+// These mailers stand in for the provider: a finance copy is delivered
+// (or fails) the same way as the payment confirmation they record
+const withFinanceCopies = (
+  mailer: Omit<Mailer, 'sendPaymentFinanceCopy'>,
+): Mailer => ({
+  ...mailer,
+  sendPaymentFinanceCopy: (email, copy, options) =>
+    mailer.sendPaymentConfirmation(email, { ...copy, topicsUrl: '' }, options),
+});
+
 const FINANCE_EMAIL = 'finance.audit@sridha.test';
 
 const signWebhook = (body: unknown) =>
@@ -107,6 +118,7 @@ describe('transactional email outbox', () => {
   it('enqueues customer and finance emails within the capture transaction and delivers successfully', async () => {
     const customerEmail = 'asha.outbox1@example.com';
     const initialSentCount = server.sentPaymentConfirmations.length;
+    const initialFinanceCount = server.sentFinanceCopies.length;
 
     const checkout = await createEnrolmentCheckout(customerEmail);
     const webhookRes = await deliverCaptureWebhook(
@@ -114,6 +126,18 @@ describe('transactional email outbox', () => {
       checkout.amount.amountPaise,
     );
     assert.equal(webhookRes.status, 200);
+
+    // The webhook only queued the emails: nothing was sent inside it
+    const queued = await server.db.all<OutboxRow>(
+      `SELECT * FROM email_outbox WHERE payload->>'paymentReference' = $1`,
+      [`pay_outbox_${webhookIndex}`],
+    );
+    assert.deepEqual(
+      queued.map(row => row.status),
+      ['PENDING', 'PENDING'],
+    );
+    assert.equal(server.sentPaymentConfirmations.length, initialSentCount);
+    await server.runOutbox();
 
     // Verify outbox rows in database
     const outboxRows = await server.db.all<OutboxRow>(
@@ -136,11 +160,73 @@ describe('transactional email outbox', () => {
     assert.equal(financeRow.attempts, 1);
 
     // Verify delivery via mailer
-    const newDeliveries =
+    // Each recipient gets their own email: the student the confirmation,
+    // finance its own copy (before, finance got the student's email)
+    assert.equal(customerRow.template, 'payment_confirmation');
+    assert.equal(financeRow.template, 'payment_finance_copy');
+    assert.match(financeRow.subject, /^\[Finance\] Payment received: /);
+    assert.equal(
+      (financeRow.payload as Record<string, unknown>).topicsUrl,
+      undefined,
+      'the finance copy carries no student-facing link',
+    );
+    const confirmations =
       server.sentPaymentConfirmations.slice(initialSentCount);
-    assert.equal(newDeliveries.length, 2);
-    assert.ok(newDeliveries.some(d => d.email === customerEmail));
-    assert.ok(newDeliveries.some(d => d.email === FINANCE_EMAIL));
+    assert.deepEqual(
+      confirmations.map(sent => sent.email),
+      [customerEmail],
+    );
+    const financeCopies = server.sentFinanceCopies.slice(initialFinanceCount);
+    assert.deepEqual(
+      financeCopies.map(sent => sent.email),
+      [FINANCE_EMAIL],
+    );
+    assert.equal(
+      financeCopies[0].paymentReference,
+      `pay_outbox_${webhookIndex}`,
+    );
+  });
+
+  it('sends finance copies queued before they had their own template as finance copies', async () => {
+    // Rows queued by the previous release: template payment_confirmation,
+    // told apart only by their …:finance:<email> idempotency key
+    const before = {
+      confirmations: server.sentPaymentConfirmations.length,
+      finance: server.sentFinanceCopies.length,
+    };
+    const queuedAt = new Date('2026-11-03T10:00:00Z');
+    await insertOutboxEmail(server.db, {
+      id: 'outbox_legacy_finance_copy',
+      recipient: FINANCE_EMAIL,
+      subject: '[Finance Copy] Payment received: Old topic',
+      template: 'payment_confirmation',
+      payload: {
+        fullName: 'Old Buyer',
+        topic: 'Old topic',
+        batch: 'Batch 1',
+        amount: '₹129',
+        paymentReference: 'pay_legacy_1',
+        topicsUrl: 'https://sridhaacademy.com/topics',
+      },
+      idempotencyKey: `payment_confirmation:pay_legacy_1:finance:${FINANCE_EMAIL}`,
+      createdAt: queuedAt,
+      nextAttemptAt: queuedAt,
+    });
+    await processEmailOutbox({
+      db: server.db,
+      mailer: server.mailer!,
+      now: () => queuedAt,
+    });
+    assert.equal(
+      server.sentPaymentConfirmations.length,
+      before.confirmations,
+      'not sent as the student email',
+    );
+    const copies = server.sentFinanceCopies.slice(before.finance);
+    assert.deepEqual(
+      copies.map(sent => [sent.email, sent.paymentReference]),
+      [[FINANCE_EMAIL, 'pay_legacy_1']],
+    );
   });
 
   it('prevents duplicate outbox entries and duplicate sends when webhooks repeat', async () => {
@@ -203,7 +289,7 @@ describe('transactional email outbox', () => {
 
   it('retries with exponential backoff on provider failure', async () => {
     let nowTime = new Date('2026-11-01T10:00:00Z');
-    const failingMailer: Mailer = {
+    const failingMailer: Mailer = withFinanceCopies({
       sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
       sendSignUpCode: async () => {},
@@ -211,7 +297,7 @@ describe('transactional email outbox', () => {
       sendPaymentConfirmation: async () => {
         throw new Error('Resend 503: Service Unavailable');
       },
-    };
+    });
 
     const outboxId = `outbox_fail_${randomUUID()}`;
     await insertOutboxEmail(server.db, {
@@ -267,7 +353,7 @@ describe('transactional email outbox', () => {
 
   it('marks email as FAILED once maximum retry attempts are exhausted', async () => {
     let nowTime = new Date('2026-11-01T12:00:00Z');
-    const failingMailer: Mailer = {
+    const failingMailer: Mailer = withFinanceCopies({
       sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
       sendSignUpCode: async () => {},
@@ -275,7 +361,7 @@ describe('transactional email outbox', () => {
       sendPaymentConfirmation: async () => {
         throw new Error('Permanent mailbox failure: 550 User not found');
       },
-    };
+    });
 
     const outboxId = `outbox_exhaust_${randomUUID()}`;
     await insertOutboxEmail(server.db, {
@@ -325,7 +411,7 @@ describe('transactional email outbox', () => {
   it('claims pending emails safely across concurrent workers without duplicate sends', async () => {
     const nowTime = new Date('2026-11-02T10:00:00Z');
     const sentIds: string[] = [];
-    const trackingMailer: Mailer = {
+    const trackingMailer: Mailer = withFinanceCopies({
       sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
       sendSignUpCode: async () => {},
@@ -333,7 +419,7 @@ describe('transactional email outbox', () => {
       sendPaymentConfirmation: async (_email, confirmation) => {
         sentIds.push(confirmation.paymentReference);
       },
-    };
+    });
 
     // Insert 6 pending emails
     for (let i = 1; i <= 6; i++) {
@@ -405,7 +491,7 @@ describe('transactional email outbox', () => {
     );
 
     const recoveredEmails: string[] = [];
-    const recoveringMailer: Mailer = {
+    const recoveringMailer: Mailer = withFinanceCopies({
       sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
       sendSignUpCode: async () => {},
@@ -413,7 +499,7 @@ describe('transactional email outbox', () => {
       sendPaymentConfirmation: async email => {
         recoveredEmails.push(email);
       },
-    };
+    });
 
     const ctx = { db: server.db, mailer: recoveringMailer, now: () => nowTime };
     const res = await processEmailOutbox(ctx, {
@@ -513,7 +599,7 @@ describe('transactional email outbox', () => {
       const delivered: string[] = [];
       const keys: Array<string | undefined> = [];
       const seen = new Set<string>();
-      const mailer: Mailer = {
+      const mailer: Mailer = withFinanceCopies({
         sendPasswordResetCode: async () => {},
         sendAdminSignInLink: async () => {},
         sendSignUpCode: async () => {},
@@ -525,7 +611,7 @@ describe('transactional email outbox', () => {
           if (options?.idempotencyKey) seen.add(options.idempotencyKey);
           delivered.push(email);
         },
-      };
+      });
       return { mailer, delivered, keys };
     };
 

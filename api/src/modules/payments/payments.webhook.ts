@@ -11,7 +11,6 @@ import {
   EVENT_SOURCE,
   sanitizeWebhookBody,
 } from './payments.lifecycle.js';
-import { sendPaymentConfirmation } from './payments.service.js';
 
 // Only the fields we use. Razorpay sends many more and adds new ones, so
 // this schema is not strict; the signature proves the body came from them.
@@ -126,7 +125,7 @@ export const createRazorpayWebhookHandler =
     const payment = event.payload?.payment?.entity;
     const refund = event.payload?.refund?.entity;
     const dispute = event.payload?.dispute?.entity;
-    const result = await applyPaymentEvent(context, {
+    await applyPaymentEvent(context, {
       provider: PAYMENT_PROVIDER.razorpay,
       source: EVENT_SOURCE.webhook,
       eventId: eventIdOf(req.get('x-razorpay-event-id'), body),
@@ -174,9 +173,8 @@ export const createRazorpayWebhookHandler =
       ),
     });
 
-    if (result.confirmedPaymentId) {
-      await sendPaymentConfirmation(context, result.confirmedPaymentId);
-    }
-
+    // Emails queued by a capture are sent by the outbox worker, so the
+    // acknowledgement never waits for the email provider (a slow provider
+    // could otherwise make Razorpay time out, retry and disable the webhook)
     res.json({ received: true });
   };

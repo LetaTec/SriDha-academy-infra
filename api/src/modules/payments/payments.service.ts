@@ -14,12 +14,10 @@ import type {
 } from '../../contracts/payments.js';
 import { transaction } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
-import { logger } from '../../logging/logger.js';
 import { findUserIdByEmail } from '../auth/auth.repository.js';
 import { emailSchema, mobileSchema } from '../auth/auth.schema.js';
 import { USER_ROLE } from '../auth/roles.js';
 import { checkGstin } from '../finance/gstin.js';
-import { processEmailOutbox } from '../outbox/outbox.service.js';
 import { GST_STATE_CODE, INDIAN_STATES } from './indianStates.js';
 import {
   BATCH_AVAILABILITY,
@@ -579,7 +577,7 @@ export const verifyPayment = async (
 
   const remote = await gateway.fetchPayment(input.providerPaymentId);
   if (remote) {
-    const applied = await applyPaymentEvent(context, {
+    await applyPaymentEvent(context, {
       provider: gateway.provider,
       source: EVENT_SOURCE.fetch,
       eventId: `fetch:${remote.id}:${remote.status}`,
@@ -597,27 +595,10 @@ export const verifyPayment = async (
       },
     });
 
-    if (applied.confirmedPaymentId) {
-      await sendPaymentConfirmation(context, applied.confirmedPaymentId);
-    }
+    // The confirmation email was queued in the capture transaction; the
+    // outbox worker sends it. Nothing here waits for the email provider.
   }
 
   const current = await findPaymentById(context.db, input.paymentId);
   return result(String(current?.status ?? payment.status) as PaymentStatus);
-};
-
-// Dispatches outbox emails immediately so that on happy paths the confirmation
-// email is sent with zero delay. If dispatch fails, the row remains in the
-// email_outbox table for the background worker to retry with exponential backoff.
-export const sendPaymentConfirmation = async (
-  context: AppContext,
-  _paymentId: string,
-) => {
-  if (!context.mailer) return;
-
-  try {
-    await processEmailOutbox(context);
-  } catch (error) {
-    logger.error('payments.outbox_process_failed', { error });
-  }
 };

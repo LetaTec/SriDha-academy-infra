@@ -14,6 +14,16 @@ export type PaymentConfirmation = {
   topicsUrl: string;
 };
 
+// What finance staff are told about a payment: who paid how much for what,
+// and the reference to look it up. Nothing addressed to the student.
+export type PaymentFinanceCopy = {
+  fullName: string;
+  topic: string;
+  batch: string | null;
+  amount: string;
+  paymentReference: string;
+};
+
 export type Mailer = {
   sendPasswordResetCode: (email: string, code: string) => Promise<void>;
   // The code that proves a new sign-up owns the address
@@ -30,7 +40,21 @@ export type Mailer = {
     confirmation: PaymentConfirmation,
     options?: { idempotencyKey?: string },
   ) => Promise<void>;
+  // The finance team's copy of a payment, never sent to the student
+  sendPaymentFinanceCopy: (
+    email: string,
+    copy: PaymentFinanceCopy,
+    options?: { idempotencyKey?: string },
+  ) => Promise<void>;
 };
+
+const describeFinanceCopy = ({
+  fullName,
+  topic,
+  batch,
+  amount,
+}: PaymentFinanceCopy) =>
+  `${fullName} paid ${amount} for ${topic}${batch ? ` (${batch})` : ' (pre-registration)'}.`;
 
 const describePayment = ({ topic, batch, amount }: PaymentConfirmation) =>
   batch
@@ -67,6 +91,13 @@ const createConsoleMailer = (file: string | null): Mailer => {
         reference: confirmation.paymentReference,
       });
     },
+    sendPaymentFinanceCopy: async (email, copy) => {
+      logger.info('mail.console_payment_finance_copy', {
+        email,
+        payment: describeFinanceCopy(copy),
+        reference: copy.paymentReference,
+      });
+    },
   };
 };
 
@@ -75,13 +106,26 @@ type EmailContent = {
   subject: string;
   intro: string;
   note: string;
-} & ({ action: string; url: string } | { code: string });
+} & ({ action: string; url: string } | { code: string } | { notice: true });
+
+// Every value is escaped before it goes into the HTML: names come from the
+// buyer's checkout form, and a name such as '<a href="…">Approve refund</a>'
+// must arrive as text, not as a working link from SriDha's own sender
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 const renderCall = (content: EmailContent) =>
-  'code' in content
-    ? `<p style="margin: 24px 0; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #111;">${content.code}</p>`
-    : `<p style="margin: 24px 0;">
-      <a href="${content.url}" style="background-color: #0b57d0; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 500;">${content.action}</a>
+  'notice' in content
+    ? ''
+    : 'code' in content
+      ? `<p style="margin: 24px 0; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #111;">${escapeHtml(content.code)}</p>`
+      : `<p style="margin: 24px 0;">
+      <a href="${escapeHtml(content.url)}" style="background-color: #0b57d0; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 500;">${escapeHtml(content.action)}</a>
     </p>`;
 
 const renderEmail = (content: EmailContent) => {
@@ -90,9 +134,9 @@ const renderEmail = (content: EmailContent) => {
   <div style="font-family: sans-serif; line-height: 1.5; color: #333; max-width: 560px; margin: 0 auto; padding: 24px;">
     <h2 style="color: #111;">SriDha Academy</h2>
     <p>Hello,</p>
-    <p>${intro}</p>
+    <p>${escapeHtml(intro)}</p>
     ${renderCall(content)}
-    <p style="font-size: 14px; color: #666;">${note}</p>
+    <p style="font-size: 14px; color: #666;">${escapeHtml(note)}</p>
     <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
     <p style="font-size: 12px; color: #999;">SriDha Academy</p>
   </div>
@@ -105,6 +149,7 @@ const MAIL_TEMPLATE = {
   accountExists: 'account_exists',
   adminSignInLink: 'admin_sign_in_link',
   paymentConfirmation: 'payment_confirmation',
+  paymentFinanceCopy: 'payment_finance_copy',
 } as const;
 
 type MailTemplate = (typeof MAIL_TEMPLATE)[keyof typeof MAIL_TEMPLATE];
@@ -123,6 +168,8 @@ const readProviderErrorName = (text: string) => {
   }
 };
 
+const RESEND_TIMEOUT_MS = 10_000;
+
 const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
   // A failure is described by the template, the HTTP status and Resend's
   // error type only. The subject can hold a reset code, and Resend's error
@@ -136,6 +183,9 @@ const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
   ) => {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
+      // A provider that does not answer fails the send (the outbox retries
+      // it with the same idempotency key) instead of holding it forever
+      signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -208,6 +258,18 @@ const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
           action: 'See more topics',
           url: confirmation.topicsUrl,
           note: `Payment reference: ${confirmation.paymentReference}. Keep it for any questions about this payment. Razorpay also emails a receipt.`,
+        },
+        options?.idempotencyKey,
+      ),
+    sendPaymentFinanceCopy: (email, copy, options) =>
+      send(
+        MAIL_TEMPLATE.paymentFinanceCopy,
+        email,
+        {
+          subject: `[Finance] Payment received: ${copy.topic} (${copy.amount})`,
+          intro: `A payment was received. ${describeFinanceCopy(copy)}`,
+          notice: true,
+          note: `Payment reference: ${copy.paymentReference}. This copy is for the SriDha Academy finance team.`,
         },
         options?.idempotencyKey,
       ),

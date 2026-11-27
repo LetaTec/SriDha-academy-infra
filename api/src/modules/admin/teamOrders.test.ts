@@ -103,6 +103,11 @@ describe('payment confirmations, pre-registrations and team orders', () => {
           .digest('hex'),
       });
 
+    // Payment requests only queue the email; the outbox worker sends it,
+    // and running it twice sends nothing new
+    assert.equal(server.sentPaymentConfirmations.length, 0);
+    await server.runOutbox();
+    await server.runOutbox();
     assert.equal(server.sentPaymentConfirmations.length, 1);
     const [email] = server.sentPaymentConfirmations;
     assert.equal(email.email, BILLING.email);
