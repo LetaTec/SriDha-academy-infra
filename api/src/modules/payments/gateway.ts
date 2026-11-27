@@ -20,6 +20,10 @@ export type ProviderPayment = {
   status: string;
   amountPaise: number;
   currency: string;
+  // Razorpay's own flag: whether the money was ever captured. A "refunded"
+  // payment may have been captured and refunded, or only authorised and
+  // refunded automatically; only the first was ever a sale.
+  captured?: boolean | null;
 };
 
 export type PaymentGateway = {
@@ -94,6 +98,7 @@ type RazorpayPayment = {
   status: string;
   amount: number;
   currency: string;
+  captured?: boolean;
 };
 
 const toProviderPayment = (payment: RazorpayPayment): ProviderPayment => ({
@@ -102,35 +107,88 @@ const toProviderPayment = (payment: RazorpayPayment): ProviderPayment => ({
   status: payment.status,
   amountPaise: payment.amount,
   currency: payment.currency,
+  captured: typeof payment.captured === 'boolean' ? payment.captured : null,
 });
 
 const basicAuth = (keyId: string, keySecret: string) =>
   `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
+
+// Every call to Razorpay has two deadlines: the response must start (the
+// connection made and Razorpay answering) within responseStartMs, and the
+// whole exchange, body included, must finish within totalMs. A call that
+// misses either is treated exactly like a network failure: its outcome is
+// unknown, never a failure. A read answers null; a refund is "unknown" and
+// stays pending for reconciliation (its receipt is Razorpay's idempotency
+// key, so a retry never refunds twice); an order is not created and the
+// buyer is asked to try again. Payment state only changes on Razorpay's
+// evidence (webhook, or a later read), so a timeout never confirms or
+// fails a payment.
+export type RazorpayTimeouts = { responseStartMs: number; totalMs: number };
+
+export const RAZORPAY_TIMEOUTS: RazorpayTimeouts = {
+  responseStartMs: 10_000,
+  totalMs: 20_000,
+};
+
+const fetchRazorpay = async (
+  url: string,
+  init: RequestInit,
+  timeouts: RazorpayTimeouts,
+): Promise<Response | null> => {
+  const responseStart = new AbortController();
+  const timer = setTimeout(
+    () => responseStart.abort(new Error('Razorpay did not start answering')),
+    timeouts.responseStartMs,
+  );
+  try {
+    return await fetch(url, {
+      ...init,
+      // The total deadline stays attached while the body is read
+      signal: AbortSignal.any([
+        responseStart.signal,
+        AbortSignal.timeout(timeouts.totalMs),
+      ]),
+    });
+  } catch {
+    // Network error or a missed deadline (never logged with the request:
+    // it carries the key in its Authorization header)
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+// The JSON body, or null when it cannot be read in time or is not JSON
+const readBody = async <T>(response: Response) =>
+  (await response.json().catch(() => null)) as T | null;
 
 // A GET against Razorpay's API, or null when it cannot be read
 const readRazorpay = async <T>(
   url: string,
   keyId: string,
   keySecret: string,
+  timeouts: RazorpayTimeouts,
 ): Promise<T | null> => {
-  const response = await fetch(url, {
-    headers: { Authorization: basicAuth(keyId, keySecret) },
-  }).catch(() => null);
+  const response = await fetchRazorpay(
+    url,
+    { headers: { Authorization: basicAuth(keyId, keySecret) } },
+    timeouts,
+  );
 
-  if (!response?.ok) {
+  const body = response?.ok ? await readBody<T>(response) : null;
+  if (body === null) {
     logger.warn('payments.provider_fetch_failed', {
       provider: PAYMENT_PROVIDER.razorpay,
-      status: response?.status ?? 'network error',
+      status: response?.status ?? 'network error or timeout',
     });
-    return null;
   }
-
-  return (await response.json()) as T;
+  return body;
 };
 
 export const createRazorpayGateway = (
   keyId: string,
   keySecret: string,
+  timeouts: RazorpayTimeouts = RAZORPAY_TIMEOUTS,
 ): PaymentGateway => ({
   provider: PAYMENT_PROVIDER.razorpay,
   keyId,
@@ -139,6 +197,7 @@ export const createRazorpayGateway = (
       `${RAZORPAY_PAYMENTS_URL}/${encodeURIComponent(paymentId)}`,
       keyId,
       keySecret,
+      timeouts,
     );
     return payment ? toProviderPayment(payment) : null;
   },
@@ -147,11 +206,12 @@ export const createRazorpayGateway = (
       `${RAZORPAY_ORDERS_URL}/${encodeURIComponent(orderId)}/payments`,
       keyId,
       keySecret,
+      timeouts,
     );
     return result ? result.items.map(toProviderPayment) : null;
   },
   createRefund: async ({ providerPaymentId, amountPaise, receipt, notes }) => {
-    const response = await fetch(
+    const response = await fetchRazorpay(
       `${RAZORPAY_PAYMENTS_URL}/${encodeURIComponent(providerPaymentId)}/refund`,
       {
         method: 'POST',
@@ -169,28 +229,50 @@ export const createRazorpayGateway = (
           speed: 'normal',
         }),
       },
-    ).catch(() => null);
+      timeouts,
+    );
 
-    if (response?.ok) {
+    // Accepted, but the body did not arrive in time: the refund may exist,
+    // so it is "unknown" (found later by its receipt), never "created" with
+    // invented fields
+    const refund = response?.ok
+      ? await readBody<{
+          id: string;
+          status: string;
+          amount: number;
+          currency?: string;
+          payment_id?: string;
+          receipt?: string | null;
+        }>(response)
+      : null;
+    if (response?.ok && refund === null) {
+      logger.error('payments.provider_refund_unanswered', {
+        provider: PAYMENT_PROVIDER.razorpay,
+        status: 'body not read',
+      });
+      return { outcome: 'unknown' };
+    }
+
+    if (response?.ok && refund) {
       // Cast, not parsed: callers validate it (refundEvidence.ts) before
       // trusting any field
-      const refund = (await response.json().catch(() => null)) as {
+      const accepted = refund as {
         id: string;
         status: string;
         amount: number;
         currency?: string;
         payment_id?: string;
         receipt?: string | null;
-      } | null;
+      };
       return {
         outcome: 'created',
         refund: {
-          id: refund?.id as string,
-          status: refund?.status as string,
-          amountPaise: refund?.amount as number,
-          currency: refund?.currency ?? null,
-          paymentId: refund?.payment_id ?? null,
-          receipt: refund?.receipt ?? null,
+          id: accepted.id,
+          status: accepted.status,
+          amountPaise: accepted.amount,
+          currency: accepted.currency ?? null,
+          paymentId: accepted.payment_id ?? null,
+          receipt: accepted.receipt ?? null,
         },
       };
     }
@@ -233,6 +315,7 @@ export const createRazorpayGateway = (
       `${RAZORPAY_REFUNDS_URL}/${encodeURIComponent(refundId)}`,
       keyId,
       keySecret,
+      timeouts,
     );
     return refund
       ? {
@@ -264,6 +347,7 @@ export const createRazorpayGateway = (
         `${RAZORPAY_PAYMENTS_URL}/${encodeURIComponent(paymentId)}/refunds?count=${REFUND_LIST_PAGE_SIZE}&skip=${page * REFUND_LIST_PAGE_SIZE}`,
         keyId,
         keySecret,
+        timeouts,
       );
       if (!result) return null;
       refunds.push(
@@ -284,19 +368,29 @@ export const createRazorpayGateway = (
     return null;
   },
   createOrder: async ({ amountPaise, currency, receipt }) => {
-    const response = await fetch(RAZORPAY_ORDERS_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: basicAuth(keyId, keySecret),
-        'Content-Type': 'application/json',
+    const response = await fetchRazorpay(
+      RAZORPAY_ORDERS_URL,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: basicAuth(keyId, keySecret),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount: amountPaise, currency, receipt }),
       },
-      body: JSON.stringify({ amount: amountPaise, currency, receipt }),
-    }).catch(() => null);
+      timeouts,
+    );
+    // An order whose answer did not arrive is not used: the buyer is asked
+    // to try again, and an order Razorpay may have made is never paid
+    // (nobody has its id)
+    const order = response?.ok
+      ? await readBody<{ id: string }>(response)
+      : null;
 
-    if (!response?.ok) {
+    if (!order?.id) {
       logger.error('payments.provider_order_failed', {
         provider: PAYMENT_PROVIDER.razorpay,
-        status: response?.status ?? 'network error',
+        status: response?.status ?? 'network error or timeout',
       });
       throw new ApiError(
         502,
@@ -305,7 +399,6 @@ export const createRazorpayGateway = (
       );
     }
 
-    const order = (await response.json()) as { id: string };
     return { orderId: order.id };
   },
   // Razorpay signs "order_id|payment_id" with the key secret

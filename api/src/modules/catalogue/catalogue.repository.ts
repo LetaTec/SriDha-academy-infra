@@ -221,6 +221,15 @@ export const getBatchRow = async (db: DatabaseClient, batchId: string) => {
   );
 };
 
+// The batch row, locked until the transaction ends. Everything that takes
+// a seat (a new hold, a renewed hold, a confirmation at capture) locks it
+// before counting seats, so two transactions cannot both see the last free
+// seat: the second waits, and its count (a new statement under READ
+// COMMITTED) includes the seat the first one took.
+export const lockBatchRow = async (tx: DatabaseClient, batchId: string) =>
+  (await tx.get('SELECT * FROM batches WHERE id = $1 FOR UPDATE', [batchId])) ??
+  null;
+
 // excludeEnrolmentId leaves out the student's own seat, when renewing it
 export const countActiveEnrolmentsForBatch = async (
   db: DatabaseClient,

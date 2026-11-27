@@ -127,6 +127,8 @@ type Stage =
   | { name: 'details' }
   // The confirmation goes to the email the student paid with
   | { name: 'paid'; checkout: Checkout; email: string }
+  // Paid, but the batch filled first: the team follows up
+  | { name: 'paidSeatPending'; checkout: Checkout; email: string }
   // Authorised by Razorpay, capture not reported yet
   | { name: 'confirming'; checkout: Checkout; email: string }
   // Test mode: the seat is held until the team collects payment
@@ -382,9 +384,11 @@ const CheckoutDetails = ({
       // Paid only once Razorpay reports the capture; until then the
       // student is told it is being confirmed, never that the seat is theirs
       setStage(
-        payment.status === PAYMENT_STATUS.paid
-          ? { name: 'paid', checkout, email: billing.email }
-          : { name: 'confirming', checkout, email: billing.email },
+        payment.status !== PAYMENT_STATUS.paid
+          ? { name: 'confirming', checkout, email: billing.email }
+          : payment.seatConfirmed
+            ? { name: 'paid', checkout, email: billing.email }
+            : { name: 'paidSeatPending', checkout, email: billing.email },
       );
     } catch (error) {
       if (
@@ -402,17 +406,21 @@ const CheckoutDetails = ({
     const isPaid = stage.name === 'paid';
     const title = isPaid
       ? CHECKOUT_TEXT.paidTitle
-      : stage.name === 'confirming'
-        ? CHECKOUT_TEXT.confirmingTitle
-        : CHECKOUT_TEXT.pendingTitle;
+      : stage.name === 'paidSeatPending'
+        ? CHECKOUT_TEXT.paidSeatPendingTitle
+        : stage.name === 'confirming'
+          ? CHECKOUT_TEXT.confirmingTitle
+          : CHECKOUT_TEXT.pendingTitle;
     const message =
-      stage.name === 'confirming'
-        ? CHECKOUT_TEXT.confirmingMessage(stage.email)
-        : !isPaid
-          ? CHECKOUT_TEXT.pendingMessage
-          : stage.checkout.batch
-            ? CHECKOUT_TEXT.paidEnrolment(stage.checkout.batch.name)
-            : CHECKOUT_TEXT.paidPreRegistration;
+      stage.name === 'paidSeatPending'
+        ? CHECKOUT_TEXT.paidSeatPendingMessage(stage.email)
+        : stage.name === 'confirming'
+          ? CHECKOUT_TEXT.confirmingMessage(stage.email)
+          : !isPaid
+            ? CHECKOUT_TEXT.pendingMessage
+            : stage.checkout.batch
+              ? CHECKOUT_TEXT.paidEnrolment(stage.checkout.batch.name)
+              : CHECKOUT_TEXT.paidPreRegistration;
     return (
       <div className={cn('result')}>
         <StatusDot color={isPaid ? 'positive' : 'warning'} label={title} />

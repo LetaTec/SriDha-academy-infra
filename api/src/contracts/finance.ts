@@ -216,6 +216,41 @@ export type ResolveRefundExceptionRequestBody = {
   providerRefundId?: string;
 };
 
+// A captured payment that could not simply confirm its seat
+export type PaymentExceptionKind =
+  | 'CAPTURED_FOR_CONFIRMED_SEAT'
+  | 'CAPTURED_FOR_FULL_BATCH'
+  | 'CAPTURED_FOR_UNAVAILABLE_BATCH';
+
+export type PaymentExceptionResolution =
+  'REFUNDED' | 'SEAT_CONFIRMED' | 'NO_ACTION';
+
+export type PaymentException = {
+  id: string;
+  paymentId: string;
+  providerPaymentId: string | null;
+  kind: PaymentExceptionKind;
+  status: 'OPEN' | 'RESOLVED';
+  details: Record<string, unknown>;
+  createdAt: string;
+  amountPaise: number;
+  buyerEmail: string | null;
+  itemDescription: string | null;
+  resolution: PaymentExceptionResolution | null;
+  resolutionNote: string | null;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+};
+
+export type PaymentExceptionsResponse = { exceptions: PaymentException[] };
+
+export type ResolvePaymentExceptionRequest = {
+  resolution: PaymentExceptionResolution;
+  note: string;
+};
+
+export type ResolvePaymentExceptionResponse = { exception: PaymentException };
+
 export type ResolveRefundExceptionResponse = {
   resolved: boolean;
   refund: Refund;

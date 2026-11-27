@@ -27,6 +27,7 @@ import {
   countDeferredIssuances,
   findInvoiceByPaymentId,
   findPaymentForInvoiceUpdate,
+  hasUninvoiceableException,
   insertInvoice,
   listInvoicesBreakingInvariants,
   listInvoicesWithoutSnapshot,
@@ -62,6 +63,10 @@ export const INVOICE_INELIGIBLE = {
   snapshotWithoutInvoice: 'SNAPSHOT_WITHOUT_INVOICE',
   // The approval was revoked or replaced after the job read it
   approvalChanged: 'APPROVAL_CHANGED',
+  // Owner decision: a payment with a payment exception (paid twice, or for
+  // a batch that was full or closed) is not invoiced while it is open, nor
+  // when it was resolved without a seat being supplied
+  openPaymentException: 'PAYMENT_EXCEPTION_NOT_INVOICEABLE',
 } as const;
 
 export type InvoiceIneligibleReason =
@@ -274,6 +279,12 @@ export const issueInvoiceForPayment = async (
     throw new InvoiceIneligibleError(
       INVOICE_INELIGIBLE.testPayment,
       `Payment ${paymentId} is a test-mode payment`,
+    );
+  }
+  if (await hasUninvoiceableException(tx, paymentId)) {
+    throw new InvoiceIneligibleError(
+      INVOICE_INELIGIBLE.openPaymentException,
+      `Payment ${paymentId} has a payment exception that is open or resolved without a seat`,
     );
   }
   if (payment.tax_status !== 'QUOTED' || !payment.tax_quote_id) {

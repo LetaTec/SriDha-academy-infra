@@ -18,6 +18,8 @@ export const AUDIT_ACTION = {
   refundException: 'REFUND_EXCEPTION_RECORDED',
   // Resolution of a refund requiring review or an uncaptured refund exception
   refundExceptionResolved: 'REFUND_EXCEPTION_RESOLVED',
+  // A captured payment that could not confirm its seat, resolved by staff
+  paymentExceptionResolved: 'PAYMENT_EXCEPTION_RESOLVED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];

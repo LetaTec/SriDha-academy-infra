@@ -574,4 +574,41 @@ describe('payment expiry', () => {
     );
     assert.deepEqual(again, { expired: 0, captured: 0, skipped: 1 });
   });
+
+  it('never treats an authorisation Razorpay refunded automatically as a sale', async () => {
+    // Found in review: "refunded" was counted as captured whatever Razorpay
+    // said, so an uncaptured, auto-refunded payment got a confirmed seat
+    const autoRefunded = await checkout();
+    const capturedThenRefunded = await checkout();
+    razorpay.orderPayments.set(autoRefunded.orderId, [
+      {
+        id: 'pay_auto_refunded',
+        orderId: autoRefunded.orderId,
+        status: 'refunded',
+        amountPaise: autoRefunded.amountPaise,
+        currency: 'INR',
+        captured: false,
+      },
+    ]);
+    razorpay.orderPayments.set(capturedThenRefunded.orderId, [
+      {
+        id: 'pay_captured_refunded',
+        orderId: capturedThenRefunded.orderId,
+        status: 'refunded',
+        amountPaise: capturedThenRefunded.amountPaise,
+        currency: 'INR',
+        captured: true,
+      },
+    ]);
+    const started = server.clock.now();
+    await expireStalePayments(
+      {
+        db: server.db,
+        now: () => new Date(started.getTime() + 5 * 24 * HOUR_MS),
+      },
+      razorpay.gateway,
+    );
+    assert.equal(await status(autoRefunded.paymentId), 'EXPIRED');
+    assert.equal(await status(capturedThenRefunded.paymentId), 'PAID');
+  });
 });

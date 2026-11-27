@@ -6,12 +6,14 @@ import type {
   AuditLogResponse,
   HistoricalPaymentsReportResponse,
   InvoiceResponse,
+  PaymentExceptionsResponse,
   ReconcileRefundsRequestBody,
   ReconcileRefundsResponse,
   RefundDetailResponse,
   RefundExceptionsResponse,
   RefundResponse,
   RefundsListResponse,
+  ResolvePaymentExceptionResponse,
   ResolveRefundExceptionResponse,
   TaxApprovalResponse,
   TaxApprovalsResponse,
@@ -45,6 +47,12 @@ import {
   listRefundExceptions,
   toHistoricalPaymentsCsv,
 } from './reports.service.js';
+import {
+  listPaymentExceptions,
+  listPaymentExceptionsQuery,
+  resolvePaymentException,
+  resolvePaymentExceptionSchema,
+} from './paymentExceptions.service.js';
 import {
   getRefundDetail,
   listRefundsDesk,
@@ -261,6 +269,38 @@ export const createFinanceRouter = (context: AppContext) => {
         context.now(),
       );
       res.status(200).json(result satisfies ResolveRefundExceptionResponse);
+    },
+  );
+
+  // Captured payments that could not confirm their seat (paid twice for
+  // one seat, or paid after the batch filled), for staff to resolve
+  router.get(
+    '/payment-exceptions',
+    requirePermission(context, 'viewPayments'),
+    async (req, res) => {
+      const query = validate(listPaymentExceptionsQuery, req.query, 'query');
+      const exceptions = await listPaymentExceptions(context.db, query);
+      res.json({ exceptions } satisfies PaymentExceptionsResponse);
+    },
+  );
+
+  router.post(
+    '/payment-exceptions/:id/resolve',
+    requirePermission(context, 'manageRefunds'),
+    async (req, res) => {
+      const input = validate(resolvePaymentExceptionSchema, req.body);
+      const exception = await resolvePaymentException(
+        context.db,
+        String(req.params.id),
+        req.staff!,
+        input,
+        context.now(),
+        {
+          webOrigin: context.config.webOrigin,
+          financeEmails: context.config.financeNotificationEmails,
+        },
+      );
+      res.json({ exception } satisfies ResolvePaymentExceptionResponse);
     },
   );
 

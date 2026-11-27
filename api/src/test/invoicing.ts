@@ -37,12 +37,32 @@ export const TEST_LATER = new Date(TEST_APPROVAL_BASE_TIME + 60_000);
 // Inserted directly (the route needs a signed-in super admin). The newest
 // insert is the latest record; it is recorded an hour before it takes
 // effect unless a test says otherwise.
+//
+// It takes effect at the fixed TEST_APPROVAL_EFFECTIVE_FROM, the instant
+// every test clock and payment time here is measured from. It used to be
+// "a minute before the call", which drifted with the real clock: a call
+// more than 30 seconds into a slow run made the approval start after a
+// test clock of TEST_APPROVAL_EFFECTIVE_FROM + 30s, so invoicing was "not
+// yet effective" and nothing was issued.
+//
+// The database refuses an approval that starts more than 5 minutes before
+// it is recorded (real time). A file that runs longer than that (e.g.
+// invoices.test.ts, which moves its clocks forward with refreshTimeline)
+// gets the latest start the guard allows instead, 4 minutes back.
+const BACKDATING_GUARD_MARGIN_MS = 4 * 60 * 1000;
+
 export const recordTestApproval = (
   db: Database,
   overrides: Partial<Parameters<typeof insertTaxConfigurationApproval>[1]> = {},
 ) => {
   const effectiveFrom =
-    overrides.effectiveFrom ?? new Date(Date.now() - 60_000).toISOString();
+    overrides.effectiveFrom ??
+    new Date(
+      Math.max(
+        new Date(TEST_APPROVAL_EFFECTIVE_FROM).getTime(),
+        Date.now() - BACKDATING_GUARD_MARGIN_MS,
+      ),
+    ).toISOString();
   return insertTaxConfigurationApproval(db, {
     id: randomUUID(),
     status: 'APPROVED',

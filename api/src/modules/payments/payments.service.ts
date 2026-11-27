@@ -8,6 +8,7 @@ import type {
   CheckoutKind,
   CreateCheckoutRequest,
   CustomerType,
+  PaymentResult,
   PaymentStatus,
   VerifyPaymentRequest,
 } from '../../contracts/payments.js';
@@ -23,7 +24,7 @@ import { GST_STATE_CODE, INDIAN_STATES } from './indianStates.js';
 import {
   BATCH_AVAILABILITY,
   countActiveEnrolmentsForBatch,
-  getBatchRow,
+  lockBatchRow,
   resolveBatchAvailability,
   toDateOnly,
   type Row,
@@ -45,6 +46,8 @@ import {
 import {
   findBatchForPurchase,
   findPaymentById,
+  findPaymentSeatStatus,
+  findSeatForRenewal,
   findPreRegistration,
   findTopicForPreRegistration,
   insertBuyerIfNew,
@@ -256,12 +259,35 @@ const renewSeatHold = async (
 ) =>
   transaction(context.db, async tx => {
     const now = context.now();
-    const batch = await getBatchRow(tx, batchId);
+    // Locked like a new hold (see lockBatchRow)
+    const batch = await lockBatchRow(tx, batchId);
     if (!batch) {
       throw new ApiError(
         404,
         ERROR_CODE.batchNotFound,
         'This batch no longer exists',
+      );
+    }
+
+    // Checked again under the lock: a capture may have confirmed this seat
+    // since the caller looked, or captured a payment that arrived after
+    // the batch filled (a payment exception the team is resolving). Either
+    // way a new order would take the buyer's money a second time.
+    const seat = await findSeatForRenewal(tx, enrolmentId);
+    if (seat.status === ENROLMENT_STATUS.confirmed) {
+      throw new ApiError(
+        409,
+        ERROR_CODE.alreadyEnrolled,
+        'This email has already paid for this batch',
+        { enrolmentId },
+      );
+    }
+    if (seat.hasPaymentUnderReview) {
+      throw new ApiError(
+        409,
+        ERROR_CODE.paymentUnderReview,
+        'We have already received a payment for this seat and our team is reviewing it. Please do not pay again; we will contact you',
+        { enrolmentId },
       );
     }
 
@@ -495,7 +521,7 @@ export const verifyPayment = async (
   context: AppContext,
   gateway: PaymentGateway,
   input: VerifyPaymentInput,
-): Promise<{ paymentId: string; status: PaymentStatus }> => {
+): Promise<PaymentResult> => {
   const payment = await findPaymentById(context.db, input.paymentId);
 
   if (!payment) {
@@ -506,8 +532,18 @@ export const verifyPayment = async (
     );
   }
 
+  // The answer says whether the seat is confirmed, not only whether money
+  // arrived: a payment for a batch that filled is PAID with no seat
+  const result = async (status: PaymentStatus): Promise<PaymentResult> => ({
+    paymentId: input.paymentId,
+    status,
+    seatConfirmed:
+      (await findPaymentSeatStatus(context.db, input.paymentId)) ===
+      ENROLMENT_STATUS.confirmed,
+  });
+
   if (payment.status === PAYMENT_STATUS.paid) {
-    return { paymentId: input.paymentId, status: PAYMENT_STATUS.paid };
+    return result(PAYMENT_STATUS.paid);
   }
 
   const isValid =
@@ -543,7 +579,7 @@ export const verifyPayment = async (
 
   const remote = await gateway.fetchPayment(input.providerPaymentId);
   if (remote) {
-    const result = await applyPaymentEvent(context, {
+    const applied = await applyPaymentEvent(context, {
       provider: gateway.provider,
       source: EVENT_SOURCE.fetch,
       eventId: `fetch:${remote.id}:${remote.status}`,
@@ -561,16 +597,13 @@ export const verifyPayment = async (
       },
     });
 
-    if (result.confirmedPaymentId) {
-      await sendPaymentConfirmation(context, result.confirmedPaymentId);
+    if (applied.confirmedPaymentId) {
+      await sendPaymentConfirmation(context, applied.confirmedPaymentId);
     }
   }
 
   const current = await findPaymentById(context.db, input.paymentId);
-  return {
-    paymentId: input.paymentId,
-    status: String(current?.status ?? payment.status) as PaymentStatus,
-  };
+  return result(String(current?.status ?? payment.status) as PaymentStatus);
 };
 
 // Dispatches outbox emails immediately so that on happy paths the confirmation

@@ -1,4 +1,5 @@
 import type { DatabaseClient, Row } from '../../db/client.js';
+import { lockBatchRow } from '../catalogue/catalogue.repository.js';
 
 // Every SQL statement for payments and pre-registrations
 
@@ -253,20 +254,120 @@ export const setPaymentFailed = (
   );
 
 // The seat a payment is for (an enrolment or a pre-registration)
-export const findSeatStatus = async (
-  db: DatabaseClient,
+// Locks the seat a captured payment is for, and returns its status and,
+// for a batch seat, the locked batch row. The caller already holds the
+// payment row; this takes the batch, then the seat, the same order as
+// checkout (which takes the batch, then the seat, and never a payment), so
+// two captures for one seat, or a capture and a checkout for one batch,
+// run one after the other without deadlocking.
+export const lockSeatForCapture = async (
+  tx: DatabaseClient,
   payment: { enrolmentId: string | null; preRegistrationId: string | null },
 ) => {
-  const row = payment.enrolmentId
-    ? await db.get<{ status: string }>(
-        'SELECT status FROM enrolments WHERE id = $1',
-        [payment.enrolmentId],
-      )
-    : await db.get<{ status: string }>(
-        'SELECT status FROM pre_registrations WHERE id = $1',
-        [payment.preRegistrationId],
-      );
-  return row ? String(row.status) : null;
+  if (payment.enrolmentId) {
+    const seat = await tx.get<{ batch_id: string }>(
+      'SELECT batch_id FROM enrolments WHERE id = $1',
+      [payment.enrolmentId],
+    );
+    const batch = seat ? await lockBatchRow(tx, String(seat.batch_id)) : null;
+    const locked = await tx.get<{ status: string }>(
+      'SELECT status FROM enrolments WHERE id = $1 FOR UPDATE',
+      [payment.enrolmentId],
+    );
+    return { status: locked ? String(locked.status) : null, batch };
+  }
+  const locked = await tx.get<{ status: string }>(
+    'SELECT status FROM pre_registrations WHERE id = $1 FOR UPDATE',
+    [payment.preRegistrationId],
+  );
+  return { status: locked ? String(locked.status) : null, batch: null };
+};
+
+// A seat's status, locked until the transaction ends (call after the
+// batch lock), and whether a payment captured for it is still waiting for
+// staff (an open payment exception). Once staff resolve it, the buyer may
+// check out again.
+export const findSeatForRenewal = async (
+  tx: DatabaseClient,
+  enrolmentId: string,
+) => {
+  const seat = await tx.get<{ status: string }>(
+    'SELECT status FROM enrolments WHERE id = $1 FOR UPDATE',
+    [enrolmentId],
+  );
+  const underReview = await tx.get<{ id: string }>(
+    `SELECT x.id FROM payment_exceptions x
+     JOIN payments p ON p.id = x.payment_id
+     WHERE p.enrolment_id = $1 AND x.status = 'OPEN'
+     LIMIT 1`,
+    [enrolmentId],
+  );
+  return {
+    status: seat ? String(seat.status) : null,
+    hasPaymentUnderReview: Boolean(underReview),
+  };
+};
+
+// The status of the seat or pre-registration a payment is for
+export const findPaymentSeatStatus = async (
+  db: DatabaseClient,
+  paymentId: string,
+) => {
+  const row = await db.get<{ status: string | null }>(
+    `SELECT COALESCE(e.status, r.status) AS status
+     FROM payments p
+     LEFT JOIN enrolments e ON e.id = p.enrolment_id
+     LEFT JOIN pre_registrations r ON r.id = p.pre_registration_id
+     WHERE p.id = $1`,
+    [paymentId],
+  );
+  return row?.status ? String(row.status) : null;
+};
+
+export const PAYMENT_EXCEPTION_KIND = {
+  capturedForConfirmedSeat: 'CAPTURED_FOR_CONFIRMED_SEAT',
+  capturedForFullBatch: 'CAPTURED_FOR_FULL_BATCH',
+  // The batch was no longer open (inactive, upcoming or past its start)
+  capturedForUnavailableBatch: 'CAPTURED_FOR_UNAVAILABLE_BATCH',
+} as const;
+
+export type PaymentExceptionKind =
+  (typeof PAYMENT_EXCEPTION_KIND)[keyof typeof PAYMENT_EXCEPTION_KIND];
+
+// One exception per payment and kind; a repeat does nothing. Returns
+// whether a new one was recorded.
+export const insertPaymentException = async (
+  tx: DatabaseClient,
+  exception: {
+    paymentId: string;
+    providerPaymentId: string | null;
+    kind: PaymentExceptionKind;
+    details: Record<string, unknown>;
+    createdAt: string;
+  },
+) => {
+  const prefix = {
+    [PAYMENT_EXCEPTION_KIND.capturedForConfirmedSeat]: 'pex_confirmed_seat_',
+    [PAYMENT_EXCEPTION_KIND.capturedForFullBatch]: 'pex_full_batch_',
+    [PAYMENT_EXCEPTION_KIND.capturedForUnavailableBatch]:
+      'pex_unavailable_batch_',
+  }[exception.kind];
+  const row = await tx.get<{ id: string }>(
+    `INSERT INTO payment_exceptions
+       (id, payment_id, provider_payment_id, kind, details, created_at)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+     ON CONFLICT (payment_id, kind) DO NOTHING
+     RETURNING id`,
+    [
+      `${prefix}${exception.paymentId}`,
+      exception.paymentId,
+      exception.providerPaymentId,
+      exception.kind,
+      JSON.stringify(exception.details),
+      exception.createdAt,
+    ],
+  );
+  return row !== null && row !== undefined;
 };
 
 export type NewPaymentEvent = {

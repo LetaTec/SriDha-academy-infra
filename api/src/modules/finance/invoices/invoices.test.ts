@@ -512,6 +512,55 @@ describe('Issuing an invoice for collected GST', () => {
     assert.deepEqual(await invoiceNumbers(server), ['INV/26-27/000001']);
   });
 
+  it('issues no invoice for a payment exception that is open, or resolved without a seat (owner decision)', async () => {
+    const admin = await server.db.get<{ id: string }>(
+      'SELECT id FROM users WHERE email = $1',
+      [TEST_SUPER_ADMIN_EMAIL],
+    );
+    const withException = async () => {
+      const payment = await paidQuotedPayment(server);
+      await server.db.query(
+        `INSERT INTO payment_exceptions (id, payment_id, kind, details, created_at)
+         VALUES ($1, $2, 'CAPTURED_FOR_FULL_BATCH', '{}'::jsonb, $3)`,
+        [
+          `pex_test_${payment.paymentId}`,
+          payment.paymentId,
+          PAID_AT.toISOString(),
+        ],
+      );
+      return payment;
+    };
+    const resolve = (paymentId: string, resolution: string) =>
+      server.db.query(
+        `UPDATE payment_exceptions SET status = 'RESOLVED', resolution = $2,
+           resolution_note = 'Decided by staff', resolved_by = $3, resolved_at = $4
+         WHERE id = $1`,
+        [`pex_test_${paymentId}`, resolution, admin?.id, LATER.toISOString()],
+      );
+
+    const refunded = await withException();
+    const seated = await withException();
+    await reconcileMissingInvoices(contextOf(server));
+    assert.equal(
+      await findInvoiceByPaymentId(server.db, refunded.paymentId),
+      null,
+    );
+    assert.equal(
+      await findInvoiceByPaymentId(server.db, seated.paymentId),
+      null,
+    );
+
+    // Resolved: invoiced only when a seat was supplied
+    await resolve(refunded.paymentId, 'REFUNDED');
+    await resolve(seated.paymentId, 'SEAT_CONFIRMED');
+    await reconcileMissingInvoices(contextOf(server));
+    assert.equal(
+      await findInvoiceByPaymentId(server.db, refunded.paymentId),
+      null,
+    );
+    assert.ok(await findInvoiceByPaymentId(server.db, seated.paymentId));
+  });
+
   it('splits CGST and SGST for a buyer in Rajasthan', async () => {
     const payment = await paidQuotedPayment(server, {
       at: PAID_AT,

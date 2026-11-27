@@ -43,8 +43,12 @@ export const expireStalePayments = async (
         continue;
       }
 
+      // A refunded payment counts only if Razorpay says it was captured
+      // first: an authorisation refunded automatically was never a sale
       const captured = providerPayments.find(
-        item => item.status === 'captured' || item.status === 'refunded',
+        item =>
+          item.status === 'captured' ||
+          (item.status === 'refunded' && item.captured === true),
       );
       if (captured) {
         const applied = await applyPaymentEvent(context, {

@@ -7,7 +7,7 @@ import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import {
   BATCH_AVAILABILITY,
   countActiveEnrolmentsForBatch,
-  getBatchRow,
+  lockBatchRow,
   listTopicLessons,
   resolveBatchAvailability,
   toBatch,
@@ -86,10 +86,10 @@ export const createEnrolment = async (
   const { db } = context;
   const timestamp = context.now().toISOString();
 
-  // Check availability and insert inside one write transaction so two students
-  // cannot take the last seat at the same time.
+  // Lock the batch, then check availability and insert, in one transaction,
+  // so two students cannot take the last seat at the same time.
   const enrolmentId = await transaction(db, async tx => {
-    const batch = await getBatchRow(tx, batchId);
+    const batch = await lockBatchRow(tx, batchId);
 
     if (!batch) {
       throw new ApiError(

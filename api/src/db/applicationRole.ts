@@ -23,6 +23,7 @@ export const NO_DELETE_TABLES = [
   'payments',
   'payment_events',
   'payment_refunds',
+  'payment_exceptions',
 ] as const;
 
 const ROLE_NAME = /^[a-z_][a-z0-9_]{0,62}$/;

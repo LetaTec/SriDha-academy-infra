@@ -4,6 +4,12 @@ import type { AppContext } from '../../app/context.js';
 import type { PaymentStatus } from '../../contracts/payments.js';
 import { transaction, type DatabaseClient, type Row } from '../../db/client.js';
 import { logger } from '../../logging/logger.js';
+import {
+  BATCH_AVAILABILITY,
+  countActiveEnrolmentsForBatch,
+  resolveBatchAvailability,
+  toDateOnly,
+} from '../catalogue/catalogue.repository.js';
 import { setEnrolmentStatus } from '../enrolments/enrolments.repository.js';
 import { ENROLMENT_STATUS } from '../enrolments/enrolments.service.js';
 import { AUDIT_ACTION, recordAudit } from '../finance/audit.service.js';
@@ -13,8 +19,11 @@ import {
   findPaymentByProviderPaymentIdForUpdate,
   findRefundByIdForUpdate,
   findRefundsForProvider,
-  findSeatStatus,
   insertPaymentEvent,
+  insertPaymentException,
+  lockSeatForCapture,
+  PAYMENT_EXCEPTION_KIND,
+  type PaymentExceptionKind,
   insertRefund,
   setPaymentAuthorized,
   setPaymentEventOutcome,
@@ -59,6 +68,8 @@ export const EVENT_OUTCOME = {
   unknownPayment: 'UNKNOWN_PAYMENT',
   recorded: 'RECORDED',
   capturedForConfirmedSeat: 'CAPTURED_FOR_CONFIRMED_SEAT',
+  capturedForFullBatch: 'CAPTURED_FOR_FULL_BATCH',
+  capturedForUnavailableBatch: 'CAPTURED_FOR_UNAVAILABLE_BATCH',
 } as const;
 
 type EventOutcome = (typeof EVENT_OUTCOME)[keyof typeof EVENT_OUTCOME];
@@ -475,38 +486,26 @@ const ALLOWED_FROM: Record<Transition, readonly string[]> = {
   fail: [PAYMENT_STATUS.created, PAYMENT_STATUS.authorized],
 };
 
-// Marks a payment captured and confirms the seat it was for, inside the
-// caller's transaction
-export const markPaymentPaid = async (
+// Confirms the seat a captured payment was for, inside the caller's
+// transaction (the seat is already locked by lockSeatForCapture)
+const confirmSeat = async (
   tx: DatabaseClient,
   payment: Row,
-  providerPaymentId: string,
   timestamp: string,
-) => {
-  await setPaymentPaid(
-    tx,
-    String(payment.id),
-    PAYMENT_STATUS.paid,
-    providerPaymentId,
-    timestamp,
-  );
-
-  if (payment.enrolment_id !== null) {
-    await setEnrolmentStatus(
-      tx,
-      String(payment.enrolment_id),
-      ENROLMENT_STATUS.confirmed,
-      timestamp,
-    );
-  } else {
-    await setPreRegistrationStatus(
-      tx,
-      String(payment.pre_registration_id),
-      ENROLMENT_STATUS.confirmed,
-      timestamp,
-    );
-  }
-};
+) =>
+  payment.enrolment_id !== null
+    ? setEnrolmentStatus(
+        tx,
+        String(payment.enrolment_id),
+        ENROLMENT_STATUS.confirmed,
+        timestamp,
+      )
+    : setPreRegistrationStatus(
+        tx,
+        String(payment.pre_registration_id),
+        ENROLMENT_STATUS.confirmed,
+        timestamp,
+      );
 
 const mismatchOf = (payment: Row, event: PaymentEvent) => {
   if (
@@ -560,37 +559,120 @@ const applyTransition = async (
   }
 
   // Capture. The money has been taken, so the payment is always recorded
-  // as paid; if another payment already confirmed this seat (a retried
-  // checkout captured twice), it is flagged for a refund instead of being
-  // treated as a new sale.
-  const seatStatus = await findSeatStatus(tx, {
-    enrolmentId:
-      payment.enrolment_id === null ? null : String(payment.enrolment_id),
+  // as paid. The seat is locked first (batch, then seat), so simultaneous
+  // captures and checkouts for it run one after the other. Two cases do
+  // not confirm a seat; each becomes a payment exception for finance
+  // staff (never an automatic refund):
+  // - the seat was already paid for by another payment (a retried checkout
+  //   captured twice);
+  // - the hold had lapsed and the batch is now full, so confirming would
+  //   put more students in it than it has room for. The seat stays
+  //   unconfirmed and the student is not told it is confirmed.
+  const enrolmentId =
+    payment.enrolment_id === null ? null : String(payment.enrolment_id);
+  const seat = await lockSeatForCapture(tx, {
+    enrolmentId,
     preRegistrationId:
       payment.pre_registration_id === null
         ? null
         : String(payment.pre_registration_id),
   });
-  const seatAlreadyConfirmed = seatStatus === ENROLMENT_STATUS.confirmed;
+  const providerPaymentId = String(
+    event.providerPaymentId ?? payment.provider_payment_id ?? '',
+  );
 
   if (payment.status === PAYMENT_STATUS.expired) {
     logger.warn('payments.captured_after_expiry', { paymentId });
   }
 
-  await markPaymentPaid(
+  await setPaymentPaid(
     tx,
-    payment,
-    String(event.providerPaymentId ?? payment.provider_payment_id ?? ''),
+    paymentId,
+    PAYMENT_STATUS.paid,
+    providerPaymentId,
     timestamp,
   );
 
-  if (seatAlreadyConfirmed) {
+  const recordException = (
+    kind: PaymentExceptionKind,
+    details: Record<string, unknown>,
+  ) =>
+    insertPaymentException(tx, {
+      paymentId,
+      providerPaymentId: providerPaymentId || null,
+      kind,
+      details,
+      createdAt: timestamp,
+    });
+
+  if (seat.status === ENROLMENT_STATUS.confirmed) {
+    await recordException(PAYMENT_EXCEPTION_KIND.capturedForConfirmedSeat, {
+      enrolmentId,
+      preRegistrationId: payment.pre_registration_id ?? null,
+      amountPaise: Number(payment.amount_paise),
+    });
     logger.error('payments.capture_for_confirmed_seat', {
       paymentId,
       providerPaymentId: event.providerPaymentId,
     });
     return EVENT_OUTCOME.capturedForConfirmedSeat;
   }
+
+  if (enrolmentId !== null) {
+    // The same rule checkout applies, now: the batch must still be OPEN
+    // (not INACTIVE or UPCOMING), not past its start date, and have room
+    // for this seat among everyone else's confirmed seats and live holds
+    // (this seat's own hold is left out, so a capture inside it fits)
+    const taken = seat.batch
+      ? await countActiveEnrolmentsForBatch(
+          tx,
+          String(seat.batch.id),
+          new Date(timestamp),
+          enrolmentId,
+        )
+      : 0;
+    const availability = seat.batch
+      ? resolveBatchAvailability(
+          seat.batch,
+          taken,
+          toDateOnly(new Date(timestamp)),
+        )
+      : BATCH_AVAILABILITY.inactive;
+    if (availability !== BATCH_AVAILABILITY.open) {
+      const isFull = availability === BATCH_AVAILABILITY.full;
+      await recordException(
+        isFull
+          ? PAYMENT_EXCEPTION_KIND.capturedForFullBatch
+          : PAYMENT_EXCEPTION_KIND.capturedForUnavailableBatch,
+        {
+          enrolmentId,
+          batchId: seat.batch ? String(seat.batch.id) : null,
+          availability,
+          batchStatus: seat.batch ? String(seat.batch.status) : null,
+          batchStartDate: seat.batch?.start_date
+            ? String(seat.batch.start_date)
+            : null,
+          capacity:
+            seat.batch?.capacity === null || seat.batch?.capacity === undefined
+              ? null
+              : Number(seat.batch.capacity),
+          seatsTaken: taken,
+          amountPaise: Number(payment.amount_paise),
+        },
+      );
+      logger.error(
+        isFull
+          ? 'payments.capture_for_full_batch'
+          : 'payments.capture_for_unavailable_batch',
+        { paymentId, providerPaymentId: event.providerPaymentId, availability },
+      );
+      return isFull
+        ? EVENT_OUTCOME.capturedForFullBatch
+        : EVENT_OUTCOME.capturedForUnavailableBatch;
+    }
+  }
+
+  await confirmSeat(tx, payment, timestamp);
 
   // No tax invoice is issued here. Recording the capture and confirming the
   // seat must never depend on invoicing: a failed SQL statement aborts the

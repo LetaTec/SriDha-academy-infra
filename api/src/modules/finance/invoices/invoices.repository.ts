@@ -161,6 +161,14 @@ export const listPaymentIdsAwaitingInvoice = async (
        AND p.paid_at >= $1
        AND s.id IS NULL
        AND (a.payment_id IS NULL OR a.next_attempt_at <= $2)
+       -- Owner decision: no invoice while a payment exception is open, nor
+       -- after one was resolved without a seat (refunded, or no action):
+       -- nothing was supplied, and credit notes do not exist yet
+       AND NOT EXISTS (
+         SELECT 1 FROM payment_exceptions x
+         WHERE x.payment_id = p.id
+           AND (x.status = 'OPEN' OR x.resolution IS DISTINCT FROM 'SEAT_CONFIRMED')
+       )
      ORDER BY COALESCE(a.attempts, 0) ASC, p.paid_at ASC, p.id ASC
      LIMIT $3`,
     [params.effectiveFrom, params.now, params.limit],
@@ -368,3 +376,19 @@ export const findInvoiceByNumber = async (
   ]);
   return row ? toInvoice(row) : null;
 };
+
+// Whether a payment has a payment exception that keeps it from being
+// invoiced: still open, or resolved without a seat being supplied
+export const hasUninvoiceableException = async (
+  db: DatabaseClient,
+  paymentId: string,
+) =>
+  Boolean(
+    await db.get<{ id: string }>(
+      `SELECT id FROM payment_exceptions
+       WHERE payment_id = $1
+         AND (status = 'OPEN' OR resolution IS DISTINCT FROM 'SEAT_CONFIRMED')
+       LIMIT 1`,
+      [paymentId],
+    ),
+  );

@@ -279,6 +279,11 @@ export const CHECKOUT_TEXT = {
   paidEnrolment: (batch: string) => `Your seat in the ${batch} is confirmed`,
   paidPreRegistration:
     'Your pre-registration is confirmed. We will email you when the first batch opens',
+  // The money arrived but the seat could not be confirmed (the batch filled,
+  // closed or started first): the team follows up, never shown as confirmed
+  paidSeatPendingTitle: 'Payment received, seat not confirmed',
+  paidSeatPendingMessage: (email: string) =>
+    `We have received your payment, but we could not confirm your seat in this batch. Our team will contact you at ${email} about it`,
   // Razorpay has the payment but has not reported it captured yet: the seat
   // is confirmed (and the email sent) only once it does
   confirmingTitle: 'Confirming your payment',

@@ -1590,4 +1590,129 @@ export const MIGRATIONS: readonly Migration[] = [
         CHECK (confirmed_at IS NULL OR used_at IS NOT NULL);
     `,
   },
+  {
+    // A capture that cannot simply confirm its seat becomes a payment
+    // exception finance staff see and resolve, instead of a log line:
+    // - CAPTURED_FOR_CONFIRMED_SEAT: the seat was already paid for by
+    //   another payment (a retried checkout captured twice);
+    // - CAPTURED_FOR_FULL_BATCH: the hold had lapsed and the batch filled
+    //   before the money arrived, so the seat is not confirmed.
+    // The payment is always recorded as paid; nothing is refunded
+    // automatically. One exception per payment and kind. Earlier double
+    // captures (payment_events outcome CAPTURED_FOR_CONFIRMED_SEAT) are
+    // backfilled as open exceptions so they are seen too.
+    // The outcome check gains CAPTURED_FOR_FULL_BATCH (a superset, so every
+    // existing row passes).
+    // To undo: DROP TABLE payment_exceptions; DROP FUNCTION
+    // payment_exception_guard(); and restore the 014 outcome list (which
+    // fails while any payment_events row has outcome
+    // CAPTURED_FOR_FULL_BATCH: those rows must be kept, so in practice the
+    // wider list stays).
+    id: '030_payment_exceptions',
+    sql: `
+      -- Wait at most 10 seconds for the payment_events lock; past that the
+      -- migration (and so the deploy) fails rather than stalling webhooks
+      SET LOCAL lock_timeout = '10s';
+      ALTER TABLE payment_events DROP CONSTRAINT payment_events_outcome_check;
+      ALTER TABLE payment_events ADD CONSTRAINT payment_events_outcome_check
+        CHECK (outcome IN ('APPLIED', 'IGNORED_STALE', 'REJECTED_MISMATCH',
+          'UNKNOWN_ORDER', 'UNKNOWN_PAYMENT', 'RECORDED',
+          'CAPTURED_FOR_CONFIRMED_SEAT', 'CAPTURED_FOR_FULL_BATCH'));
+
+      CREATE TABLE payment_exceptions (
+        id TEXT PRIMARY KEY,
+        payment_id TEXT NOT NULL REFERENCES payments (id) ON DELETE RESTRICT,
+        provider_payment_id TEXT,
+        kind TEXT NOT NULL CHECK (kind IN (
+          'CAPTURED_FOR_CONFIRMED_SEAT', 'CAPTURED_FOR_FULL_BATCH')),
+        status TEXT NOT NULL DEFAULT 'OPEN'
+          CHECK (status IN ('OPEN', 'RESOLVED')),
+        details JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL,
+        resolution TEXT CHECK (resolution IN (
+          'REFUNDED', 'SEAT_CONFIRMED', 'NO_ACTION')),
+        resolution_note TEXT,
+        resolved_by TEXT REFERENCES users (id) ON DELETE RESTRICT,
+        resolved_at TIMESTAMPTZ,
+        UNIQUE (payment_id, kind),
+        CHECK (
+          (status = 'OPEN' AND resolution IS NULL AND resolved_at IS NULL
+            AND resolved_by IS NULL AND resolution_note IS NULL)
+          OR (status = 'RESOLVED' AND resolution IS NOT NULL
+            AND resolved_at IS NOT NULL AND resolved_by IS NOT NULL
+            AND resolution_note IS NOT NULL AND length(resolution_note) > 0)
+        )
+      );
+      CREATE INDEX payment_exceptions_open_idx
+        ON payment_exceptions (created_at) WHERE status = 'OPEN';
+
+      -- An exception is resolved once and never edited or deleted
+      CREATE FUNCTION payment_exception_guard() RETURNS TRIGGER AS $$
+      BEGIN
+        IF TG_OP = 'DELETE' THEN
+          RAISE EXCEPTION 'Payment exceptions are never deleted';
+        END IF;
+        IF OLD.status <> 'OPEN' THEN
+          RAISE EXCEPTION 'Payment exception % is already resolved', OLD.id;
+        END IF;
+        IF NEW.id <> OLD.id OR NEW.payment_id <> OLD.payment_id
+          OR NEW.kind <> OLD.kind
+          OR NEW.provider_payment_id IS DISTINCT FROM OLD.provider_payment_id
+          OR NEW.details <> OLD.details OR NEW.created_at <> OLD.created_at THEN
+          RAISE EXCEPTION 'Payment exception % records cannot change', OLD.id;
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+      CREATE TRIGGER payment_exceptions_guard
+        BEFORE UPDATE OR DELETE ON payment_exceptions
+        FOR EACH ROW EXECUTE FUNCTION payment_exception_guard();
+
+      INSERT INTO payment_exceptions
+        (id, payment_id, provider_payment_id, kind, details, created_at)
+      SELECT 'pex_confirmed_seat_' || e.payment_id, e.payment_id,
+        MIN(e.provider_payment_id), 'CAPTURED_FOR_CONFIRMED_SEAT',
+        jsonb_build_object('backfilled', true), MIN(e.received_at)
+      FROM payment_events e
+      WHERE e.outcome = 'CAPTURED_FOR_CONFIRMED_SEAT' AND e.payment_id IS NOT NULL
+      GROUP BY e.payment_id
+      ON CONFLICT (payment_id, kind) DO NOTHING;
+    `,
+  },
+  {
+    // TRUNCATE is refused on payment_exceptions, as on every other
+    // financial table (019). To undo: DROP TRIGGER
+    // trg_payment_exceptions_no_truncate ON payment_exceptions;
+    id: '031_payment_exceptions_no_truncate',
+    sql: `
+      CREATE TRIGGER trg_payment_exceptions_no_truncate
+        BEFORE TRUNCATE ON payment_exceptions
+        FOR EACH STATEMENT EXECUTE FUNCTION prevent_financial_truncate();
+    `,
+  },
+  {
+    // A payment can also arrive for a batch that is no longer open (made
+    // inactive or upcoming, or past its start date): it becomes a payment
+    // exception of its own kind, never a confirmed seat. Both checks gain
+    // the new value, a superset, so every existing row passes. As in 030,
+    // replacing the payment_events check holds an exclusive lock on that
+    // table until this migration commits (each migration is one
+    // transaction); lock_timeout makes a busy table fail the deploy (the
+    // previous release keeps serving) instead of stalling webhooks.
+    // To undo: restore 030's two lists (fails while rows use the new value).
+    id: '032_payment_exceptions_unavailable_batch',
+    sql: `
+      SET LOCAL lock_timeout = '10s';
+      ALTER TABLE payment_events DROP CONSTRAINT payment_events_outcome_check;
+      ALTER TABLE payment_events ADD CONSTRAINT payment_events_outcome_check
+        CHECK (outcome IN ('APPLIED', 'IGNORED_STALE', 'REJECTED_MISMATCH',
+          'UNKNOWN_ORDER', 'UNKNOWN_PAYMENT', 'RECORDED',
+          'CAPTURED_FOR_CONFIRMED_SEAT', 'CAPTURED_FOR_FULL_BATCH',
+          'CAPTURED_FOR_UNAVAILABLE_BATCH'));
+      ALTER TABLE payment_exceptions DROP CONSTRAINT payment_exceptions_kind_check;
+      ALTER TABLE payment_exceptions ADD CONSTRAINT payment_exceptions_kind_check
+        CHECK (kind IN ('CAPTURED_FOR_CONFIRMED_SEAT', 'CAPTURED_FOR_FULL_BATCH',
+          'CAPTURED_FOR_UNAVAILABLE_BATCH'));
+    `,
+  },
 ];

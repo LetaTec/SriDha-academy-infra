@@ -116,6 +116,10 @@ export type VerifyPaymentRequest = {
 export type PaymentResult = {
   paymentId: string;
   status: PaymentStatus;
+  // Whether the seat (or pre-registration) is confirmed. A payment can be
+  // PAID with the seat unconfirmed: it arrived after the batch filled, and
+  // the team follows up (a payment exception)
+  seatConfirmed: boolean;
 };
 
 export type PaymentResultResponse = { payment: PaymentResult };
