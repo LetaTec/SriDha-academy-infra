@@ -24,7 +24,7 @@ import { formatPrice } from '@utils/currency';
 import { formatWallClockTime } from '@utils/date';
 import { searchTopicPreviews } from '@utils/topicSearch';
 
-import { formatBatchSeats } from '../batchDetails';
+import { formatBatchEnrolment } from '../batchDetails';
 import styles from './TopicSearch.module.css';
 
 const cn = cx.bind(styles);
@@ -68,7 +68,7 @@ const batchTiming = (batch: Batch) =>
     .join(' · ');
 
 const batchStatus = (batch: Batch) =>
-  (isBatchOpen(batch) ? formatBatchSeats(batch) : null) ??
+  (isBatchOpen(batch) ? formatBatchEnrolment(batch) : null) ??
   BATCH_AVAILABILITY_LABEL[batch.availability];
 
 // Topic search: in the header, as the homepage's main search and on the

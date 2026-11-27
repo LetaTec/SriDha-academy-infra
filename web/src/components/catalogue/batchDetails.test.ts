@@ -3,29 +3,45 @@ import { describe, expect, it } from 'vitest';
 import { sortBatchesByStart } from '@services/catalogue';
 import { fullBatch, openBatch } from '@/test/catalogueFixture';
 
-import { formatBatchSeats } from './batchDetails';
+import { formatBatchCapacity, formatBatchEnrolment } from './batchDetails';
 
-describe('formatBatchSeats', () => {
-  it('shows the seats left out of the batch size', () => {
-    expect(formatBatchSeats({ ...openBatch, seatsRemaining: 86 })).toBe(
-      '86 of 100 seats left',
+describe('formatBatchEnrolment', () => {
+  it('says when enrolment closes, not how many seats are free', () => {
+    expect(formatBatchEnrolment({ ...openBatch, seatsRemaining: 86 })).toBe(
+      'Enrolment closes on 1 Nov',
+    );
+  });
+
+  it('shows the seats left once only a few remain', () => {
+    expect(formatBatchEnrolment({ ...openBatch, seatsRemaining: 12 })).toBe(
+      'Only 12 seats left',
+    );
+    expect(formatBatchEnrolment({ ...openBatch, seatsRemaining: 1 })).toBe(
+      'Only 1 seat left',
     );
   });
 
   it('says a batch with no seats left is full', () => {
-    expect(formatBatchSeats(fullBatch)).toBe('Batch full');
+    expect(formatBatchEnrolment(fullBatch)).toBe('Batch full');
   });
 
-  it('shows only the seats left when the batch size is unknown', () => {
+  it('shows nothing while the start date is to be announced', () => {
     expect(
-      formatBatchSeats({ ...openBatch, capacity: null, seatsRemaining: 1 }),
-    ).toBe('1 seat left');
-  });
-
-  it('shows nothing for a batch without a seat limit', () => {
-    expect(
-      formatBatchSeats({ ...openBatch, capacity: null, seatsRemaining: null }),
+      formatBatchEnrolment({
+        ...openBatch,
+        startDate: null,
+        seatsRemaining: 90,
+      }),
     ).toBeNull();
+  });
+});
+
+describe('formatBatchCapacity', () => {
+  it('states the batch size', () => {
+    expect(formatBatchCapacity([openBatch, fullBatch])).toBe(
+      'Max 100 students per batch',
+    );
+    expect(formatBatchCapacity([{ ...openBatch, capacity: null }])).toBeNull();
   });
 });
 

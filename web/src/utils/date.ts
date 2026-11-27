@@ -85,3 +85,11 @@ export const formatClassDate = (value: string): string =>
     month: 'short',
     timeZone: 'UTC',
   }).format(new Date(`${value}T00:00:00Z`));
+
+// A calendar date as day and month, e.g. "2026-12-17" -> "17 Dec"
+export const formatDayMonth = (value: string): string =>
+  new Intl.DateTimeFormat(DEFAULT_LOCALE, {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(`${value}T00:00:00Z`));

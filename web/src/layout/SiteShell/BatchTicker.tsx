@@ -4,6 +4,7 @@ import cx from 'classnames/bind';
 import { ButtonBase } from '@components/ui/ButtonBase/ButtonBase';
 import { Icon } from '@components/ui/Icon/Icon';
 import { Text } from '@components/ui/Text/Text';
+import { LOW_SEAT_COUNT } from '@constants/catalogue';
 import { TICKER_TEXT } from '@constants/home';
 import { useCatalogue } from '@hooks/useCatalogue';
 import { useCheckout } from '@hooks/useCheckout';
@@ -32,7 +33,7 @@ const describeBatch = (batch: Batch) =>
           .filter(Boolean)
           .join(', ')
       : batch.scheduleLabel,
-    batch.seatsRemaining !== null
+    batch.seatsRemaining !== null && batch.seatsRemaining <= LOW_SEAT_COUNT
       ? TICKER_TEXT.seatsLeft(batch.seatsRemaining)
       : null,
   ]

@@ -1,6 +1,8 @@
 .grid {
   display: grid;
-  grid-template-columns: 42% 58%;
+  /* Shares the width left after the gap, so the paper never spills past
+     the edge (percentages plus a gap came to more than 100%) */
+  grid-template-columns: minmax(0, 42fr) minmax(0, 58fr);
   gap: clamp(var(--space-4), 4vw, var(--space-8));
   align-items: center;
 }

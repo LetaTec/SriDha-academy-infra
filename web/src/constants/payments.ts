@@ -217,7 +217,7 @@ export const CHECKOUT_TEXT = {
   startsLabel: 'Starts',
   timeLabel: 'Time',
   sessionsLabel: 'Sessions',
-  seatsLabel: 'Seats left',
+  seatsLabel: 'Enrolment',
   firstBatchLabel: 'Batch',
   firstBatchValue: 'First batch when it opens',
   // Batch choice

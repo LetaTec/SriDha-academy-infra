@@ -114,6 +114,10 @@ export const CATALOGUE_ERROR_CODE = {
   batchNotFound: 'BATCH_NOT_FOUND',
 } as const;
 
+// A batch says how many seats are left only once this few remain; before
+// that it says when enrolment closes
+export const LOW_SEAT_COUNT = 30;
+
 export const CATALOGUE_TEXT = {
   topicWiseHeadline:
     'Learn topic by topic. Build confidence one concept at a time.',
@@ -131,7 +135,7 @@ export const CATALOGUE_TEXT = {
   sessionsLabel: 'Sessions',
   durationLabel: 'Lesson duration',
   facultyLabel: 'Faculty',
-  seatsLabel: 'Seats',
+  seatsLabel: 'Enrolment',
   priceLabel: 'Price',
   toBeAnnounced: 'To be announced',
   tutorEyebrow: 'Your tutor',
@@ -160,12 +164,13 @@ export const CATALOGUE_TEXT = {
   loadError: 'Topic information is unavailable right now',
   topicsLoading: 'Loading topics',
   retry: 'Try again',
+  // Only when few remain (LOW_SEAT_COUNT or fewer)
   seatsRemaining: (seats: number) =>
-    seats === 1 ? '1 seat left' : `${seats} seats left`,
-  // e.g. "286 of 300 seats left"
-  seatsOfCapacity: (seats: number, capacity: number) =>
-    `${seats} of ${capacity} seats left`,
-  batchSeatsLabel: 'Seats in each batch',
+    seats === 1 ? 'Only 1 seat left' : `Only ${seats} seats left`,
+  // e.g. "Enrolment closes on 17 Dec"
+  enrolmentCloses: (date: string) => `Enrolment closes on ${date}`,
+  maxStudents: (capacity: number) => `Max ${capacity} students per batch`,
+  batchSeatsLabel: 'When enrolment closes for each batch',
   sessionCount: (count: number) =>
     count === 1 ? '1 session' : `${count} sessions`,
   durationMinutes: (minutes: number) => `${minutes} min`,

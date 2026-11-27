@@ -4,6 +4,10 @@ const SCREENSHOT_DIR = 'test-results/screenshots';
 
 const VIEWPORTS = [
   { name: 'desktop-1440', width: 1440, height: 900 },
+  // Laptops, including Windows display scaling
+  { name: 'laptop-1366', width: 1366, height: 768 },
+  { name: 'laptop-1280', width: 1280, height: 720 },
+  { name: 'laptop-1024', width: 1024, height: 768 },
   { name: 'tablet-768', width: 768, height: 1024 },
   { name: 'mobile-390', width: 390, height: 844 },
   { name: 'narrow-mobile-320', width: 320, height: 600 },
