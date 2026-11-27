@@ -9,7 +9,7 @@ import {
 } from '../../test/fakeRazorpay.js';
 import {
   startTestServer,
-  validRegistration,
+  testStudent,
   type TestClient,
 } from '../../test/testServer.js';
 
@@ -40,7 +40,7 @@ describe('payments', () => {
   before(async () => {
     server = await startTestServer({ paymentGateway: createFakeRazorpay() });
     student = server.createClient();
-    await student.request('POST', '/api/auth/register', validRegistration());
+    await server.signUpStudent(testStudent(), student);
   });
 
   after(async () => {
@@ -291,7 +291,7 @@ describe('payments without Razorpay keys', () => {
     const server = await startTestServer();
     try {
       const student = server.createClient();
-      await student.request('POST', '/api/auth/register', validRegistration());
+      await server.signUpStudent(testStudent(), student);
       const checkout = await student.request('POST', '/api/payments/checkout', {
         kind: 'PRE_REGISTRATION',
         topicId: PRE_REGISTER_TOPIC,

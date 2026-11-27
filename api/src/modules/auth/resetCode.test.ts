@@ -12,11 +12,7 @@ describe('forgot password codes', () => {
   let server: Awaited<ReturnType<typeof startTestServer>>;
 
   const signUp = (email: string) =>
-    server.createClient().request('POST', '/api/auth/sign-up', {
-      fullName: 'Kiran Rao',
-      email,
-      password: PASSWORD,
-    });
+    server.signUpStudent({ fullName: 'Kiran Rao', email, password: PASSWORD });
 
   const askForCode = async (email: string) => {
     const before = server.sentEmails.length;

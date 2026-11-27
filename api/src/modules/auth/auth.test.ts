@@ -5,7 +5,7 @@ import { loadConfig } from '../../config/env.js';
 import {
   startTestServer,
   TEST_WEB_ORIGIN,
-  validRegistration,
+  testStudent,
 } from '../../test/testServer.js';
 
 describe('auth', () => {
@@ -19,32 +19,43 @@ describe('auth', () => {
     await server.close();
   });
 
-  it('registers a student, maps one account to one profile and starts a session', async () => {
-    const client = server.createClient();
-    const response = await client.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration(),
+  it('creates an account only through the verified sign-up, and starts a session', async () => {
+    const { client, response } = await server.signUpStudent(
+      testStudent({ fullName: 'Asha Verma', email: 'asha@example.com' }),
     );
 
     assert.equal(response.status, 201);
     assert.match(response.body.user.id, /^[0-9a-f-]{36}$/);
-    assert.match(response.body.user.student.id, /^[0-9a-f-]{36}$/);
-    assert.notEqual(response.body.user.id, response.body.user.student.id);
     assert.equal(response.body.user.email, 'asha@example.com');
-    assert.equal(response.body.user.student.standard, 'CLASS_11');
     assert.match(response.setCookie ?? '', /leta_session=.+; .*HttpOnly/i);
     assert.match(response.setCookie ?? '', /SameSite=Lax/i);
 
     const session = await client.request('GET', '/api/auth/session');
     assert.equal(session.status, 200);
     assert.equal(session.body.user.id, response.body.user.id);
+  });
 
-    const profiles = await server.db.get<{ count: string | number }>(
-      'SELECT COUNT(*) AS count FROM student_profiles WHERE user_id = $1',
-      [response.body.user.id],
+  it('no longer offers the legacy registration that skipped email verification', async () => {
+    // Removed by owner decision: it created an account and a session for
+    // any email without proof, and answered 409 for emails on file
+    const response = await server
+      .createClient()
+      .request('POST', '/api/auth/register', {
+        fullName: 'Not Verified',
+        email: 'unverified@example.com',
+        password: 'correct-horse-1',
+        dateOfBirth: '2009-04-12',
+        mobile: '+91 98765 43210',
+        standard: 'CLASS_11',
+        stream: 'COMMERCE',
+      });
+    assert.equal(response.status, 404);
+    assert.equal(response.setCookie, null);
+    const account = await server.db.get(
+      'SELECT id FROM users WHERE email = $1',
+      ['unverified@example.com'],
     );
-    assert.equal(Number(profiles?.count), 1);
+    assert.equal(account ?? null, null);
   });
 
   it('never stores the raw password or session token', async () => {
@@ -54,103 +65,6 @@ describe('auth', () => {
     );
     assert.match(String(user?.password_hash), /^scrypt\$/);
     assert.ok(!String(user?.password_hash).includes('correct-horse-1'));
-  });
-
-  it('rejects a duplicate registration, ignoring email case', async () => {
-    const client = server.createClient();
-    const response = await client.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email: 'ASHA@example.com' }),
-    );
-
-    assert.equal(response.status, 409);
-    assert.equal(response.body.code, 'EMAIL_ALREADY_REGISTERED');
-    assert.equal(response.setCookie, null);
-  });
-
-  it('reports field-level validation errors in the shared contract', async () => {
-    const client = server.createClient();
-    const response = await client.request('POST', '/api/auth/register', {
-      ...validRegistration({ email: 'not-an-email', password: 'short' }),
-    });
-
-    assert.equal(response.status, 400);
-    assert.equal(response.body.code, 'REQUEST_VALIDATION_FAILED');
-    const paths = response.body.details.body.map((issue: { path: string[] }) =>
-      issue.path.join('.'),
-    );
-    assert.ok(paths.includes('email'));
-    assert.ok(paths.includes('password'));
-  });
-
-  it('requires a description when the stream is Other and stores it', async () => {
-    const missing = await server
-      .createClient()
-      .request(
-        'POST',
-        '/api/auth/register',
-        validRegistration({ email: 'other1@example.com', stream: 'OTHER' }),
-      );
-    assert.equal(missing.status, 400);
-    assert.deepEqual(
-      missing.body.details.body.map((issue: { path: string[] }) =>
-        issue.path.join('.'),
-      ),
-      ['streamOther'],
-    );
-
-    const described = await server.createClient().request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({
-        email: 'other2@example.com',
-        stream: 'OTHER',
-        streamOther: '  Vocational  ',
-      }),
-    );
-    assert.equal(described.status, 201);
-    assert.equal(described.body.user.student.stream, 'OTHER');
-    assert.equal(described.body.user.student.streamOther, 'Vocational');
-
-    // Text sent with a regular stream is ignored rather than stored.
-    const regular = await server.createClient().request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({
-        email: 'other3@example.com',
-        stream: 'SCIENCE',
-        streamOther: 'Ignored',
-      }),
-    );
-    assert.equal(regular.status, 201);
-    assert.equal(regular.body.user.student.streamOther, null);
-  });
-
-  it('accepts 10th class students', async () => {
-    const response = await server.createClient().request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({
-        email: 'class10@example.com',
-        standard: 'CLASS_10',
-        stream: null,
-      }),
-    );
-    assert.equal(response.status, 201);
-    assert.equal(response.body.user.student.standard, 'CLASS_10');
-  });
-
-  it('rejects client-supplied identifiers on registration', async () => {
-    const client = server.createClient();
-    const response = await client.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email: 'new@example.com', id: 'attacker-chosen-id' }),
-    );
-
-    assert.equal(response.status, 400);
-    assert.equal(response.body.code, 'REQUEST_VALIDATION_FAILED');
   });
 
   it('returns the same error for an unknown email and a wrong password', async () => {

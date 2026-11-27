@@ -6,8 +6,9 @@ const HOUR_MS = 60 * 60 * 1000;
 // The first run waits a minute, so it never slows a cold start
 const FIRST_RUN_DELAY_MS = 60 * 1000;
 
-// Deletes sessions, password-reset tokens and admin sign-in links that have
-// expired. They can no longer be used; keeping them only grows the tables.
+// Deletes sessions, password-reset tokens, admin sign-in links and sign-up
+// codes that have expired. They can no longer be used; keeping them only
+// grows the tables. (Sign-up requests stay a day longer, for the hourly cap.)
 //
 // Unpaid seats are left alone on purpose: they stop counting against a
 // batch after the 30-minute hold (see SEAT_HOLD_MINUTES), and a student can

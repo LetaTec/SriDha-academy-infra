@@ -5,7 +5,7 @@ import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
   TEST_WEB_ORIGIN,
-  validRegistration,
+  testStudent,
 } from '../../test/testServer.js';
 
 const tokenFrom = (signInUrl: string) => {
@@ -49,10 +49,9 @@ describe('super admin sign-in', () => {
 
   it('emails a sign-in link to a super admin and nobody else, with the same response', async () => {
     const student = server.createClient();
-    await student.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email: 'student@example.com' }),
+    await server.signUpStudent(
+      testStudent({ email: 'student@example.com' }),
+      student,
     );
 
     assert.deepEqual(await requestLink('student@example.com'), []);
@@ -132,10 +131,9 @@ describe('super admin sign-in', () => {
 
   it('gives students the student role', async () => {
     const client = server.createClient();
-    const response = await client.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email: 'learner@example.com' }),
+    const { response } = await server.signUpStudent(
+      testStudent({ email: 'learner@example.com' }),
+      client,
     );
 
     assert.equal(response.body.user.role, 'STUDENT');
@@ -144,18 +142,15 @@ describe('super admin sign-in', () => {
   it('promotes and demotes existing accounts to match SUPER_ADMIN_EMAILS', async () => {
     const email = 'teacher@example.com';
     const client = server.createClient();
-    await client.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email }),
-    );
+    await server.signUpStudent(testStudent({ email }), client);
 
     await server.syncStaff({
       superAdminEmails: [TEST_SUPER_ADMIN_EMAIL, email],
     });
     const promoted = await client.request('GET', '/api/auth/session');
     assert.equal(promoted.body.user.role, 'SUPER_ADMIN');
-    assert.equal(promoted.body.user.student.fullName, 'Asha Verma');
+    // The same account, keeping its name
+    assert.equal(promoted.body.user.name, 'Asha Verma');
 
     const [link] = await requestLink(email);
 

@@ -2,7 +2,10 @@ import { Router } from 'express';
 
 import type { AppContext } from '../../app/context.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
-import type { AuthUserResponse } from '../../contracts/auth.js';
+import type {
+  AuthUserResponse,
+  SignUpPendingResponse,
+} from '../../contracts/auth.js';
 import { validate } from '../../http/validate.js';
 import {
   adminSignInConfirmSchema,
@@ -11,7 +14,7 @@ import {
   loginSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
-  registerSchema,
+  signUpConfirmSchema,
   signUpSchema,
 } from './auth.schema.js';
 import {
@@ -19,11 +22,11 @@ import {
   changePassword,
   confirmAdminSignIn,
   confirmPasswordReset,
+  confirmSignUp,
   getAuthUser,
-  registerStudent,
   requestAdminSignIn,
   requestPasswordReset,
-  signUpStudent,
+  requestSignUp,
 } from './auth.service.js';
 import {
   clearSessionCookie,
@@ -37,19 +40,23 @@ import {
 export const createAuthRouter = (context: AppContext) => {
   const router = Router();
 
-  router.post('/register', async (req, res) => {
-    const input = validate(registerSchema, req.body);
-    const user = await registerStudent(context, input);
-    const session = await createSession(context, user.id, false);
-    setSessionCookie(context, res, session);
-    res.status(201).json({ user });
-  });
-
-  // The website's sign-up: name, email and password. Students stay signed
-  // in on this device.
+  // The website's sign-up, step 1: name, email and password. The answer is
+  // the same for every email; the account is created only once the emailed
+  // code is confirmed.
   router.post('/sign-up', async (req, res) => {
     const input = validate(signUpSchema, req.body);
-    const user = await signUpStudent(context, input);
+    await requestSignUp(context, input);
+    res.status(202).json({
+      message:
+        "Check your email. If this address can be used for a new account, you'll receive a 6-digit code shortly",
+    } satisfies SignUpPendingResponse);
+  });
+
+  // Step 2: the right code creates the account and signs the student in,
+  // staying signed in on this device
+  router.post('/sign-up/confirm', async (req, res) => {
+    const input = validate(signUpConfirmSchema, req.body);
+    const user = await confirmSignUp(context, input);
     if (req.auth) {
       await deleteSession(context, req.auth.sessionId);
     }

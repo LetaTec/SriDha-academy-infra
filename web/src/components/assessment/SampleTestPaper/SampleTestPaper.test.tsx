@@ -11,7 +11,11 @@ import { findSamplePaper } from '@constants/sampleTestPapers';
 import { AuthProvider } from '@context/AuthContext';
 import { ToastProvider } from '@context/ToastContext';
 import { loadSamplePapers } from '@hooks/useQuestionBanks';
-import { getCurrentSession, signUpStudent } from '@services/auth/api';
+import {
+  confirmSignUp,
+  getCurrentSession,
+  requestSignUp,
+} from '@services/auth/api';
 
 import { SampleTestPaper } from './SampleTestPaper';
 
@@ -19,7 +23,8 @@ vi.mock('@services/auth/api', () => ({
   getCurrentSession: vi.fn(),
   logoutStudent: vi.fn(),
   signInStudent: vi.fn(),
-  signUpStudent: vi.fn(),
+  requestSignUp: vi.fn(),
+  confirmSignUp: vi.fn(),
 }));
 
 const student = {
@@ -246,7 +251,8 @@ describe('SampleTestPaper', () => {
   });
 
   it('locks the paper for a visitor until they sign up', async () => {
-    vi.mocked(signUpStudent).mockResolvedValue(student);
+    vi.mocked(requestSignUp).mockResolvedValue(undefined);
+    vi.mocked(confirmSignUp).mockResolvedValue(student);
     await renderPaper({ signedIn: false });
     const first = CLASS_11_ACCOUNTANCY[0];
 
@@ -286,9 +292,26 @@ describe('SampleTestPaper', () => {
       );
     });
 
-    expect(signUpStudent).toHaveBeenCalledWith({
+    expect(requestSignUp).toHaveBeenCalledWith({
       fullName: 'Meera Iyer',
       email: 'meera@example.com',
+      password: 'correct-horse-1',
+    });
+    // Still locked until the emailed code is confirmed
+    expect(
+      screen.getByRole('region', { name: 'Sign in to start this paper' }),
+    ).toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText('6-digit code'), {
+      target: { value: '042917' },
+    });
+    await act(async () => {
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'Confirm and sign in' }),
+      );
+    });
+    expect(confirmSignUp).toHaveBeenCalledWith({
+      email: 'meera@example.com',
+      code: '042917',
       password: 'correct-horse-1',
     });
     // Signed in: the lock is gone and the paper can be answered

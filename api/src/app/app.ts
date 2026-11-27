@@ -183,6 +183,24 @@ export const createApp = (context: AppContext) => {
       },
     });
 
+    // Its own store: mistyped sign-up codes must not use up password-reset
+    // confirmations from the same address, or the other way round
+    const signUpConfirmLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 10,
+      standardHeaders: true,
+      legacyHeaders: false,
+      handler: (_req, _res, next) => {
+        next(
+          new ApiError(
+            429,
+            ERROR_CODE.rateLimitExceeded,
+            'Too many attempts at the sign-up code. Please try again later.',
+          ),
+        );
+      },
+    });
+
     const passwordResetLimiter = rateLimit({
       windowMs: 15 * 60 * 1000,
       max: 5,
@@ -235,8 +253,12 @@ export const createApp = (context: AppContext) => {
     api.use('/auth/login', loginLimiter);
     // Guessing the current password is limited like guessing at sign-in
     api.use('/auth/change-password', loginLimiter);
-    api.use('/auth/register', registerLimiter);
-    api.use('/auth/sign-up', registerLimiter);
+    // Sign-up requests and code confirmations are limited separately (each
+    // code also allows only 5 tries, and each email 15 wrong tries a day),
+    // so a student who mistypes a code is not locked out of asking again.
+    // router.post matches /auth/sign-up exactly, not /sign-up/confirm.
+    api.post('/auth/sign-up', registerLimiter);
+    api.use('/auth/sign-up/confirm', signUpConfirmLimiter);
     api.use('/auth/password-reset/confirm', passwordResetConfirmLimiter);
     api.use('/auth/password-reset', passwordResetLimiter);
     api.use('/auth/admin-sign-in', passwordResetLimiter);

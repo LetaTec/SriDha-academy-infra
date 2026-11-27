@@ -3,7 +3,7 @@ import { after, before, describe, it } from 'node:test';
 
 import {
   startTestServer,
-  validRegistration,
+  testStudent,
   type TestClient,
 } from '../../test/testServer.js';
 
@@ -19,18 +19,16 @@ describe('catalogue and enrolments', () => {
   before(async () => {
     server = await startTestServer();
     student = server.createClient();
-    const registered = await student.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration(),
+    const { response: registered } = await server.signUpStudent(
+      testStudent(),
+      student,
     );
     studentId = registered.body.user.id;
 
     otherStudent = server.createClient();
-    await otherStudent.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email: 'ravi@example.com', fullName: 'Ravi Shah' }),
+    await server.signUpStudent(
+      testStudent({ email: 'ravi@example.com', fullName: 'Ravi Shah' }),
+      otherStudent,
     );
   });
 

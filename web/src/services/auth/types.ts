@@ -6,5 +6,6 @@ export type {
   LoginRequest,
   PasswordResetConfirmRequest,
   PasswordResetRequest,
+  SignUpConfirmRequest,
   SignUpRequest,
 } from '@contracts/auth';

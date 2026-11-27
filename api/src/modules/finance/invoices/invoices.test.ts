@@ -14,7 +14,7 @@ import {
 import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
-  validRegistration,
+  testStudent,
 } from '../../../test/testServer.js';
 import { SUPPLIER_CONFIG } from '../gst/gst.config.js';
 import {
@@ -862,7 +862,7 @@ describe('Who can read an invoice', () => {
     assert.equal(anonymous.status, 401);
 
     const student = server.createClient();
-    await student.request('POST', '/api/auth/register', validRegistration());
+    await server.signUpStudent(testStudent(), student);
     assert.equal((await student.request('GET', path)).status, 403);
 
     const operations = await server.signInStaff(OPERATIONS_EMAIL);

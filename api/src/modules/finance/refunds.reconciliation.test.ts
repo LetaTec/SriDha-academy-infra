@@ -6,7 +6,7 @@ import { createScriptedRazorpay } from '../../test/fakeRazorpay.js';
 import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
-  validRegistration,
+  testStudent,
   type TestClient,
 } from '../../test/testServer.js';
 import { reconcilePendingRefunds } from '../payments/payments.refunds.reconciliation.js';
@@ -541,10 +541,9 @@ describe('refund reconciliation polling', () => {
 
     // Student -> 403
     const student = server.createClient();
-    await student.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email: 'recon.student@example.com' }),
+    await server.signUpStudent(
+      testStudent({ email: 'recon.student@example.com' }),
+      student,
     );
     const studentRes = await student.request(
       'POST',

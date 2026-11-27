@@ -9,7 +9,7 @@ import {
 import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
-  validRegistration,
+  testStudent,
   type TestClient,
 } from '../../test/testServer.js';
 
@@ -43,7 +43,7 @@ describe('payment confirmations, pre-registrations and team orders', () => {
       razorpayWebhookSecret: WEBHOOK_SECRET,
     });
     student = server.createClient();
-    await student.request('POST', '/api/auth/register', validRegistration());
+    await server.signUpStudent(testStudent(), student);
 
     // Super admins sign in with an emailed one-time link
     admin = server.createClient();

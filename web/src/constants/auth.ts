@@ -53,6 +53,10 @@ export const ACCOUNT_TEXT = {
   showPassword: 'Show password',
   hidePassword: 'Hide password',
   signUpSubmit: 'Create account',
+  signUpCodeLead: (email: string) =>
+    `Enter the 6-digit code we sent to ${email} to confirm it is yours. If you already have an account, the email tells you how to sign in`,
+  signUpConfirmSubmit: 'Confirm and sign in',
+  useDifferentEmail: 'Use a different email',
   signInSubmit: 'Sign in',
   haveAccount: 'Already have an account?',
   switchToSignIn: 'Sign in',

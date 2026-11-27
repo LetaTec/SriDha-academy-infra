@@ -11,7 +11,7 @@ describe('change password', () => {
 
   before(async () => {
     server = await startTestServer();
-    await server.createClient().request('POST', '/api/auth/sign-up', {
+    await server.signUpStudent({
       fullName: 'Leela Das',
       email: EMAIL,
       password: PASSWORD,

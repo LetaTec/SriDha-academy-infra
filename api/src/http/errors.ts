@@ -13,6 +13,8 @@ export const ERROR_CODE = {
   currentPasswordIncorrect: 'CURRENT_PASSWORD_INCORRECT',
   emailAlreadyRegistered: 'EMAIL_ALREADY_REGISTERED',
   invalidResetToken: 'INVALID_RESET_TOKEN',
+  invalidSignUpCode: 'INVALID_SIGN_UP_CODE',
+  signUpUnavailable: 'SIGN_UP_UNAVAILABLE',
   passwordRecoveryUnavailable: 'PASSWORD_RECOVERY_UNAVAILABLE',
   invalidSignInLink: 'INVALID_SIGN_IN_LINK',
   signInLinkUnavailable: 'SIGN_IN_LINK_UNAVAILABLE',

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { readEmailedCode } from './mailbox';
+
 const SCREENSHOT_DIR = 'test-results/screenshots';
 // A batch from the team's roster (Rectification of errors, Batch 1)
 const ROSTER_TOPIC = 'topic_accountancy_rectification_of_errors_class_11';
@@ -321,6 +323,14 @@ test.describe('student account', () => {
     await signUp.getByLabel('Email ID').fill(email);
     await signUp.getByLabel('Create a password').fill(password);
     await signUp.getByRole('button', { name: 'Create account' }).click();
+
+    // Nothing is created until the emailed code proves the address
+    await expect(signUp.getByText(`sent to ${email}`)).toBeVisible();
+    await expect(lock).toBeVisible();
+    await signUp
+      .getByLabel('6-digit code')
+      .fill(await readEmailedCode(email, 'sign_up_code'));
+    await signUp.getByRole('button', { name: 'Confirm and sign in' }).click();
 
     // Signed in: the lock lifts and the paper can be answered
     await expect(signUp).toBeHidden();

@@ -6,7 +6,7 @@ import { createScriptedRazorpay } from '../../test/fakeRazorpay.js';
 import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
-  validRegistration,
+  testStudent,
   type TestClient,
 } from '../../test/testServer.js';
 import type { ProviderRefund } from '../payments/gateway.js';
@@ -1083,10 +1083,9 @@ describe('refund evidence integrity (R3.2)', () => {
     it('keeps reconciliation and resolution to finance roles', async () => {
       const anonymous = server.createClient();
       const student = server.createClient();
-      await student.request(
-        'POST',
-        '/api/auth/register',
-        validRegistration({ email: 'integrity.student@example.com' }),
+      await server.signUpStudent(
+        testStudent({ email: 'integrity.student@example.com' }),
+        student,
       );
       for (const [client, status] of [
         [anonymous, 401],

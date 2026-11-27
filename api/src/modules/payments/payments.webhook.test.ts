@@ -5,7 +5,7 @@ import { after, before, describe, it } from 'node:test';
 import { createFakeRazorpay } from '../../test/fakeRazorpay.js';
 import {
   startTestServer,
-  validRegistration,
+  testStudent,
   type TestClient,
 } from '../../test/testServer.js';
 
@@ -52,7 +52,7 @@ describe('Razorpay webhook', () => {
       razorpayWebhookSecret: WEBHOOK_SECRET,
     });
     student = server.createClient();
-    await student.request('POST', '/api/auth/register', validRegistration());
+    await server.signUpStudent(testStudent(), student);
     // Razorpay calls the API server to server, with no session
     razorpay = server.createClient();
   });

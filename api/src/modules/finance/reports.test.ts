@@ -10,7 +10,7 @@ import {
 import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
-  validRegistration,
+  testStudent,
   type TestClient,
 } from '../../test/testServer.js';
 
@@ -33,7 +33,7 @@ describe('historical payments report for CA review', () => {
     finance = await server.signInStaff(FINANCE_EMAIL);
     operations = await server.signInStaff(OPERATIONS_EMAIL);
     student = server.createClient();
-    await student.request('POST', '/api/auth/register', validRegistration());
+    await server.signUpStudent(testStudent(), student);
 
     // Seed historical payments across different dates and providers
     const topic = (await server.db.get<{ id: string }>(

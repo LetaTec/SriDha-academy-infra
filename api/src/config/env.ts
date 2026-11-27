@@ -38,6 +38,9 @@ const envSchema = z.object({
     .enum([MAIL_TRANSPORT.console, MAIL_TRANSPORT.resend])
     .optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
+  // Development and browser tests: the console transport also appends each
+  // email to this file (one JSON line each)
+  MAIL_CONSOLE_FILE: z.string().min(1).optional(),
   EMAIL_FROM: z
     .string()
     .min(1)
@@ -92,6 +95,7 @@ export type AppConfig = {
   sessionRememberTtlMs: number;
   mailTransport: (typeof MAIL_TRANSPORT)[keyof typeof MAIL_TRANSPORT] | null;
   resendApiKey: string | null;
+  mailConsoleFile: string | null;
   emailFrom: string;
   pgMaxConnections: number;
   enableRateLimiting: boolean;
@@ -207,6 +211,16 @@ export const loadConfig = (
     );
   }
 
+  // Codes written to a file are only for development and browser tests
+  if (
+    env.MAIL_CONSOLE_FILE &&
+    (isProduction || env.MAIL_TRANSPORT !== MAIL_TRANSPORT.console)
+  ) {
+    throw new Error(
+      'Invalid API configuration — MAIL_CONSOLE_FILE only works with MAIL_TRANSPORT=console and is not allowed in production',
+    );
+  }
+
   if (Boolean(env.RAZORPAY_KEY_ID) !== Boolean(env.RAZORPAY_KEY_SECRET)) {
     throw new Error(
       'Invalid API configuration — set both RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET, or neither',
@@ -216,6 +230,16 @@ export const loadConfig = (
   if (env.MAIL_TRANSPORT === MAIL_TRANSPORT.resend && !env.RESEND_API_KEY) {
     throw new Error(
       'Invalid API configuration — RESEND_API_KEY is required when MAIL_TRANSPORT=resend',
+    );
+  }
+
+  // A key with no transport used to start with email silently off (password
+  // recovery unavailable, payment confirmations queued forever). The
+  // transport is never guessed from the key, so a key in a development file
+  // cannot start sending real email; the configuration is refused instead.
+  if (env.RESEND_API_KEY && !env.MAIL_TRANSPORT) {
+    throw new Error(
+      'Invalid API configuration — RESEND_API_KEY is set but MAIL_TRANSPORT is not: set MAIL_TRANSPORT=resend to send email',
     );
   }
 
@@ -342,6 +366,7 @@ export const loadConfig = (
     sessionRememberTtlMs: env.SESSION_REMEMBER_TTL_DAYS * DAY_MS,
     mailTransport: env.MAIL_TRANSPORT ?? null,
     resendApiKey: env.RESEND_API_KEY ?? null,
+    mailConsoleFile: env.MAIL_CONSOLE_FILE ?? null,
     emailFrom: env.EMAIL_FROM,
     pgMaxConnections: env.PG_MAX_CONNECTIONS,
     enableRateLimiting: env.ENABLE_RATE_LIMIT ?? env.NODE_ENV !== 'test',

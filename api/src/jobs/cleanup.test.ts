@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
-import { startTestServer, validRegistration } from '../test/testServer.js';
+import { startTestServer, testStudent } from '../test/testServer.js';
 import { runCleanup } from './cleanup.js';
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -19,10 +19,9 @@ describe('clean-up job', () => {
 
   it('deletes expired sessions and one-time tokens and keeps live ones', async () => {
     const client = server.createClient();
-    const registered = await client.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email: 'cleanup@example.com' }),
+    const { response: registered } = await server.signUpStudent(
+      testStudent({ email: 'cleanup@example.com' }),
+      client,
     );
     assert.equal(registered.status, 201);
     const userId = String(registered.body.user.id);
@@ -44,13 +43,36 @@ describe('clean-up job', () => {
       );
     }
 
+    // Sign-up requests are kept a day past expiry (the hourly cap counts
+    // them); only the one that expired more than a day ago goes
+    const twoDaysAgo = new Date(now.getTime() - 48 * HOUR_MS).toISOString();
+    for (const [id, expiresAt] of [
+      ['old-sign-up', twoDaysAgo],
+      ['recent-sign-up', past],
+    ] as const) {
+      await server.db.query(
+        `INSERT INTO sign_up_verifications (id, email, created_at, expires_at)
+         VALUES ($1, 'cleanup@example.com', $2, $3)`,
+        [id, created, expiresAt],
+      );
+    }
+
     const removed = await runCleanup({ db: server.db, now: () => now });
 
     assert.deepEqual(removed, {
       sessions: 1,
       passwordResetTokens: 1,
       signInLinks: 1,
+      signUpVerifications: 1,
     });
+    const remainingSignUps = await server.db.all<{ id: string }>(
+      `SELECT id FROM sign_up_verifications
+       WHERE id IN ('old-sign-up', 'recent-sign-up')`,
+    );
+    assert.deepEqual(
+      remainingSignUps.map(row => row.id),
+      ['recent-sign-up'],
+    );
 
     // The session from registering is still valid and still signs in
     const session = await client.request('GET', '/api/auth/session');

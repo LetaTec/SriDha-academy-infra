@@ -6,7 +6,7 @@ import { createScriptedRazorpay } from '../../test/fakeRazorpay.js';
 import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
-  validRegistration,
+  testStudent,
   type TestClient,
 } from '../../test/testServer.js';
 import { expireStalePayments } from '../payments/payments.expiry.js';
@@ -348,10 +348,9 @@ describe('refunds and disputes', () => {
       403,
     );
     const student = server.createClient();
-    await student.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email: 'refund.student@example.com' }),
+    await server.signUpStudent(
+      testStudent({ email: 'refund.student@example.com' }),
+      student,
     );
     assert.equal(
       (await refund(student, paid.paymentId, { reason: 'No access' })).status,

@@ -12,9 +12,14 @@ import { logger } from '../../logging/logger.js';
 import {
   claimPasswordlessStudent,
   claimSignInLink,
+  consumeSignUpVerification,
   countResetCodeAttempt,
+  countSignUpCodeAttempt,
   deleteOtherSessions,
   findAccountByEmail,
+  findOpenSignUpVerification,
+  findSignUpRequestStats,
+  lockSignUpEmail,
   findAuthUserRow,
   findCredentialsByEmail,
   findLatestResetCode,
@@ -24,9 +29,10 @@ import {
   findUserRole,
   insertResetCode,
   insertSignedUpStudent,
-  insertStudent,
+  insertSignUpVerification,
   insertToken,
   markPasswordResetTokenUsed,
+  revokeOpenSignUpVerifications,
   revokeUnusedTokens,
   TOKEN_TABLE,
   updatePasswordHash,
@@ -35,7 +41,7 @@ import type {
   ChangePasswordInput,
   LoginInput,
   PasswordResetConfirmInput,
-  RegisterInput,
+  SignUpConfirmInput,
   SignUpInput,
 } from './auth.schema.js';
 import {
@@ -57,6 +63,18 @@ import {
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
 const RESET_CODE_MAX_ATTEMPTS = 5;
 const SIGN_IN_LINK_TTL_MS = 15 * 60 * 1000;
+// A sign-up code works for 15 minutes and allows 5 tries. A new one can be
+// asked for once a minute and 5 times an hour per email, so guessing is
+// capped at 25 tries an hour, each new code also landing in the real inbox.
+const SIGN_UP_CODE_TTL_MS = 15 * 60 * 1000;
+const SIGN_UP_CODE_MAX_ATTEMPTS = 5;
+const SIGN_UP_RESEND_COOLDOWN_MS = 60 * 1000;
+const SIGN_UP_REQUESTS_PER_HOUR = 5;
+// After 15 wrong tries in a day no new code is sent to that email, so a
+// guesser gets at most about 20 tries a day (15 plus one code's 5)
+const SIGN_UP_FAILED_TRIES_PER_DAY = 15;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
 // The authenticated account (users.id) is the canonical identity. Every
 // student account owns exactly one student profile, created in the same
@@ -84,6 +102,29 @@ const issueToken = async (
   });
 
   return token;
+};
+
+// Emails that must not change the response: whether the address has an
+// account (or is staff) must not show in the status or body, in whether
+// the provider accepted the email, or in a wait for the provider. So the
+// request never waits for it, and a failure is logged (without the code or
+// link, which the mailer's errors never carry), not returned. The person
+// asking sees no email and asks again. (A registered address still costs
+// one small database write that an unknown one does not.)
+const sendWithoutWaiting = (
+  event: string,
+  fields: { userId: string },
+  send: () => Promise<void>,
+) => {
+  // Started inside a promise chain, so a mailer that throws synchronously
+  // is caught too, and a failing log call cannot escape either
+  void Promise.resolve()
+    .then(send)
+    .then(
+      () => logger.info(`${event}_sent`, fields),
+      (error: unknown) => logger.error(`${event}_failed`, { ...fields, error }),
+    )
+    .catch(() => {});
 };
 
 const emailAlreadyRegistered = () =>
@@ -144,106 +185,210 @@ export const getAuthUser = async (
   };
 };
 
-export const registerStudent = async (
-  context: AppContext,
-  input: RegisterInput,
-): Promise<AuthUser> => {
-  const { db } = context;
-  if (await findUserIdByEmail(db, input.email)) {
-    throw emailAlreadyRegistered();
-  }
+const signUpUnavailable = () =>
+  new ApiError(
+    503,
+    ERROR_CODE.signUpUnavailable,
+    'Creating an account is not available right now. Please try again later.',
+  );
 
-  const passwordHash = await hashPassword(input.password);
-  const userId = randomUUID();
-  const timestamp = context.now().toISOString();
+const invalidSignUpCode = () =>
+  new ApiError(
+    400,
+    ERROR_CODE.invalidSignUpCode,
+    'That code is wrong or has expired. Check the email, or ask for a new code.',
+  );
 
-  try {
-    await transaction(db, tx =>
-      insertStudent(tx, {
-        userId,
-        profileId: randomUUID(),
-        email: input.email,
-        passwordHash,
-        fullName: input.fullName,
-        dateOfBirth: input.dateOfBirth,
-        mobile: input.mobile,
-        standard: input.standard,
-        stream: input.stream,
-        streamOther: input.streamOther,
-        address: input.address,
-        timestamp,
-      }),
-    );
-  } catch (error) {
-    // Two concurrent registrations for the same email: the second one loses
-    // the UNIQUE race and gets the same answer as the pre-check.
-    if (isUniqueViolation(error)) {
-      throw emailAlreadyRegistered();
-    }
-
-    throw error;
-  }
-
-  const user = await getAuthUser(context, userId);
-
-  if (!user) {
-    throw new Error(`Registered user ${userId} could not be loaded`);
-  }
-
-  return user;
-};
-
-// Students sign up with a name, email and password; nothing is emailed to
-// check the address yet. A billing email that checkout already recorded
-// (with no password) becomes this account. An email that already has a
-// password, or belongs to staff, must sign in instead.
-export const signUpStudent = async (
+// Step 1 of sign-up: a name, email and password. Nothing is created yet and
+// nobody is signed in. The answer never depends on the email, so it cannot
+// reveal who has an account or who has bought something at checkout:
+// - a new email, or a checkout buyer's email with no password yet, is
+//   emailed a 6-digit code (the name and password wait, hashed, for it);
+// - an email that already has an account (a password, or staff) is
+//   emailed a note saying so instead;
+// - a request within a minute of the last one, or past 5 in an hour, is
+//   answered the same way and emails nothing.
+export const requestSignUp = async (
   context: AppContext,
   input: SignUpInput,
-): Promise<AuthUser> => {
-  const { db } = context;
-  const passwordHash = await hashPassword(input.password);
-  const timestamp = context.now().toISOString();
-  const existing = await findAccountByEmail(db, input.email);
-  let userId: string;
+) => {
+  if (!context.mailer) throw signUpUnavailable();
+  const { db, mailer } = context;
 
-  if (!existing) {
-    userId = randomUUID();
-    try {
-      await insertSignedUpStudent(db, {
-        id: userId,
-        email: input.email,
-        fullName: input.fullName,
-        passwordHash,
-        role: USER_ROLE.student,
-        timestamp,
+  // Hashed whatever happens next, so every answer takes about as long
+  const passwordHash = await hashPassword(input.password);
+  const now = context.now();
+  const timestamp = now.toISOString();
+  const { email } = input;
+
+  const id = randomUUID();
+  const expiresAt = new Date(now.getTime() + SIGN_UP_CODE_TTL_MS).toISOString();
+  const code = generateCode();
+
+  // One request per email at a time: the throttle check and the new row are
+  // decided together, so simultaneous requests cannot all pass the check
+  const outcome = await transaction(db, async tx => {
+    await lockSignUpEmail(tx, email);
+    const recent = await findSignUpRequestStats(
+      tx,
+      email,
+      new Date(now.getTime() - HOUR_MS).toISOString(),
+      new Date(now.getTime() - DAY_MS).toISOString(),
+      SIGN_UP_CODE_MAX_ATTEMPTS,
+    );
+    if (
+      recent.total >= SIGN_UP_REQUESTS_PER_HOUR ||
+      recent.failedTries >= SIGN_UP_FAILED_TRIES_PER_DAY ||
+      (recent.newest &&
+        now.getTime() - recent.newest.getTime() < SIGN_UP_RESEND_COOLDOWN_MS)
+    ) {
+      logger.info('auth.sign_up_request_throttled', {
+        requests: recent.total,
       });
-    } catch (error) {
-      // Two sign-ups for one email at once: the second gets the same answer
-      if (isUniqueViolation(error)) throw emailAlreadyRegistered();
-      throw error;
+      return { kind: 'throttled' as const };
     }
-  } else {
-    userId = String(existing.id);
-    const isClaimed = await claimPasswordlessStudent(db, {
-      userId,
+
+    const account = await findAccountByEmail(tx, email);
+    const isClaimable =
+      !account ||
+      (account.role === USER_ROLE.student && account.password_hash === null);
+
+    if (!isClaimable) {
+      await insertSignUpVerification(tx, {
+        id,
+        email,
+        fullName: null,
+        passwordHash: null,
+        codeHash: null,
+        createdAt: timestamp,
+        expiresAt,
+      });
+      return { kind: 'notice' as const, account };
+    }
+
+    // Only the newest code for an email works
+    await revokeOpenSignUpVerifications(tx, email, timestamp);
+    await insertSignUpVerification(tx, {
+      id,
+      email,
       fullName: input.fullName,
       passwordHash,
+      codeHash: hashCode(id, code),
+      createdAt: timestamp,
+      expiresAt,
+    });
+    return { kind: 'code' as const, account };
+  });
+
+  // Emails go out after the rows are committed, without waiting
+  if (outcome.kind === 'notice') {
+    const signInUrl = new URL(
+      isStaffRole(outcome.account.role) ? '/admin-sign-in' : '/',
+      context.config.webOrigin,
+    ).toString();
+    sendWithoutWaiting(
+      'auth.account_exists_notice',
+      { userId: String(outcome.account.id) },
+      () => mailer.sendAccountExistsNotice(email, signInUrl),
+    );
+  } else if (outcome.kind === 'code') {
+    sendWithoutWaiting(
+      'auth.sign_up_code',
+      {
+        userId: outcome.account ? String(outcome.account.id) : `pending:${id}`,
+      },
+      () => mailer.sendSignUpCode(email, code),
+    );
+  }
+};
+
+// Step 2: the emailed code. A right code creates the account (or gives the
+// checkout buyer's record its name and password, keeping their purchases)
+// and signs the student in. Each code works once, for 15 minutes, with 5
+// tries; only the newest code for an email works.
+export const confirmSignUp = async (
+  context: AppContext,
+  input: SignUpConfirmInput,
+): Promise<AuthUser> => {
+  const { db } = context;
+  const now = context.now();
+  const timestamp = now.toISOString();
+
+  const row = await findOpenSignUpVerification(db, input.email);
+  if (!row || new Date(String(row.expires_at)) <= now) {
+    // Hash anyway: answering at once would show that this email has no
+    // pending sign-up, i.e. that it already has an account
+    await verifyAgainstDummyHash(input.password);
+    throw invalidSignUpCode();
+  }
+
+  const attempts = await countSignUpCodeAttempt(db, String(row.id));
+  // The code proves the inbox; the password proves this is the person who
+  // asked for that code. Without it, someone who asked first with their own
+  // password could have it put on the owner's account when the owner types
+  // the only code they received. Both are checked on every try (one try
+  // each), and a wrong password looks exactly like a wrong code.
+  const isCodeRight = isSameHash(
+    hashCode(String(row.id), input.code),
+    String(row.code_hash),
+  );
+  const isPasswordRight = await verifyPassword(
+    input.password,
+    String(row.password_hash),
+  );
+  const isMatch =
+    attempts <= SIGN_UP_CODE_MAX_ATTEMPTS && isCodeRight && isPasswordRight;
+  if (!isMatch) {
+    logger.warn('auth.sign_up_code_rejected', { attempts });
+    throw invalidSignUpCode();
+  }
+
+  let fromCheckout = false;
+  const userId = await transaction(db, async tx => {
+    // Two requests racing with the same code: only one gets past here
+    if (!(await consumeSignUpVerification(tx, String(row.id), timestamp))) {
+      throw invalidSignUpCode();
+    }
+
+    const existing = await findAccountByEmail(tx, input.email);
+    if (!existing) {
+      const newId = randomUUID();
+      try {
+        await insertSignedUpStudent(tx, {
+          id: newId,
+          email: input.email,
+          fullName: String(row.full_name),
+          passwordHash: String(row.password_hash),
+          role: USER_ROLE.student,
+          timestamp,
+        });
+      } catch (error) {
+        if (isUniqueViolation(error)) throw emailAlreadyRegistered();
+        throw error;
+      }
+      return newId;
+    }
+
+    // The code proved the email is theirs, so saying it already has an
+    // account reveals nothing to anyone else
+    const isClaimed = await claimPasswordlessStudent(tx, {
+      userId: String(existing.id),
+      fullName: String(row.full_name),
+      passwordHash: String(row.password_hash),
       role: USER_ROLE.student,
       timestamp,
     });
     if (!isClaimed) throw emailAlreadyRegistered();
-  }
+    fromCheckout = true;
+    return String(existing.id);
+  });
 
   const user = await getAuthUser(context, userId);
   if (!user) {
     throw new Error(`Signed-up account ${userId} could not be loaded`);
   }
 
-  logger.info('auth.student_signed_up', {
-    userId,
-    fromCheckout: Boolean(existing),
-  });
+  logger.info('auth.student_signed_up', { userId, fromCheckout });
   return user;
 };
 
@@ -319,8 +464,10 @@ export const requestPasswordReset = async (
     });
   });
 
-  await context.mailer.sendPasswordResetCode(email, code);
-  logger.info('auth.password_reset_code_sent', { userId });
+  const { mailer } = context;
+  sendWithoutWaiting('auth.password_reset_code', { userId }, () =>
+    mailer.sendPasswordResetCode(email, code),
+  );
 };
 
 // A signed-in student changes their password with the current one. Other
@@ -446,7 +593,10 @@ export const requestAdminSignIn = async (
 
   const signInUrl = new URL('/admin-sign-in', context.config.webOrigin);
   signInUrl.searchParams.set('token', token);
-  await context.mailer.sendAdminSignInLink(email, signInUrl.toString());
+  const { mailer } = context;
+  sendWithoutWaiting('auth.admin_sign_in_link', { userId }, () =>
+    mailer.sendAdminSignInLink(email, signInUrl.toString()),
+  );
 };
 
 // Exchanges a sign-in link for the account it was issued to. Each link works

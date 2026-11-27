@@ -8,7 +8,7 @@ import {
 } from '../../test/fakeRazorpay.js';
 import {
   startTestServer,
-  validRegistration,
+  testStudent,
   type TestClient,
 } from '../../test/testServer.js';
 import { SEAT_HOLD_MINUTES } from '../catalogue/catalogue.repository.js';
@@ -71,12 +71,11 @@ describe('unpaid seat holds', () => {
       BATCH,
     ]);
     asha = server.createClient();
-    await asha.request('POST', '/api/auth/register', validRegistration());
+    await server.signUpStudent(testStudent(), asha);
     ravi = server.createClient();
-    await ravi.request(
-      'POST',
-      '/api/auth/register',
-      validRegistration({ email: 'ravi@example.com', fullName: 'Ravi Shah' }),
+    await server.signUpStudent(
+      testStudent({ email: 'ravi@example.com', fullName: 'Ravi Shah' }),
+      ravi,
     );
   });
 

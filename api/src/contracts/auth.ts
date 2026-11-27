@@ -38,23 +38,23 @@ export type AuthUser = {
 
 export type AuthUserResponse = { user: AuthUser };
 
-export type RegisterRequest = {
-  fullName: string;
-  email: string;
-  password: string;
-  dateOfBirth: string;
-  mobile: string;
-  standard: StudentStandard;
-  stream: StudentStream | null;
-  // Required when stream is OTHER
-  streamOther: string | null;
-  address: string | null;
-};
-
-// Students sign up with just these; no email check for now
+// Students sign up with just these; the emailed code then proves the
+// address (SignUpConfirmRequest)
 export type SignUpRequest = {
   fullName: string;
   email: string;
+  password: string;
+};
+
+// The answer to a sign-up request, the same whatever the email: the next
+// step is the 6-digit code from the email
+export type SignUpPendingResponse = { message: string };
+
+// The password is the one chosen in the first step: the code alone is
+// not enough
+export type SignUpConfirmRequest = {
+  email: string;
+  code: string;
   password: string;
 };
 

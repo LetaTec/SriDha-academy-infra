@@ -8,14 +8,22 @@ import type {
   LoginRequest,
   PasswordResetConfirmRequest,
   PasswordResetRequest,
+  SignUpConfirmRequest,
   SignUpRequest,
 } from './types';
 
 type AuthUserResponse = { user: AuthUser };
 
-// Students sign up with a name, email and password and stay signed in
-export const signUpStudent = async (body: SignUpRequest) =>
-  (await API_CLIENT.post<AuthUserResponse>('/auth/sign-up', body)).data.user;
+// Sign-up: the name, email and password first, which emails a 6-digit
+// code; the code then creates the account and signs the student in (and
+// they stay signed in)
+export const requestSignUp = async (body: SignUpRequest) => {
+  await API_CLIENT.post('/auth/sign-up', body);
+};
+
+export const confirmSignUp = async (body: SignUpConfirmRequest) =>
+  (await API_CLIENT.post<AuthUserResponse>('/auth/sign-up/confirm', body)).data
+    .user;
 
 export const signInStudent = async (body: LoginRequest) =>
   (await API_CLIENT.post<AuthUserResponse>('/auth/login', body)).data.user;

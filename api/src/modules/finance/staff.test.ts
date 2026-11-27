@@ -5,7 +5,7 @@ import { loadConfig } from '../../config/env.js';
 import {
   startTestServer,
   TEST_SUPER_ADMIN_EMAIL,
-  validRegistration,
+  testStudent,
   type TestClient,
 } from '../../test/testServer.js';
 
@@ -28,7 +28,7 @@ describe('staff roles and the finance audit log', () => {
     finance = await server.signInStaff(FINANCE_EMAIL);
     operations = await server.signInStaff(OPERATIONS_EMAIL);
     student = server.createClient();
-    await student.request('POST', '/api/auth/register', validRegistration());
+    await server.signUpStudent(testStudent(), student);
   });
 
   after(async () => {

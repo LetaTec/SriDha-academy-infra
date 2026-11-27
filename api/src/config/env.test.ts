@@ -155,4 +155,56 @@ describe('config', () => {
       /MIGRATION_DATABASE_URL is required in production/,
     );
   });
+
+  it('refuses a Resend key without MAIL_TRANSPORT instead of starting with email off', () => {
+    for (const env of [
+      { ...PRODUCTION, RESEND_API_KEY: 're_test_key' },
+      { NODE_ENV: 'development', RESEND_API_KEY: 're_test_key' },
+    ]) {
+      assert.throws(
+        () => loadConfig(env),
+        /RESEND_API_KEY is set but MAIL_TRANSPORT is not/,
+      );
+    }
+  });
+
+  it('selects Resend only when MAIL_TRANSPORT says so, with the default sender', () => {
+    const config = loadConfig({
+      ...PRODUCTION,
+      MAIL_TRANSPORT: 'resend',
+      RESEND_API_KEY: 're_test_key',
+    });
+    assert.equal(config.mailTransport, 'resend');
+    assert.equal(
+      config.emailFrom,
+      'SriDha Academy <noreply@sridhaacademy.com>',
+    );
+    assert.throws(
+      () => loadConfig({ ...PRODUCTION, MAIL_TRANSPORT: 'resend' }),
+      /RESEND_API_KEY is required when MAIL_TRANSPORT=resend/,
+    );
+  });
+
+  it('writes console emails to a file only in development, never with Resend or in production', () => {
+    const config = loadConfig({
+      NODE_ENV: 'development',
+      MAIL_TRANSPORT: 'console',
+      MAIL_CONSOLE_FILE: '/tmp/mail.log',
+    });
+    assert.equal(config.mailConsoleFile, '/tmp/mail.log');
+    for (const env of [
+      { NODE_ENV: 'development', MAIL_CONSOLE_FILE: '/tmp/mail.log' },
+      {
+        ...PRODUCTION,
+        MAIL_TRANSPORT: 'resend',
+        RESEND_API_KEY: 're_test_key',
+        MAIL_CONSOLE_FILE: '/tmp/mail.log',
+      },
+    ]) {
+      assert.throws(
+        () => loadConfig(env),
+        /MAIL_CONSOLE_FILE only works with MAIL_TRANSPORT=console/,
+      );
+    }
+  });
 });

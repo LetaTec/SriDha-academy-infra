@@ -1,3 +1,5 @@
+import { appendFileSync } from 'node:fs';
+
 import { MAIL_TRANSPORT, type AppConfig } from '../config/env.js';
 import { logger } from '../logging/logger.js';
 
@@ -14,6 +16,11 @@ export type PaymentConfirmation = {
 
 export type Mailer = {
   sendPasswordResetCode: (email: string, code: string) => Promise<void>;
+  // The code that proves a new sign-up owns the address
+  sendSignUpCode: (email: string, code: string) => Promise<void>;
+  // Sent instead of a code when the address already has an account, so the
+  // sign-up answer is the same either way
+  sendAccountExistsNotice: (email: string, signInUrl: string) => Promise<void>;
   sendAdminSignInLink: (email: string, signInUrl: string) => Promise<void>;
   // idempotencyKey: the same key always means the same email, so the
   // provider delivers it once even if it is sent again (Resend keeps keys
@@ -30,21 +37,37 @@ const describePayment = ({ topic, batch, amount }: PaymentConfirmation) =>
     ? `We have received your payment of ${amount} for ${topic}. Your seat in the ${batch} is confirmed.`
     : `We have received your payment of ${amount} to pre-register for ${topic}. We will email you as soon as its first batch opens.`;
 
-const consoleMailer: Mailer = {
-  // Development only: production refuses the console transport
-  sendPasswordResetCode: async (email, code) => {
-    logger.info('mail.console_password_reset_code', { email, code });
-  },
-  sendAdminSignInLink: async (email, signInUrl) => {
-    logger.info('mail.console_admin_sign_in', { email, signInUrl });
-  },
-  sendPaymentConfirmation: async (email, confirmation) => {
-    logger.info('mail.console_payment_confirmation', {
-      email,
-      payment: describePayment(confirmation),
-      reference: confirmation.paymentReference,
-    });
-  },
+// Development and browser tests only: production refuses the console
+// transport. With MAIL_CONSOLE_FILE set, each email is also appended to that
+// file as one JSON line, so a browser test can read the code it was sent.
+const createConsoleMailer = (file: string | null): Mailer => {
+  const record = (entry: Record<string, string>) => {
+    if (file) appendFileSync(file, `${JSON.stringify(entry)}\n`);
+  };
+  return {
+    sendPasswordResetCode: async (email, code) => {
+      logger.info('mail.console_password_reset_code', { email, code });
+      record({ template: 'password_reset_code', email, code });
+    },
+    sendSignUpCode: async (email, code) => {
+      logger.info('mail.console_sign_up_code', { email, code });
+      record({ template: 'sign_up_code', email, code });
+    },
+    sendAccountExistsNotice: async (email, signInUrl) => {
+      logger.info('mail.console_account_exists', { email, signInUrl });
+      record({ template: 'account_exists', email });
+    },
+    sendAdminSignInLink: async (email, signInUrl) => {
+      logger.info('mail.console_admin_sign_in', { email, signInUrl });
+    },
+    sendPaymentConfirmation: async (email, confirmation) => {
+      logger.info('mail.console_payment_confirmation', {
+        email,
+        payment: describePayment(confirmation),
+        reference: confirmation.paymentReference,
+      });
+    },
+  };
 };
 
 // An email leads to a button, or shows a one-time code
@@ -76,8 +99,37 @@ const renderEmail = (content: EmailContent) => {
 `;
 };
 
+const MAIL_TEMPLATE = {
+  passwordResetCode: 'password_reset_code',
+  signUpCode: 'sign_up_code',
+  accountExists: 'account_exists',
+  adminSignInLink: 'admin_sign_in_link',
+  paymentConfirmation: 'payment_confirmation',
+} as const;
+
+type MailTemplate = (typeof MAIL_TEMPLATE)[keyof typeof MAIL_TEMPLATE];
+
+// Resend answers a refusal with JSON whose `name` is a short error type
+// such as "validation_error". Only that is kept: its `message` can quote
+// the recipient's address.
+const readProviderErrorName = (text: string) => {
+  try {
+    const name: unknown = (JSON.parse(text) as { name?: unknown })?.name;
+    return typeof name === 'string' && /^[a-z_]{1,64}$/.test(name)
+      ? name
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
+  // A failure is described by the template, the HTTP status and Resend's
+  // error type only. The subject can hold a reset code, and Resend's error
+  // text can repeat the recipient's address; this error is logged and
+  // reported to Sentry by whoever catches it.
   const send = async (
+    template: MailTemplate,
     email: string,
     content: EmailContent,
     idempotencyKey?: string,
@@ -98,29 +150,47 @@ const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
+      const providerError = readProviderErrorName(await response.text());
       logger.error('mail.delivery_failed', {
         provider: 'resend',
+        template,
         status: response.status,
-        response: errorText,
+        providerError,
       });
       throw new Error(
-        `Failed to send "${content.subject}" via Resend (status ${response.status})`,
+        `Resend refused the ${template} email (status ${response.status}${providerError ? `, ${providerError}` : ''})`,
       );
     }
   };
 
   return {
     sendPasswordResetCode: (email, code) =>
-      send(email, {
+      send(MAIL_TEMPLATE.passwordResetCode, email, {
         subject: `${code} is your SriDha Academy code`,
         intro:
           'Enter this code on SriDha Academy to choose a new password for your account.',
         code,
         note: 'The code works for 15 minutes. If you did not ask to reset your password, you can safely ignore this email.',
       }),
+    sendSignUpCode: (email, code) =>
+      send(MAIL_TEMPLATE.signUpCode, email, {
+        subject: `${code} is your SriDha Academy code`,
+        intro:
+          'Enter this code on SriDha Academy to confirm your email and finish creating your account.',
+        code,
+        note: 'The code works for 15 minutes. If you did not ask to create an account, you can safely ignore this email; no account is created without the code.',
+      }),
+    sendAccountExistsNotice: (email, signInUrl) =>
+      send(MAIL_TEMPLATE.accountExists, email, {
+        subject: 'You already have a SriDha Academy account',
+        intro:
+          'Someone asked to create a SriDha Academy account with this email, but it already has one. Sign in instead; if you have forgotten your password, choose "Forgot password" on the sign-in screen.',
+        action: 'Sign in',
+        url: signInUrl,
+        note: 'If this was not you, you can safely ignore this email. Nothing about your account has changed.',
+      }),
     sendAdminSignInLink: (email, signInUrl) =>
-      send(email, {
+      send(MAIL_TEMPLATE.adminSignInLink, email, {
         subject: 'Your SriDha Academy sign-in link',
         intro:
           'Use the button below to sign in to your SriDha Academy team account.',
@@ -130,6 +200,7 @@ const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
       }),
     sendPaymentConfirmation: (email, confirmation, options) =>
       send(
+        MAIL_TEMPLATE.paymentConfirmation,
         email,
         {
           subject: `Payment received: ${confirmation.topic}`,
@@ -147,7 +218,7 @@ const createResendMailer = (apiKey: string, fromAddress: string): Mailer => {
 // password recovery is unavailable instead of silently dropping the email.
 export const createMailer = (config: AppConfig): Mailer | null => {
   if (config.mailTransport === MAIL_TRANSPORT.console) {
-    return consoleMailer;
+    return createConsoleMailer(config.mailConsoleFile);
   }
 
   if (config.mailTransport === MAIL_TRANSPORT.resend && config.resendApiKey) {

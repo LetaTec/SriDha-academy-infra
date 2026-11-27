@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { MAILBOX_FILE } from './e2e/mailbox';
+
 const WEB_URL = 'http://localhost:5173';
 const API_URL = 'http://localhost:4100';
 
@@ -39,6 +41,8 @@ export default defineConfig({
         ENABLE_RATE_LIMIT: 'false',
         WEB_ORIGIN: WEB_URL,
         MAIL_TRANSPORT: 'console',
+        // Emails are also written here, so tests can read sign-up codes
+        MAIL_CONSOLE_FILE: MAILBOX_FILE,
       },
     },
     {

@@ -109,56 +109,6 @@ export const claimPasswordlessStudent = async (
   return row !== null && row !== undefined;
 };
 
-export type NewStudent = {
-  userId: string;
-  profileId: string;
-  email: string;
-  passwordHash: string;
-  fullName: string;
-  dateOfBirth: string;
-  mobile: string;
-  standard: string;
-  stream: string | null;
-  streamOther: string | null;
-  address: string | null;
-  timestamp: string;
-};
-
-// Call inside a transaction: the account and its profile exist together
-export const insertStudent = async (
-  tx: DatabaseClient,
-  student: NewStudent,
-) => {
-  await tx.query(
-    'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)',
-    [
-      student.userId,
-      student.email,
-      student.passwordHash,
-      student.timestamp,
-      student.timestamp,
-    ],
-  );
-  await tx.query(
-    `INSERT INTO student_profiles
-      (id, user_id, full_name, date_of_birth, mobile, standard, stream, stream_other, address, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-    [
-      student.profileId,
-      student.userId,
-      student.fullName,
-      student.dateOfBirth,
-      student.mobile,
-      student.standard,
-      student.stream,
-      student.streamOther,
-      student.address,
-      student.timestamp,
-      student.timestamp,
-    ],
-  );
-};
-
 export const updatePasswordHash = (
   db: DatabaseClient,
   userId: string,
@@ -338,6 +288,134 @@ export const markPasswordResetTokenUsed = (
     tokenId,
   ]);
 
+// Sign-up verification (the emailed code that proves the address)
+
+export type SignUpVerificationRow = {
+  id: string;
+  full_name: string;
+  password_hash: string;
+  code_hash: string;
+  expires_at: string | Date;
+};
+
+// For the resend cooldown, the hourly cap and the daily budget of wrong
+// tries: how many sign-up requests an email made since `hourAgo`, when the
+// newest was, and how many code tries failed since `dayAgo` (on a
+// confirmed code the last try succeeded, so it does not count)
+export const findSignUpRequestStats = async (
+  db: DatabaseClient,
+  email: string,
+  hourAgo: string,
+  dayAgo: string,
+  // Tries past a code's limit are refused without checking, so they are
+  // not counted: otherwise 15 tries at one code would lock an email out
+  maxTriesPerCode: number,
+) => {
+  const row = await db.get<{
+    total: string | number;
+    newest: string | Date | null;
+    failed: string | number | null;
+  }>(
+    `SELECT
+       COUNT(*) FILTER (WHERE created_at > $2) AS total,
+       MAX(created_at) AS newest,
+       SUM(CASE WHEN confirmed_at IS NULL THEN LEAST(attempts, $4)
+                ELSE GREATEST(LEAST(attempts, $4) - 1, 0) END) AS failed
+     FROM sign_up_verifications
+     WHERE email = $1 AND created_at > $3`,
+    [email, hourAgo, dayAgo, maxTriesPerCode],
+  );
+  return {
+    total: Number(row?.total ?? 0),
+    newest: row?.newest ? new Date(String(row.newest)) : null,
+    failedTries: Number(row?.failed ?? 0),
+  };
+};
+
+// Serialises sign-up requests for one email until the transaction ends
+export const lockSignUpEmail = (tx: DatabaseClient, email: string) =>
+  tx.query("SELECT pg_advisory_xact_lock(hashtext('sign_up:' || $1))", [email]);
+
+// Only the newest request for an email can be confirmed
+export const revokeOpenSignUpVerifications = (
+  db: DatabaseClient,
+  email: string,
+  timestamp: string,
+) =>
+  db.query(
+    `UPDATE sign_up_verifications SET used_at = $1
+     WHERE email = $2 AND used_at IS NULL`,
+    [timestamp, email],
+  );
+
+export const insertSignUpVerification = (
+  db: DatabaseClient,
+  row: {
+    id: string;
+    email: string;
+    fullName: string | null;
+    passwordHash: string | null;
+    codeHash: string | null;
+    createdAt: string;
+    expiresAt: string;
+  },
+) =>
+  db.query(
+    `INSERT INTO sign_up_verifications
+       (id, email, full_name, password_hash, code_hash, created_at, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      row.id,
+      row.email,
+      row.fullName,
+      row.passwordHash,
+      row.codeHash,
+      row.createdAt,
+      row.expiresAt,
+    ],
+  );
+
+// The email's newest request, if it is a pending sign-up still open
+export const findOpenSignUpVerification = (db: DatabaseClient, email: string) =>
+  db.get<SignUpVerificationRow>(
+    `SELECT id, full_name, password_hash, code_hash, expires_at
+     FROM sign_up_verifications
+     WHERE email = $1 AND used_at IS NULL AND code_hash IS NOT NULL
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [email],
+  );
+
+// Counts a try before checking it, so tries made at the same moment are
+// all counted; returns the new total
+export const countSignUpCodeAttempt = async (
+  db: DatabaseClient,
+  verificationId: string,
+) => {
+  const row = await db.get<{ attempts: number }>(
+    `UPDATE sign_up_verifications SET attempts = attempts + 1
+     WHERE id = $1 RETURNING attempts`,
+    [verificationId],
+  );
+  return Number(row?.attempts ?? Number.POSITIVE_INFINITY);
+};
+
+// Uses the code once: only one of two requests racing with the same code
+// gets true
+export const consumeSignUpVerification = async (
+  db: DatabaseClient,
+  verificationId: string,
+  timestamp: string,
+) => {
+  const row = await db.get<{ id: string }>(
+    `UPDATE sign_up_verifications SET used_at = $1, confirmed_at = $1
+     WHERE id = $2 AND used_at IS NULL
+     RETURNING id`,
+    [timestamp, verificationId],
+  );
+  return row !== null && row !== undefined;
+};
+
 export const findSignInLink = (db: DatabaseClient, tokenId: string) =>
   db.get<Row>(
     `SELECT l.user_id, l.expires_at, l.used_at, u.role
@@ -378,10 +456,18 @@ export const deleteExpiredAuthRecords = async (
     'DELETE FROM sign_in_links WHERE expires_at <= $1',
     [cutoff],
   );
+  // Kept for a day after they expire: the daily budget of wrong tries
+  // counts them
+  const signUpVerifications = await db.run(
+    `DELETE FROM sign_up_verifications
+     WHERE expires_at <= ($1::timestamptz - INTERVAL '1 day')`,
+    [cutoff],
+  );
 
   return {
     sessions: sessions.rowCount,
     passwordResetTokens: passwordResetTokens.rowCount,
     signInLinks: signInLinks.rowCount,
+    signUpVerifications: signUpVerifications.rowCount,
   };
 };

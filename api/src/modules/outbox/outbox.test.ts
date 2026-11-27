@@ -206,6 +206,8 @@ describe('transactional email outbox', () => {
     const failingMailer: Mailer = {
       sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
+      sendSignUpCode: async () => {},
+      sendAccountExistsNotice: async () => {},
       sendPaymentConfirmation: async () => {
         throw new Error('Resend 503: Service Unavailable');
       },
@@ -268,6 +270,8 @@ describe('transactional email outbox', () => {
     const failingMailer: Mailer = {
       sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
+      sendSignUpCode: async () => {},
+      sendAccountExistsNotice: async () => {},
       sendPaymentConfirmation: async () => {
         throw new Error('Permanent mailbox failure: 550 User not found');
       },
@@ -324,6 +328,8 @@ describe('transactional email outbox', () => {
     const trackingMailer: Mailer = {
       sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
+      sendSignUpCode: async () => {},
+      sendAccountExistsNotice: async () => {},
       sendPaymentConfirmation: async (_email, confirmation) => {
         sentIds.push(confirmation.paymentReference);
       },
@@ -402,6 +408,8 @@ describe('transactional email outbox', () => {
     const recoveringMailer: Mailer = {
       sendPasswordResetCode: async () => {},
       sendAdminSignInLink: async () => {},
+      sendSignUpCode: async () => {},
+      sendAccountExistsNotice: async () => {},
       sendPaymentConfirmation: async email => {
         recoveredEmails.push(email);
       },
@@ -508,6 +516,8 @@ describe('transactional email outbox', () => {
       const mailer: Mailer = {
         sendPasswordResetCode: async () => {},
         sendAdminSignInLink: async () => {},
+        sendSignUpCode: async () => {},
+        sendAccountExistsNotice: async () => {},
         sendPaymentConfirmation: async (email, _confirmation, options) => {
           keys.push(options?.idempotencyKey);
           if (options?.idempotencyKey && seen.has(options.idempotencyKey))

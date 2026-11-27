@@ -1543,4 +1543,51 @@ export const MIGRATIONS: readonly Migration[] = [
       WHERE NOT EXISTS (SELECT 1 FROM topics WHERE topics.chapter_id = chapters.id);
     `,
   },
+  {
+    // Sign-up proves the email first. Each sign-up request is one row: a
+    // pending sign-up (the name, the scrypt hash of the chosen password and
+    // a salted hash of the emailed 6-digit code), or, for an email that
+    // already has an account, a notice with no code. No account, password or
+    // session exists until the code is confirmed, so knowing a checkout
+    // buyer's email no longer lets anyone take over their purchases.
+    // Additive only: existing rows elsewhere are untouched.
+    // To undo: DROP TABLE sign_up_verifications;
+    id: '028_sign_up_verifications',
+    sql: `
+      CREATE TABLE sign_up_verifications (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL CHECK (email = LOWER(TRIM(email))),
+        full_name TEXT,
+        password_hash TEXT,
+        code_hash TEXT,
+        attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+        created_at TIMESTAMPTZ NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used_at TIMESTAMPTZ,
+        -- A pending sign-up has all three; a notice has none
+        CHECK (
+          (code_hash IS NULL AND password_hash IS NULL AND full_name IS NULL)
+          OR (code_hash IS NOT NULL AND password_hash IS NOT NULL AND full_name IS NOT NULL)
+        )
+      );
+      CREATE INDEX sign_up_verifications_email_created_idx
+        ON sign_up_verifications (email, created_at DESC);
+    `,
+  },
+  {
+    // used_at is set when a code is confirmed and also when a newer request
+    // replaces it; confirmed_at marks only the first, so the daily budget
+    // of wrong tries can tell a replaced code's tries (all wrong) from a
+    // confirmed one's (the last was right). IF NOT EXISTS: safe wherever
+    // 028 has run. To undo: ALTER TABLE sign_up_verifications
+    // DROP COLUMN confirmed_at;
+    id: '029_sign_up_confirmed_at',
+    sql: `
+      ALTER TABLE sign_up_verifications
+        ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ;
+      ALTER TABLE sign_up_verifications
+        ADD CONSTRAINT sign_up_verifications_confirmed_after_used
+        CHECK (confirmed_at IS NULL OR used_at IS NOT NULL);
+    `,
+  },
 ];
