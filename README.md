@@ -137,23 +137,24 @@ The catalogue is stored as **Subject → Chapter → Topic → Lesson → Batch*
 
 All errors use `{ message, code, details }`.
 
-| Method | Path                               | Auth    | Purpose                                           |
-| ------ | ---------------------------------- | ------- | ------------------------------------------------- |
-| GET    | `/api/health`                      | –       | Health check                                      |
-| POST   | `/api/auth/register`               | –       | Create account and student profile, start session |
-| POST   | `/api/auth/login`                  | –       | Start session                                     |
-| POST   | `/api/auth/logout`                 | –       | End session                                       |
-| GET    | `/api/auth/session`                | session | Current user (session restore)                    |
-| POST   | `/api/auth/password-reset`         | –       | Email a reset link (always 202)                   |
-| POST   | `/api/auth/password-reset/confirm` | –       | Set a new password with a reset token             |
-| GET    | `/api/catalogue`                   | –       | Public catalogue tree with live availability      |
-| GET    | `/api/enrolments`                  | session | The signed-in student's enrolments                |
-| GET    | `/api/pre-registrations`           | session | The signed-in student's pre-registrations         |
-| POST   | `/api/payments/checkout`           | session | Start a seat or pre-registration and its order    |
-| POST   | `/api/payments/verify`             | session | Confirm a payment from Razorpay's signature       |
-| POST   | `/api/payments/webhook`            | –       | Razorpay confirms captured payments (signed)      |
-| GET    | `/api/admin/orders`                | admin   | Every order, for the team                         |
-| POST   | `/api/enquiries`                   | –       | Join the AI model paper waitlist                  |
+| Method | Path                               | Auth    | Purpose                                          |
+| ------ | ---------------------------------- | ------- | ------------------------------------------------ |
+| GET    | `/api/health`                      | –       | Health check                                     |
+| POST   | `/api/auth/sign-up`                | –       | Email a 6-digit code to a new email (always 202) |
+| POST   | `/api/auth/sign-up/confirm`        | –       | Code and password: create account, start session |
+| POST   | `/api/auth/login`                  | –       | Start session                                    |
+| POST   | `/api/auth/logout`                 | –       | End session                                      |
+| GET    | `/api/auth/session`                | session | Current user (session restore)                   |
+| POST   | `/api/auth/password-reset`         | –       | Email a reset link (always 202)                  |
+| POST   | `/api/auth/password-reset/confirm` | –       | Set a new password with a reset token            |
+| GET    | `/api/catalogue`                   | –       | Public catalogue tree with live availability     |
+| GET    | `/api/enrolments`                  | session | The signed-in student's enrolments               |
+| GET    | `/api/pre-registrations`           | session | The signed-in student's pre-registrations        |
+| POST   | `/api/payments/checkout`           | session | Start a seat or pre-registration and its order   |
+| POST   | `/api/payments/verify`             | session | Confirm a payment from Razorpay's signature      |
+| POST   | `/api/payments/webhook`            | –       | Razorpay confirms captured payments (signed)     |
+| GET    | `/api/admin/orders`                | admin   | Every order, for the team                        |
+| POST   | `/api/enquiries`                   | –       | Join the AI model paper waitlist                 |
 
 Request and response shapes are defined once in `api/src/contracts` and shared with the website. Every response carries an `X-Request-Id` header that matches the API's log lines.
 

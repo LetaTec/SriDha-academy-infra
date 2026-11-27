@@ -1372,3 +1372,254 @@ No deployed database holds such a row today: the committed code has no refunds t
 ### 4. Remaining limitations
 
 Two low-priority edge cases found by the independent review are left for a follow-up and must be fixed before any database that held refunds before migration 023 is operated on: R35-03 (a stored empty-string provider id makes the desk's MARK_FAILED return 500 from the migration 020 guard; nothing is written) and R35-04 (the desk calls Razorpay with a blank or padded stored id and returns a misleading 502 or 409). The branch-protection setting that makes the new CI job required is a repository setting. The exceptions list still shows only the newest 200 entries and has no "handled" state (R33-04). Not committed or pushed. Needs independent review.
+
+## DEC-030: Production Readiness: Email Reliability, Test Clock Drift and the PostgreSQL 16 Role Note
+
+- **Decision ID**: `DEC-030`
+- **Date**: `2026-11-25`
+- **Decision Title**: Make emailed codes and links safe when the provider fails, refuse a half-configured mailer, fix a test-fixture clock drift, update Sentry, and document Render's PostgreSQL 16 role membership
+- **Status**: Implemented & Locally Verified (branch `chore/production-readiness`; not committed, not deployed)
+
+### 1. Context / Problem
+
+Production started with `RESEND_API_KEY` set but `MAIL_TRANSPORT` unset, so email was silently off. Reading the mail path found three further problems: a reset-code request waited for Resend only when the address had an account (timing and error responses revealed which emails are registered; the staff sign-in link had the same pattern for staff); the Resend error message included the subject, which for a reset code is the code itself, and that error reached the server log and Sentry as `http.unhandled_error`; and `mail.delivery_failed` logged Resend's whole response body, which can quote the recipient. Separately, the API suite failed intermittently.
+
+### 2. Decisions
+
+1. **Codes and links are sent without waiting.** `requestPasswordReset` and `requestAdminSignIn` issue the code or link, then start the send without awaiting it (`sendWithoutWaiting` in `auth.service.ts`). The response is the same 202 for a registered, unknown or staff address and whether or not Resend accepts the email. A failure is logged as `auth.password_reset_code_failed` / `auth.admin_sign_in_link_failed` with the user id only. The code, its hashing, expiry, single use, attempt limit and session revocation are unchanged.
+2. **Mail errors carry no content.** A Resend refusal is described by template name, HTTP status and Resend's short error type (`validation_error`) only. Neither the thrown error nor `mail.delivery_failed` contains the subject, body, recipient or key. Outbox `last_error` values therefore also lose the subject.
+3. **A key without a transport is refused.** `RESEND_API_KEY` set with `MAIL_TRANSPORT` unset stops start-up, in every environment, naming the missing variable. The transport is never inferred from the key, so a key in a development file cannot start sending real email. A deploy with this misconfiguration fails to start and Render keeps the previous deploy serving.
+4. **Test fixture clock drift (root cause of the intermittent `ledger.test.ts` failure).** `recordTestApproval` defaulted to "a minute before the call" (real time) while tests run on fixed clocks set at module load. More than 30 seconds into a slow run, the approval started after the test clock, invoicing was "not yet effective" and nothing was issued. It now defaults to the fixed `TEST_APPROVAL_EFFECTIVE_FROM`, or, for a file running longer than 4 minutes, the latest start the database's 5-minute backdating guard allows (found by the independent review: `invoices.test.ts` took 174 s under load). Reproduced deterministically before the fix and guarded by `src/test/invoicing.test.ts`.
+5. **Test server binds 127.0.0.1**, the address its client dials. On macOS a `::` listener can share a port number with another program's `127.0.0.1` listener, which then receives the client's requests (demonstrated). This is hardening for two one-off failures (a staff sign-in 400 and a checkout 404) whose root cause is not proven; `signInStaff` now reports each step's status so a recurrence is diagnosable.
+6. **Sentry update within range.** `npm audit fix` (no `--force`, no `package.json` change) moved `@sentry/node` 11.10.0 → 11.17.0 (removing the vulnerable `glob`/`minimatch` reached through `@sentry/bundler-plugins`) and `typescript-eslint` 8.72.1 → 8.74.0 (development only). `npm audit` and `npm audit --omit=dev` both report 0.
+7. **PostgreSQL 16 role note.** `docs/database-roles.md` now states what Render's automatic ADMIN-only membership allows and what the start-up check guarantees (at every start, not continuously), each point checked on PostgreSQL 16.15.
+
+### 3. Alternatives Considered
+
+- Queue reset codes through the outbox: retries and monitoring, but stores a live code in a table and is a larger change. Rejected for now.
+- Infer `MAIL_TRANSPORT=resend` from the key: friendlier, but implicit sending from development machines. Rejected.
+- Skip or retry the flaky tests: hides the cause. Rejected.
+
+### 4. Consequences / Trade-offs
+
+- A code that Resend refuses is not retried; the person asks again. Staff see the failure in logs and Sentry (twice: `mail.delivery_failed` and `auth.*_failed`).
+- A send still in flight when the process stops for a deploy is lost without a log line; the person has already had the 202 and asks again. There is no fetch timeout on Resend calls; a hanging provider now holds only the background send, bounded by the per-address rate limit.
+- A registered address still does a small database write that an unknown one does not (a few milliseconds), far below the provider round trip that was removed.
+- Production must have `MAIL_TRANSPORT=resend` whenever `RESEND_API_KEY` is set before this is deployed, or the new deploy will not start.
+
+## DEC-031: Milestone A1: Sign-Up Proves the Email Before Any Account Exists
+
+- **Decision ID**: `DEC-031`
+- **Date**: `2026-11-25`
+- **Decision Title**: Replace instant sign-up with a two-step, emailed-code sign-up that cannot be used to take over a checkout buyer's account
+- **Status**: Implemented & Locally Verified (branch `chore/production-readiness`; not committed, not deployed; awaiting owner review)
+
+### 1. Context / Problem
+
+Checkout needs no account: it files a purchase under a password-less `users` row keyed on the billing email. `POST /api/auth/sign-up` then let anyone who knew that email set a password on the row and receive a session at once, with no proof of owning the address, exposing the buyer's purchases (audit finding G1, Critical). The reverse also worked: signing up first with someone else's email made their later guest purchase land in the attacker's account.
+
+### 2. Decisions
+
+1. **Two steps.** `POST /api/auth/sign-up` (name, email, password) creates nothing and signs nobody in. It answers `202` with the same body for every email. `POST /api/auth/sign-up/confirm` (email, code, password) creates the account, or gives the checkout buyer's row its name and password (keeping its purchases), and only then issues the session.
+2. **A new table, `sign_up_verifications` (migration `028`).** Each request is one row:
+   - A pending sign-up holds the name, the scrypt hash of the chosen password and a SHA-256 hash of the code salted with the row id.
+   - A request for an email that already has a password, or belongs to staff, is stored as a notice row with no code, and that email gets an "account exists" notice instead of a code.
+   - `confirmed_at` (migration `029`, `ADD COLUMN IF NOT EXISTS`) is set only when a code creates or claims the account; to undo: `ALTER TABLE sign_up_verifications DROP COLUMN confirmed_at`.
+   - Additive; to undo: `DROP TABLE sign_up_verifications`.
+3. **Code rules:**
+   - 6 digits from `crypto.randomInt`.
+   - Valid for 15 minutes, 5 tries each, and only the newest code for an email works.
+   - The try is counted atomically before checking, the comparison is constant-time, and the code is consumed with `UPDATE … WHERE used_at IS NULL RETURNING`, so a race produces exactly one success.
+4. **The confirm repeats the step-1 password.** Found by the independent review (H1), and reproduced: an attacker who asked first with their own password could have that password put on the owner's account when the owner, asking within the cooldown, typed the only code in their inbox. The password is checked with scrypt on every try and fails exactly like a wrong code.
+5. **Throttles, all answered with the same 202:**
+   - Per email: one new code a minute and 5 requests an hour. No new code after 15 failed tries in 24 hours, counting at most 5 per code. The check and the new row are decided under a per-email advisory lock, so simultaneous requests send one code.
+   - A refused confirm always runs one scrypt hash, so its timing does not reveal whether the email has an account.
+   - The existing per-IP limit on `/auth/sign-up` (5 per 15 minutes) also covers `/auth/sign-up/confirm`, because it matches the path prefix.
+6. **Without a mailer, sign-up answers `503 SIGN_UP_UNAVAILABLE`** rather than creating an unverified account.
+7. **Browser tests read codes from a file.** `MAIL_CONSOLE_FILE` (development and browser tests only) makes the console mailer append each email to a file, so the Playwright journey can read the code. It is refused in production and with any transport other than console.
+
+### 3. Alternatives Considered
+
+- **Verify only checkout buyers' emails.** Rejected: the different answer would reveal who has bought something.
+- **Bind the confirm to a cookie set in step 1.** Equivalent protection, but it adds a cookie and depends on cross-site cookie behaviour. Repeating the password needs no new state.
+- **Answer `409` to sign-up for existing accounts, as before.** Rejected for the same disclosure reason. The `409` now appears only after a correct code and password prove the email.
+
+### 4. Reason
+
+A password-less buyer record is only safe if no-one can attach credentials to it without controlling the inbox. Answering every email identically keeps the endpoint from revealing who has an account or has bought something.
+
+### 5. Consequences / Trade-offs
+
+- **Sign-up now needs working email.** Production must have `MAIL_TRANSPORT=resend`, which is already required by DEC-030. Students see a code step.
+- **The throttles can be abused for denial of service.** Anyone can fill an email's hourly cap or daily failure budget and block new codes for that address for up to a day, sending the owner up to 5 emails an hour. A checkout buyer can still claim the account through "Forgot password". Accepted for now; flagged for the owner.
+- **Timing differs slightly between paths.** Every path runs one scrypt hash; the remaining differences are single small database writes.
+- **`POST /api/auth/register` (the legacy profile registration) still creates accounts without email proof** and answers `409` for any existing email. The website no longer calls it; API tests use it as a fixture. Removing or gating it is an owner decision (review finding H2, open).
+- **Accounts claimed before this change were never verified.** A read-only production query can list buyer rows that gained a password through sign-up; whether to force a reset is an owner decision.
+- **Verified:**
+  - API suite: 496 passed.
+  - Web: 23 files, 215 tests passed.
+  - Real PostgreSQL 16.15: 26 passed, including 4 new sign-up race tests run as the restricted application role.
+  - Build, both npm audits (0 vulnerabilities) and e2e (26 passed, including the sign-up journey on desktop and mobile).
+  - Red-green: on unmodified `main` the takeover test fails (`201 !== 202`). Removing each guard (password binding, attempt limit, expiry, hourly cap, daily budget, existing-account check) fails its test. The single-use guard is caught only on real PostgreSQL.
+
+## DEC-032: Milestone A2–A4: Seat Locking and Payment Exceptions
+
+- **Decision ID**: `DEC-032`
+- **Date**: `2026-11-27`
+- **Decision Title**: Lock the batch for every seat change, re-check capacity at capture, and turn captures that cannot confirm a seat into durable payment exceptions
+- **Status**: Implemented & Locally Verified (branch `chore/production-readiness`; not committed, not deployed)
+
+### 1. Context / Problem
+
+- **Checkout overselling.** Checkout counted seats and then inserted, under READ COMMITTED with no lock, so simultaneous checkouts oversold the last seat. On real PostgreSQL, 20 simultaneous checkouts took 19 seats of 3.
+- **Late captures over-filling.** A capture confirmed its seat with no capacity check, even after the 30-minute hold had lapsed.
+- **Unseen double charges.** A second capture for a confirmed seat was only logged.
+
+### 2. Decisions
+
+1. **Every path that takes or confirms a seat locks the batch row first** (`lockBatchRow`): a new hold, a renewed hold, and a capture. Capture then also locks the seat row.
+2. **At capture the payment is always recorded as `PAID`.** The seat is confirmed only if it fits: everyone else's confirmed and held seats must be below capacity, and the seat's own hold is excluded, so a capture inside its hold always fits. Otherwise a payment exception opens:
+   - `CAPTURED_FOR_FULL_BATCH`: the seat stays unconfirmed and no confirmation email is sent.
+   - `CAPTURED_FOR_CONFIRMED_SEAT`: the seat was already paid for by another payment.
+3. **What the buyer sees.** The verify response reports `seatConfirmed`, and the checkout page says "Payment received, seat not confirmed". While that payment's exception is open, the buyer cannot pay again for the seat (`PAYMENT_UNDER_REVIEW`); once staff resolve it, they can. A resolution locks the payment first, so no refund can be requested between its checks and its write.
+4. **Staff resolve exceptions**, never automatically, with one of three resolutions. All need a note, are audited and are final:
+   - `REFUNDED`: needs a processed refund for the full amount through the existing workflow.
+   - `SEAT_CONFIRMED`: full-batch kind only, only while the seat is unconfirmed, the payment has no refund and the batch has room. Staff raise the capacity first to add a seat, so no current holder is displaced. It sends the usual confirmation.
+   - `NO_ACTION`.
+5. **The record itself.**
+   - `payment_exceptions` is unique per payment and kind. It cannot be deleted or truncated, and cannot be edited after resolution.
+   - Migrations `030` and `031`.
+   - Earlier duplicate captures are backfilled as open exceptions.
+
+### 3. Alternatives Considered
+
+- **Refund automatically.** Rejected: there is no approved refund policy. Refunds stay with the audited refunds desk.
+- **Count only confirmed seats at capture.** Rejected: a late payment would then take the seat of someone still within their hold.
+- **SERIALIZABLE transactions.** Rejected: a row lock on the batch is narrower and needs no retry logic.
+
+### 4. Reason
+
+Paid money must never be lost, a batch must never be silently over-filled, and every double or late payment must reach a person who can act on it.
+
+### 5. Consequences / Trade-offs
+
+- **Checkouts and captures for one batch run one at a time.** The lock is brief.
+- **Late window.** A payment authorised inside its hold but captured after it lapsed can become an exception if the seat was taken in between. This window is accepted.
+- **Invoicing.** Once it is switched on, invoices would also be issued for payments with exceptions. That is an owner/CA decision, and selection is unchanged.
+- **No web screen yet.** Exceptions are reached through the API only.
+- **Verified:**
+  - Real-PostgreSQL race tests for checkout, renewal, late captures, double captures, repeated events and a capture racing a checkout.
+  - Each guard was removed temporarily and its test failed.
+
+## DEC-033: Milestone A5–A6: Finance Copy Template and Email Out of Payment Requests
+
+- **Decision ID**: `DEC-033`
+- **Date**: `2026-11-27`
+- **Decision Title**: Give the finance copy its own template and content, send all payment email from the outbox worker only, time out Resend calls, and escape email HTML
+- **Status**: Implemented & Locally Verified (branch `chore/production-readiness`; not committed, not deployed)
+
+### 1. Context / Problem
+
+- **Wrong email to finance.** Finance recipients received the student's confirmation email: the worker ignored the stored "[Finance Copy]" subject.
+- **Email held up payment requests.** Verify and the Razorpay webhook sent up to 20 emails inline before answering, with no timeout on Resend.
+
+### 2. Decisions
+
+1. **A separate finance-copy template.**
+   - Finance copies use template `payment_finance_copy` and `sendPaymentFinanceCopy`.
+   - Subject: `[Finance] Payment received: <topic> (<amount>)`.
+   - Content: name, item, amount and payment reference only, with no student-facing link.
+   - Rows queued by the previous release (template `payment_confirmation` with a `…:finance:` key) are sent the same way.
+2. **Payment requests only queue email.** The existing outbox worker (every 15 seconds, with retries, claim tokens and idempotency keys) is the only sender.
+3. **Resend calls time out after 10 seconds.** A timed-out payment email is retried with the same idempotency key.
+4. **Every interpolated value in email HTML is escaped.** Buyer-typed names can no longer inject links into finance's inbox.
+
+### 3. Alternatives Considered
+
+- **Fire-and-forget sending in the request.** Rejected: delivery would be less reliable than the outbox, and the work would still be tied to request handling.
+- **A second queue.** Rejected: the outbox already provides durability and retries.
+
+### 4. Reason
+
+Each recipient should get only their own message. Payment and webhook responses must not depend on the email provider.
+
+### 5. Consequences / Trade-offs
+
+- **Confirmations arrive up to about 15 seconds after payment.**
+- **Rolling back to code without the finance template** fails those rows after about 21 minutes; they can be requeued.
+- **A legacy finance row attempted just before the deploy** may be refused by Resend on retry (same key, different body). It ends `FAILED`, never duplicated.
+
+## DEC-034: Remove the Legacy Unverified Registration Endpoint
+
+- **Decision ID**: `DEC-034`
+- **Date**: `2026-11-27`
+- **Decision Title**: Remove `POST /api/auth/register`; the verified sign-up is the only way to create a student account
+- **Status**: Implemented & Locally Verified (owner decision; not committed, not deployed)
+
+### 1. Context / Problem
+
+`/api/auth/register` created an account, a student profile and a session for any email with no proof of ownership, and answered `409` for emails already on file. It bypassed DEC-031 and revealed which emails exist. The website no longer called it; API tests used it as a fixture.
+
+### 2. Decisions
+
+1. **The removal.** The route, `registerStudent`, `registerSchema`, `RegisterRequest`, the repository insert and the rate-limit mount are removed. A test asserts the route answers 404 and creates nothing.
+2. **The tests.** The API tests that used it now create students through the verified sign-up helper. The register-specific tests are replaced; equivalent sign-up tests already exist.
+3. **Existing data.** Existing student profiles are kept and still read. No new profiles are created.
+
+### 3. Alternatives Considered
+
+- **Gate the route behind a setting.** Rejected by the owner: an unverified path would remain.
+- **Add the emailed code to `/register`.** Rejected: it would duplicate sign-up.
+
+### 4. Reason
+
+No route may create a usable account without proof of the email.
+
+### 5. Consequences / Trade-offs
+
+- **Profile fields can no longer be collected at sign-up** (class, stream, date of birth). No current screen uses them.
+- **The old route returns 404.** No client calls it.
+
+## DEC-035: Razorpay Deadlines, Batch Status at Capture, and No Invoice While an Exception Is Open
+
+- **Decision ID**: `DEC-035`
+- **Date**: `2026-11-27`
+- **Decision Title**: Bound every Razorpay call; apply checkout's batch rule at capture; never invoice a payment with an open payment exception
+- **Status**: Implemented & Locally Verified (not committed, not deployed)
+
+### 1. Context / Problem
+
+- **Razorpay calls had no deadline**, so a stalled request could hold checkout, verify or a refund open indefinitely.
+- **Capture checked capacity only**, not whether the batch was still active and not yet started.
+- **Owner decision:** keep invoicing off and never invoice an unresolved exception.
+
+### 2. Decisions
+
+1. **Deadlines.** Every Razorpay call must start answering within 10 seconds and finish within 20 seconds, body included.
+   - A missed deadline is treated as a network failure, and its outcome is unknown: reads answer null, refunds stay pending under the same idempotency key, and orders are refused with "try again".
+   - Payment state changes only on Razorpay's evidence.
+2. **Batch status at capture.** Capture applies `resolveBatchAvailability` under the batch and seat locks.
+   - A full batch opens `CAPTURED_FOR_FULL_BATCH`.
+   - An inactive, upcoming or already-started batch opens `CAPTURED_FOR_UNAVAILABLE_BATCH` (migration `032`, superset checks).
+   - In both cases the payment is recorded and the seat is not confirmed.
+3. **Seat decisions.** `SEAT_CONFIRMED` now also requires the batch to be open.
+4. **Invoices.** The invoice job skips payments with an open exception, and payments whose exception was resolved as refunded or no action, where nothing was supplied. Only a `SEAT_CONFIRMED` resolution makes a payment invoiceable again. The issuing service refuses them too, as a second line of defence (`PAYMENT_EXCEPTION_NOT_INVOICEABLE`).
+5. **The expiry job.** It counts a Razorpay payment as captured only if its status is `captured`, or `refunded` with Razorpay's `captured` flag true. An auto-refunded authorisation is never a sale (review finding H1).
+6. **Sign-up limits.** Sign-up requests and code confirmations are limited separately per IP: 5 and 10 per 15 minutes.
+
+### 3. Alternatives Considered
+
+- **An undici agent with a separate connect timeout.** Rejected: it adds a dependency. The response-start deadline bounds the connection and Node's built-in connect timeout still applies underneath.
+- **Confirming seats in started batches.** Rejected: the student would join a course already under way without a decision by staff.
+
+### 4. Reason
+
+Payment requests must not hang, and a payment must never silently produce an invalid seat or an invoice for a disputed sale.
+
+### 5. Consequences / Trade-offs
+
+- **A slow Razorpay can make checkout fail with "try again".** Verify can likewise show "confirming" until the webhook arrives.
+- **Migration 032** briefly locks `payment_events`, as 030 does.
+- **Verified:**
+  - In-memory and real-PostgreSQL tests, including a capture racing a batch being deactivated.
+  - Removing each guard made its test fail.

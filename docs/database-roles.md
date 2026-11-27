@@ -52,6 +52,28 @@ Database triggers (migrations 018–020) also guard these tables for every role,
    - write access to `schema_migrations`.
 4. `npm run db:seed` uses the migration role when one is set.
 
+### PostgreSQL 16 and Render: the owner's automatic membership
+
+On Render the migration role is not a superuser; it has `CREATEROLE` and creates the application role itself. From PostgreSQL 16, a role created that way is automatically granted to its creator. The grant has **ADMIN OPTION only, with INHERIT and SET both false**, and the bootstrap superuser is recorded as its grantor. As a result:
+
+| The migration role…                                                  | With the automatic membership only                         |
+| :------------------------------------------------------------------- | :--------------------------------------------------------- |
+| uses the application role's privileges (`INHERIT`)                   | **No**                                                     |
+| becomes the application role (`SET ROLE`)                            | **No**                                                     |
+| removes the membership (`REVOKE`)                                    | **No**: it was not the grantor, so nothing happens         |
+| grants itself `INHERIT`/`SET` on the application role later          | **Yes**, through its ADMIN OPTION                          |
+| changes the application role's password, or grants it to other roles | **Yes**, through its ADMIN OPTION                          |
+| is reached from the application role                                 | **No**: the application role cannot grant itself the owner |
+
+Each row was checked on PostgreSQL 16.15, with a `CREATEROLE` owner creating the application role and signing in as itself. `SET ROLE` is judged by the role you signed in as, so a test session signed in as a superuser does not show this.
+
+What the start-up check therefore guarantees, and what it does not:
+
+- **At every start**, the migration role can neither use nor become the application role (`pg_has_role(..., 'USAGE')` and `pg_has_role(..., 'SET')` are false); on PostgreSQL 15 and older, where any membership allows `SET ROLE`, it must not be a member at all. The ADMIN-only membership is allowed because it grants neither. This is what PR #44 changed.
+- **Between starts nothing is watched.** If the migration role later grants itself `INHERIT` or `SET`, or a host setting (`createrole_self_grant`) adds them when the role is created, the next start refuses with `DatabaseRoleError`.
+- **What the owner could gain is nothing it does not already have.** The application role's privileges are a subset of the owner's on tables the owner owns. The ADMIN OPTION does let whoever holds `MIGRATION_DATABASE_URL` reset the application role's password; that credential already controls the schema and data, so it is treated as the most sensitive secret.
+- **The dangerous direction is checked strictly.** The application role must not be a member of the owner in any way (`pg_has_role(..., 'MEMBER')`), and the start-up inspection of the application role (step 3, on its first connection) still refuses any table it owns, any superuser-like attribute, and any write access beyond its grants.
+
 The real-PostgreSQL test is `api/src/db/applicationRole.postgres.test.ts`. It exercises every misconfiguration above, every bypass attempt and the whole money path as the restricted role. Run it with `npm run test:postgres -w api`, which requires `TEST_DATABASE_URL`.
 
 ## Production setup (one-time, by the database administrator)

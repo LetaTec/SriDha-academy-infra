@@ -126,7 +126,7 @@ This populates the initial subject topics, lessons, and batch cohorts into produ
 Verify each critical path after deployment:
 
 - [ ] **Health Check**: `GET https://api.sridhaacademy.com/api/health` returns `status: ok` and `database: connected`.
-- [ ] **CORS Preflight**: `OPTIONS https://api.sridhaacademy.com/api/auth/register` with `Origin: https://sridhaacademy.com` returns `204 No Content` and `Access-Control-Allow-Credentials: true`.
+- [ ] **CORS Preflight**: `OPTIONS https://api.sridhaacademy.com/api/auth/sign-up` with `Origin: https://sridhaacademy.com` returns `204 No Content` and `Access-Control-Allow-Credentials: true`.
 - [ ] **Catalogue Discovery**: Visiting `https://sridhaacademy.com/batches` renders live topics without error alerts.
 - [ ] **Student Registration**: Register a test account. Verify `leta_session` cookie is received with `HttpOnly`, `SameSite=Lax`, and `Secure`.
 - [ ] **Session Restoration**: Refresh the browser; student name and profile must remain active.

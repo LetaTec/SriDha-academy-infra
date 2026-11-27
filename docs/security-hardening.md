@@ -49,13 +49,13 @@ The API enforces strict rate limits using `express-rate-limit` to prevent brute-
 
 ### Rate Limit Configuration Matrix
 
-| Endpoint                           | Method | Window     | Max Attempts | Limiter Name                  | Protection Goal                                 |
-| :--------------------------------- | :----- | :--------- | :----------- | :---------------------------- | :---------------------------------------------- |
-| `/api/auth/login`                  | `POST` | 15 minutes | 10           | `loginLimiter`                | Prevent brute-force password guessing           |
-| `/api/auth/register`               | `POST` | 15 minutes | 5            | `registerLimiter`             | Prevent automated bot account creation          |
-| `/api/auth/password-reset`         | `POST` | 15 minutes | 5            | `passwordResetRequestLimiter` | Prevent email flooding / spam                   |
-| `/api/auth/password-reset/confirm` | `POST` | 15 minutes | 10           | `passwordResetConfirmLimiter` | Prevent brute-force token enumeration           |
-| `/api/enquiries`                   | `POST` | 15 minutes | 10           | `enquiryLimiter`              | Prevent waitlist form flooding & table bloating |
+| Endpoint                                     | Method | Window     | Max Attempts | Limiter Name                  | Protection Goal                                                                     |
+| :------------------------------------------- | :----- | :--------- | :----------- | :---------------------------- | :---------------------------------------------------------------------------------- |
+| `/api/auth/login`                            | `POST` | 15 minutes | 10           | `loginLimiter`                | Prevent brute-force password guessing                                               |
+| `/api/auth/sign-up` (and `/sign-up/confirm`) | `POST` | 15 minutes | 5            | `registerLimiter`             | Limit sign-up requests and code guesses (`/api/auth/register` was removed, DEC-034) |
+| `/api/auth/password-reset`                   | `POST` | 15 minutes | 5            | `passwordResetRequestLimiter` | Prevent email flooding / spam                                                       |
+| `/api/auth/password-reset/confirm`           | `POST` | 15 minutes | 10           | `passwordResetConfirmLimiter` | Prevent brute-force token enumeration                                               |
+| `/api/enquiries`                             | `POST` | 15 minutes | 10           | `enquiryLimiter`              | Prevent waitlist form flooding & table bloating                                     |
 
 ### Rate Limit Exceeded Response
 
