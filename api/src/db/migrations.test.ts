@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import { seedCatalogue } from './catalogueSeed.js';
 import { openDatabase, runMigrations } from './client.js';
 import { MIGRATIONS } from './migrations.js';
+import { SESSION_ONE_ROSTER } from './sessionOneRoster.js';
 import { TOPIC_LIBRARY } from './topicLibrary.js';
 
 const CARD_FIELDS_MIGRATION = '007_topic_card_fields';
@@ -738,6 +739,107 @@ describe('migration 023: provider refund ids are never blank or padded', () => {
          WHERE conname = 'payment_refunds_provider_refund_id_clean'`,
       );
       assert.equal(constraint?.convalidated, true);
+    } finally {
+      await db.close();
+    }
+  });
+});
+
+const ROSTER_QNA_MIGRATION = '031_roster_topic_qna_lesson';
+const QNA_LESSON_TITLE = 'Q&A session';
+const ROSTER_TOPIC_IDS = new Set(
+  SESSION_ONE_ROSTER.map(({ topicId }) => topicId),
+);
+
+describe('Q&A curriculum for roster topics', () => {
+  it('adds one Q&A item to every topic represented in the batch roster', () => {
+    for (const topicId of ROSTER_TOPIC_IDS) {
+      const topic = TOPIC_LIBRARY.find(item => item.id === topicId);
+      assert.ok(topic, `${topicId} exists in the topic library`);
+      assert.equal(
+        topic.lessons.filter(lesson => lesson === QNA_LESSON_TITLE).length,
+        1,
+        topicId,
+      );
+      assert.equal(topic.lessons.at(-1), QNA_LESSON_TITLE, topicId);
+    }
+
+    const topicWithoutRosterBatches = TOPIC_LIBRARY.find(
+      topic => topic.id === 'topic_accounts_gst_class_11',
+    );
+    assert.ok(topicWithoutRosterBatches);
+    assert.ok(!topicWithoutRosterBatches.lessons.includes(QNA_LESSON_TITLE));
+  });
+
+  it('backfills each published roster topic once without changing batch schedules', async () => {
+    const db = await openDatabase(':memory:');
+    try {
+      await seededWithout(db, ROSTER_QNA_MIGRATION);
+      await db.query('DELETE FROM lessons WHERE title = $1', [
+        QNA_LESSON_TITLE,
+      ]);
+
+      const batchSnapshot = async () =>
+        db.all<Record<string, unknown>>(
+          `SELECT id, topic_id, schedule_label, start_date, start_time,
+                  session_count, session_duration_minutes, status, position
+           FROM batches ORDER BY id`,
+        );
+      const batchesBefore = await batchSnapshot();
+
+      await runOnly(db, ROSTER_QNA_MIGRATION);
+      const migration = MIGRATIONS.find(
+        item => item.id === ROSTER_QNA_MIGRATION,
+      );
+      assert.ok(migration);
+      await db.exec(migration.sql);
+
+      const rows = await db.all<{
+        id: string;
+        topic_id: string;
+        title: string;
+        duration_minutes: number | null;
+        position: number;
+      }>(
+        `SELECT id, topic_id, title, duration_minutes, position
+         FROM lessons WHERE title = $1 ORDER BY topic_id`,
+        [QNA_LESSON_TITLE],
+      );
+      assert.equal(rows.length, ROSTER_TOPIC_IDS.size);
+      assert.deepEqual(
+        new Set(rows.map(row => row.topic_id)),
+        ROSTER_TOPIC_IDS,
+      );
+      for (const row of rows) {
+        assert.equal(row.id, `lesson_${row.topic_id.replace(/^topic_/, '')}_5`);
+        assert.equal(row.duration_minutes, null);
+        assert.equal(row.position, 4);
+      }
+
+      assert.deepEqual(
+        await db.all(
+          `SELECT id, topic_id, schedule_label, start_date, start_time,
+                  session_count, session_duration_minutes, status, position
+           FROM batches ORDER BY id`,
+        ),
+        batchesBefore,
+      );
+      assert.equal(
+        await db.get(
+          `SELECT 1 FROM lessons
+           WHERE topic_id = 'topic_accounts_gst_class_11'
+             AND title = $1`,
+          [QNA_LESSON_TITLE],
+        ),
+        null,
+      );
+
+      await seedCatalogue(db);
+      const seededQnaCount = await db.get<{ count: number }>(
+        `SELECT COUNT(*)::int AS count FROM lessons WHERE title = $1`,
+        [QNA_LESSON_TITLE],
+      );
+      assert.equal(seededQnaCount?.count, ROSTER_TOPIC_IDS.size);
     } finally {
       await db.close();
     }

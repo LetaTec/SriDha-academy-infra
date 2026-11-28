@@ -1645,4 +1645,41 @@ export const MIGRATIONS: readonly Migration[] = [
       ON CONFLICT (session_id) DO NOTHING;
     `,
   },
+  {
+    id: '031_roster_topic_qna_lesson',
+    sql: `
+      WITH published_topics AS (
+        SELECT DISTINCT t.id AS topic_id
+        FROM topics t
+        JOIN chapters c ON c.id = t.chapter_id
+        JOIN subjects s ON s.id = c.subject_id
+        JOIN batches b ON b.topic_id = t.id
+        WHERE s.status = 'AVAILABLE'
+          AND b.status IN ('OPEN', 'UPCOMING')
+      ),
+      lesson_positions AS (
+        SELECT topic_id, COUNT(*) AS lesson_count,
+               COALESCE(MAX(position), -1) + 1 AS next_position
+        FROM lessons
+        GROUP BY topic_id
+      )
+      INSERT INTO lessons (id, topic_id, title, duration_minutes, position)
+      SELECT
+        'lesson_' || SUBSTRING(published_topics.topic_id FROM 7) || '_' ||
+          (COALESCE(lesson_positions.lesson_count, 0) + 1)::TEXT,
+        published_topics.topic_id,
+        'Q&A session',
+        NULL,
+        COALESCE(lesson_positions.next_position, 0)
+      FROM published_topics
+      LEFT JOIN lesson_positions
+        ON lesson_positions.topic_id = published_topics.topic_id
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM lessons existing
+        WHERE existing.topic_id = published_topics.topic_id
+          AND existing.title = 'Q&A session'
+      );
+    `,
+  },
 ];

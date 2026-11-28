@@ -3,8 +3,10 @@
 // that have a topic test (web/src/constants/topicTestPapers.ts), which have
 // no batches. This list is the only copy: the seed writes it to the
 // database and the website reads it from GET /api/catalogue. Add a topic
-// here when the roster adds one, then run `npm run db:seed` against each
-// database.
+// here when the roster adds one. Roster topics receive a Q&A curriculum
+// item automatically.
+
+import { SESSION_ONE_ROSTER } from './sessionOneRoster.js';
 
 export type LibrarySubject =
   | 'accountancy'
@@ -32,7 +34,7 @@ export type LibraryTopic = {
   featuredRank?: number;
 };
 
-export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
+const TOPIC_LIBRARY_CONTENT: readonly LibraryTopic[] = [
   {
     id: 'topic_mathematics_alphabet_test_class_8',
     subject: 'mathematics',
@@ -338,3 +340,14 @@ export const TOPIC_LIBRARY: readonly LibraryTopic[] = [
     icon: 'topicPartnership',
   },
 ];
+
+const ROSTER_TOPIC_IDS = new Set(
+  SESSION_ONE_ROSTER.map(({ topicId }) => topicId),
+);
+
+export const TOPIC_LIBRARY: readonly LibraryTopic[] = TOPIC_LIBRARY_CONTENT.map(
+  topic =>
+    ROSTER_TOPIC_IDS.has(topic.id)
+      ? { ...topic, lessons: [...topic.lessons, 'Q&A session'] }
+      : topic,
+);
