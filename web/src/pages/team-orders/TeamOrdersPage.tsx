@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import cx from 'classnames/bind';
 
-import { canViewTeamOrders } from '@/access/team';
+import { canViewTeamLoginActivity, canViewTeamOrders } from '@/access/team';
 import { Button } from '@components/ui/Button/Button';
 import { EmptyState } from '@components/ui/EmptyState/EmptyState';
 import { Heading } from '@components/ui/Heading/Heading';
@@ -24,6 +24,7 @@ import { useTeamOrders } from '@hooks/useTeamOrders';
 import { formatPaise } from '@utils/currency';
 import { formatDateTime } from '@utils/date';
 
+import { TodayLoginsPanel } from './components/TodayLoginsPanel/TodayLoginsPanel';
 import styles from './TeamOrdersPage.module.css';
 
 const cn = cx.bind(styles);
@@ -35,6 +36,7 @@ const TITLE_ID = 'team-orders-title';
 const TeamOrdersPage = () => {
   const auth = useAuth();
   const canView = canViewTeamOrders(auth);
+  const canViewLoginActivity = canViewTeamLoginActivity(auth);
   const { orders, isLoading, hasError, reload } = useTeamOrders(canView);
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -106,6 +108,8 @@ const TeamOrdersPage = () => {
               },
             ]}
           />
+
+          {canViewLoginActivity ? <TodayLoginsPanel /> : null}
 
           <div className={cn('filter')}>
             <Select

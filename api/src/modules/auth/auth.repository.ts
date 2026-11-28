@@ -230,6 +230,17 @@ export const insertSession = (
     [session.id, session.userId, session.createdAt, session.expiresAt],
   );
 
+export const insertSessionHistory = (
+  db: DatabaseClient,
+  session: { id: string; userId: string; createdAt: string },
+) =>
+  db.query(
+    `INSERT INTO auth_session_history
+      (session_id, user_id, started_at)
+     VALUES ($1, $2, $3)`,
+    [session.id, session.userId, session.createdAt],
+  );
+
 export const findSession = (db: DatabaseClient, sessionId: string) =>
   db.get<{ user_id: string; expires_at: string | Date }>(
     'SELECT user_id, expires_at FROM sessions WHERE id = $1',

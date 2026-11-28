@@ -1,5 +1,6 @@
 // The team's views. See catalogue.ts for what this folder is.
 
+import type { UserRole } from './auth.js';
 import type {
   CheckoutKind,
   PaymentProvider,
@@ -33,3 +34,11 @@ export type TeamOrder = {
 };
 
 export type TeamOrdersResponse = { orders: TeamOrder[] };
+
+export type TeamTodayLogin = {
+  email: string;
+  role: UserRole;
+  startedAt: string;
+};
+
+export type TeamTodayLoginsResponse = { logins: TeamTodayLogin[] };

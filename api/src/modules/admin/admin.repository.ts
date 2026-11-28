@@ -24,3 +24,17 @@ export const listOrderRows = (db: DatabaseClient, limit: number) =>
      LIMIT $1`,
     [limit],
   );
+
+export const listTodayLoginRows = (
+  db: DatabaseClient,
+  startAt: string,
+  endAt: string,
+) =>
+  db.all<Row>(
+    `SELECT u.email, u.role, h.started_at
+     FROM auth_session_history h
+     JOIN users u ON u.id = h.user_id
+     WHERE h.started_at >= $1 AND h.started_at < $2
+     ORDER BY h.started_at DESC, h.session_id`,
+    [startAt, endAt],
+  );

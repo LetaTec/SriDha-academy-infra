@@ -1,6 +1,7 @@
 import type { AppContext } from '../../app/context.js';
-import type { TeamOrder } from '../../contracts/admin.js';
-import { listOrderRows } from './admin.repository.js';
+import type { TeamOrder, TeamTodayLogin } from '../../contracts/admin.js';
+import { listOrderRows, listTodayLoginRows } from './admin.repository.js';
+import { toUserRole } from '../auth/roles.js';
 import { CHECKOUT_KIND } from '../payments/payments.service.js';
 
 // The most recent orders the team can see at once
@@ -41,5 +42,41 @@ export const listTeamOrders = async ({
       state: row.billing_state === null ? null : String(row.billing_state),
       city: row.billing_city === null ? null : String(row.billing_city),
     },
+  }));
+};
+
+const IST_OFFSET_MS = 330 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const startOfIndiaDay = (now: Date) => {
+  const indiaNow = new Date(now.getTime() + IST_OFFSET_MS);
+  return new Date(
+    Date.UTC(
+      indiaNow.getUTCFullYear(),
+      indiaNow.getUTCMonth(),
+      indiaNow.getUTCDate(),
+    ) - IST_OFFSET_MS,
+  );
+};
+
+export const listTodayTeamLogins = async ({
+  db,
+  now,
+}: AppContext): Promise<TeamTodayLogin[]> => {
+  const startAt = startOfIndiaDay(now());
+  const endAt = new Date(startAt.getTime() + DAY_MS);
+  const rows = await listTodayLoginRows(
+    db,
+    startAt.toISOString(),
+    endAt.toISOString(),
+  );
+
+  return rows.map(row => ({
+    email: String(row.email),
+    role: toUserRole(row.role),
+    startedAt:
+      row.started_at instanceof Date
+        ? row.started_at.toISOString()
+        : new Date(String(row.started_at)).toISOString(),
   }));
 };

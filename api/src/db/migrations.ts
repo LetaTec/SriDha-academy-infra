@@ -1623,4 +1623,26 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    // Keep successful session starts so today's logins remain visible after
+    // a user signs out. Existing live sessions are included once.
+    // To undo:
+    //   DROP TABLE auth_session_history;
+    id: '030_auth_session_history',
+    sql: `
+      CREATE TABLE auth_session_history (
+        session_id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        started_at TIMESTAMPTZ NOT NULL
+      );
+
+      CREATE INDEX auth_session_history_started_at_idx
+        ON auth_session_history (started_at DESC);
+
+      INSERT INTO auth_session_history
+        (session_id, user_id, started_at)
+      SELECT id, user_id, created_at FROM sessions
+      ON CONFLICT (session_id) DO NOTHING;
+    `,
+  },
 ];
