@@ -54,7 +54,8 @@ describe('catalogue and enrolments', () => {
           item.id === 'topic_accountancy_rectification_of_errors_class_11',
       );
     assert.equal(topic.title, 'Learn Rectification of errors for Class 11');
-    assert.equal(topic.lessons.length, 4);
+    assert.equal(topic.lessons.length, 5);
+    assert.equal(topic.lessons.at(-1).title, 'Q&A session');
     assert.deepEqual(topic.price, {
       amountPaise: 12900,
       currency: 'INR',
@@ -104,7 +105,8 @@ describe('catalogue and enrolments', () => {
     assert.equal(enrolment.status, 'PENDING_PAYMENT');
     assert.equal(enrolment.batch.id, NOVEMBER_BATCH);
     assert.equal(enrolment.batch.seatsRemaining, 299);
-    assert.equal(enrolment.topic.lessons.length, 4);
+    assert.equal(enrolment.topic.lessons.length, 5);
+    assert.equal(enrolment.topic.lessons.at(-1).title, 'Q&A session');
 
     const row = await server.db.get<{ user_id: string }>(
       'SELECT user_id FROM enrolments WHERE id = $1',

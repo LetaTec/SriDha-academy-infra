@@ -50,17 +50,13 @@
   border-top: var(--border-width-base) solid var(--color-border-base);
 }
 
-/* The batch's dates, on a grey band like a booking's stay dates */
+/* Test details or the first-batch notice when there is no batch to select */
 .strip {
   display: grid;
   gap: var(--space-1-5);
   padding: var(--space-2-5) var(--space-3);
   border-top: var(--border-width-base) solid var(--color-border-base);
   background: var(--color-bg-subtle);
-}
-
-.batchName {
-  margin: 0;
 }
 
 @media (--viewport-sm) {

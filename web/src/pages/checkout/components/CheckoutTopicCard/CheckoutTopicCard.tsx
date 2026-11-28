@@ -1,23 +1,16 @@
 import cx from 'classnames/bind';
 
-import { formatBatchEnrolment } from '@components/catalogue/batchDetails';
 import { TutorProfile } from '@components/catalogue/TutorProfile/TutorProfile';
 import { Heading } from '@components/ui/Heading/Heading';
 import { Icon } from '@components/ui/Icon/Icon';
 import { KeyValueList } from '@components/ui/KeyValueList/KeyValueList';
 import { Text } from '@components/ui/Text/Text';
-import { CATALOGUE_TEXT } from '@constants/catalogue';
 import { CHECKOUT_TEXT, TEST_CHECKOUT_TEXT } from '@constants/payments';
 import {
   findTeacher,
   type Batch,
   type TopicPreview,
 } from '@services/catalogue';
-import {
-  formatDateOnly,
-  formatWallClockRange,
-  formatWallClockTime,
-} from '@utils/date';
 
 import styles from './CheckoutTopicCard.module.css';
 
@@ -33,11 +26,7 @@ export type CheckoutTopicCardProps = {
   isEnrolment: boolean;
 };
 
-const orToBeAnnounced = <T,>(value: T | null, format: (value: T) => string) =>
-  value === null ? CATALOGUE_TEXT.toBeAnnounced : format(value);
-
-// What the student is paying for: the topic, who teaches it, then a strip
-// with the chosen batch's dates, like the stay dates on a booking.
+// What the student is paying for: the topic and who teaches it.
 export const CheckoutTopicCard = ({
   preview,
   batch,
@@ -59,40 +48,15 @@ export const CheckoutTopicCard = ({
           value: TEST_CHECKOUT_TEXT.oneAttempt,
         },
       ]
-    : batch
-      ? [
-          {
-            label: CHECKOUT_TEXT.startsLabel,
-            value: orToBeAnnounced(batch.startDate, formatDateOnly),
-          },
-          {
-            label: CHECKOUT_TEXT.timeLabel,
-            value: orToBeAnnounced(batch.startTime, start =>
-              batch.sessionDurationMinutes
-                ? formatWallClockRange(start, batch.sessionDurationMinutes)
-                : formatWallClockTime(start),
-            ),
-          },
-          {
-            label: CHECKOUT_TEXT.sessionsLabel,
-            value: orToBeAnnounced(
-              batch.sessionCount,
-              CATALOGUE_TEXT.sessionCount,
-            ),
-          },
-          {
-            label: CHECKOUT_TEXT.seatsLabel,
-            value: orToBeAnnounced(formatBatchEnrolment(batch), line => line),
-          },
-        ]
-      : [
-          {
-            label: CHECKOUT_TEXT.firstBatchLabel,
-            value: CHECKOUT_TEXT.firstBatchValue,
-          },
-        ];
+    : [
+        {
+          label: CHECKOUT_TEXT.firstBatchLabel,
+          value: CHECKOUT_TEXT.firstBatchValue,
+        },
+      ];
 
   const teacher = test ? null : findTeacher(preview, batch);
+  const showDetails = test !== undefined || batch === null;
 
   return (
     <article className={cn('card')}>
@@ -136,14 +100,11 @@ export const CheckoutTopicCard = ({
         <TutorProfile tutor={teacher} className={cn('tutor')} />
       ) : null}
 
-      <div className={cn('strip')}>
-        {batch ? (
-          <Text as="p" variant="strong" className={cn('batchName')}>
-            {batch.name}
-          </Text>
-        ) : null}
-        <KeyValueList items={items} columns={2} />
-      </div>
+      {showDetails ? (
+        <div className={cn('strip')}>
+          <KeyValueList items={items} columns={2} />
+        </div>
+      ) : null}
     </article>
   );
 };
