@@ -20,6 +20,8 @@ export const PERMISSION = {
   viewFinanceReports: [USER_ROLE.superAdmin, USER_ROLE.financeAdmin],
   // The append-only audit trail
   viewAuditLog: [USER_ROLE.superAdmin],
+  // Sign-in activity contains account email addresses
+  viewLoginActivity: [USER_ROLE.superAdmin],
   // Recording or revoking the CA's tax configuration approval (one of the
   // two switches for invoicing). Super admins only until the owner decides
   // otherwise.

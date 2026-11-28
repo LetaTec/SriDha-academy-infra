@@ -6,6 +6,7 @@ import { QueryClient } from '@tanstack/react-query';
 export const QUERY_KEY = {
   catalogue: ['catalogue'],
   teamOrders: ['team-orders'],
+  todayTeamLogins: ['today-team-logins'],
   refunds: ['refunds'],
   myBatches: ['my-batches'],
   // One topic's attempts are ['test-attempts', topicId]

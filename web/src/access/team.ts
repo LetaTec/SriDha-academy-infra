@@ -11,6 +11,9 @@ const PAYMENT_VIEWERS: readonly UserRole[] = [
 export const canViewTeamOrders = (auth: AuthContextValue) =>
   auth.user ? PAYMENT_VIEWERS.includes(auth.user.role) : false;
 
+export const canViewTeamLoginActivity = (auth: AuthContextValue) =>
+  auth.user?.role === USER_ROLE.superAdmin;
+
 export const canViewRefunds = (auth: AuthContextValue) =>
   auth.user ? PAYMENT_VIEWERS.includes(auth.user.role) : false;
 

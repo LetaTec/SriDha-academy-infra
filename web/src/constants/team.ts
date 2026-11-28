@@ -63,3 +63,22 @@ export const TEAM_ORDERS_TEXT = {
   forbiddenTitle: 'This page is for the SriDha Academy team',
   forbiddenMessage: 'Sign in with a team account to see orders and payments',
 } as const;
+
+export const TODAY_LOGINS_TEXT = {
+  title: "Today's sign-ins",
+  description:
+    'Successful sign-ins today in India Standard Time; earlier signed-out sessions may not be available',
+  tableCaption: 'Accounts that signed in today, newest first',
+  account: 'Account',
+  accountType: 'Account type',
+  signedIn: 'Signed in',
+  noLogins: 'No sign-ins recorded today',
+  loadError: "Today's sign-ins could not be loaded",
+  retry: 'Try again',
+  roleLabels: {
+    STUDENT: 'Student',
+    SUPER_ADMIN: 'Owner / team',
+    FINANCE_ADMIN: 'Finance team',
+    OPERATIONS_ADMIN: 'Operations team',
+  },
+} as const;

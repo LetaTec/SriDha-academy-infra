@@ -1,7 +1,7 @@
 import type { CookieOptions, RequestHandler, Response } from 'express';
 
 import type { AppContext } from '../../app/context.js';
-import type { DatabaseClient } from '../../db/client.js';
+import { transaction, type DatabaseClient } from '../../db/client.js';
 import { ApiError, ERROR_CODE } from '../../http/errors.js';
 import { logger } from '../../logging/logger.js';
 import {
@@ -9,6 +9,7 @@ import {
   deleteSessionsForUser,
   findSession,
   insertSession,
+  insertSessionHistory,
 } from './auth.repository.js';
 import { generateToken, hashToken } from './tokens.js';
 
@@ -51,11 +52,16 @@ export const createSession = async (
     : context.config.sessionTtlMs;
   const expiresAt = new Date(now.getTime() + ttl);
 
-  await insertSession(context.db, {
+  const session = {
     id: hashToken(token),
     userId,
     createdAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
+  };
+
+  await transaction(context.db, async tx => {
+    await insertSession(tx, session);
+    await insertSessionHistory(tx, session);
   });
 
   return { token, expiresAt };
